@@ -1,5 +1,7 @@
 # env variables
-$commitID = $env:commitid
+#$commitID = $env:commitid
+# First we will build once per day and not per commit, so the commitID will be a timestamp for the folder naming
+$commitID = (get-date -f hh_mm-yyyy_MM_dd)
 
 # Path variables
 $baseDir = "C:\mesos"
