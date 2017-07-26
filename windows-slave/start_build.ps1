@@ -62,9 +62,9 @@ CheckLocalPaths
 GitClonePull $gitcloneDir $mesos_git_url
 
 # Set the commitID we are working with
-Set-GitCommidID $commitID
-
-Set-commitInfo
+# We don't yet run per commit build, just one per day so no commitID is necesarry
+#Set-GitCommidID $commitID
+#Set-commitInfo
 
 # run config on the repo
 pushd $commitbuildDir
