@@ -1,12 +1,20 @@
 function CheckLocalPaths {
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $baseDir
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $buildDir
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $binariesDir
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitbinariesDir
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $commitbinariesDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $logDir
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitlogDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitlogDir
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitbuildDir
+}
+
+function CreateRemotePaths ($remotedirPath) {
+    $remoteCMD = "mkdir -p $remotedirPath"
+    ExecSSHCmd $remoteServer $remoteUser $remoteKey $remoteCMD
 }
 
 function GitClonePull($path, $url, $branch="master") {
@@ -93,6 +101,42 @@ function ExecRetry ($command, $maxRetryCount = 10, $retryInterval=2) {
     $ErrorActionPreference = $currErrorActionPreference
 }
 
+function ExecSSHCmd ($server, $user, $key, $cmd) {
+    write-host "Running ssh command $cmd on remote server $server"
+    echo Y | plink.exe $server -l $user -i $key $cmd
+}
+
+function ExecSCPCmd ($server, $user, $key, $localPath, $remotePath) {
+    write-host "Starting copying $localPath to remote location ${server}:${remotePath}"
+    echo Y | pscp.exe -scp -r -i $key $localPath $user@${server}:${remotePath}
+}
+
+function Copy-RemoteLogs ($locallogPath, $remotelogPath) {
+    write-host "Started copying logs to remote location ${server}:${remotelogPath}"
+    ExecSCPCmd $remoteServer $remoteUser $remoteKey $locallogPath $remotelogPath
+}
+
+function Copy-RemoteBinaries ($localbinariesPath) {
+    write-host "Started copying generated binaries to remote location ${server}:${remotemsiPath}"
+    ExecSCPCmd $remoteServer $remoteUser $remoteKey $localbinariesPath $remotebinariesPath
+}
+
+function CompressLogs ( $logsPath ) {
+    $logfiles = Get-ChildItem -File -Recurse -Path $logsPath | Where-Object { $_.Extension -ne ".gz" }
+    foreach ($file in $logfiles) {
+        $filename = $file.name
+        $directory = $file.DirectoryName
+        $extension = $file.extension
+        if (!$extension) {
+            $name = $file.name + ".txt"
+        }
+        else {
+            $name = $file.name
+        }
+        &7z.exe a -tgzip "$directory\$name.gz" "$directory\$filename" -sdel
+    }
+}
+
 function Cleanup {
     $msbuildprocess = Get-Process MSBuild* -ErrorAction SilentlyContinue
     $cmakeprocess = Get-Process cmake* -ErrorAction SilentlyContinue
@@ -105,7 +149,7 @@ function Cleanup {
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
 }
 
-function CopyBinaries {
+function CopyLocalBinaries {
     $binaries_path = "$commitbuildDir\src"
     if ( Test-Path -Path $binaries_path ) {
         Copy-Item -Force "$binaries_path\*.exe" "$commitbinariesDir\"

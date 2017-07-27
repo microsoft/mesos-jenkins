@@ -12,6 +12,8 @@ $has_vs2017 = Test-Path -Path $vs2017_path
 $has_gnu = Test-Path -Path $gnu_path
 $has_python = Test-Path -Path $python_path
 $has_cmake = Test-Path -Path $cmake_path
+$has_putty = Test-Path -Path $putty_path
+$has_7zip = Test-Path -Path $7zip_path
 
 if (! $has_git) {
     write-host "No git installation detected. Will install"
@@ -44,6 +46,22 @@ if (! $has_python) {
     Start-Process -FilePath msiexec.exe -ArgumentList "/qn","/i","$tempDir\python27.msi" -Wait -PassThru  #"/ALLUSERS=1",
 }
 
+if (! $has_putty) {
+    write-host "No putty installation detecte. Will install"
+    write-host "Downloading installer"
+    Invoke-WebRequest -UseBasicParsing -Uri $putty_url -OutFile "$tempDir\putty.msi"
+    write-host "Installing putty"
+    Start-Process -FilePath msiexec.exe -ArgumentList "/q","/i","$tempDir\putty.msi" -Wait -PassThru
+}
+
+if (! $has_7zip) {
+    write-host "No 7zip installation detecte. Will install"
+    write-host "Downloading installer"
+    Invoke-WebRequest -UseBasicParsing -Uri $7zip_url -OutFile "$tempDir\7zip.msi"
+    write-host "Installing 7zip"
+    Start-Process -FilePath msiexec.exe -ArgumentList "/q","/i","$tempDir\7zip.msi" -Wait -PassThru
+}
+
 if (! $has_vs2017) {
     write-host "No Visual Studio 2017 Community Edition installation detected. Will install"
     write-host "Downloading installer"
@@ -58,8 +76,11 @@ $env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Fi
 # Check and create if the paths are not present
 CheckLocalPaths
 
+# Create remote log paths
+CreateRemotePaths $remotelogdirPath
+
 # Clone the mesos repo
-GitClonePull $gitcloneDir $mesos_git_url
+GitClonePull $gitcloneDir $mesos_git_url $branch
 
 # Set the commitID we are working with
 # We don't yet run per commit build, just one per day so no commitID is necesarry
@@ -75,7 +96,8 @@ pushd $commitbuildDir
 & cmake --build . --target stout-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-stout-tests.log"
 
 if ($LastExitCode) {
-    write-host "stout-tests failed to build. Logs can be found at $commitlogDir\build-stout-tests.log"
+    write-host "stout-tests failed to build. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -84,7 +106,8 @@ write-host "stout-tests finished building"
 & .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
 
 if ($LastExitCode) {
-    write-host "stout-tests have exited with non zero code. Logs can be found at $commitlogDir\stout-tests.log"
+    write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -93,7 +116,8 @@ write-host "stout-tests PASSED"
 & cmake --build . --target libprocess-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
 
 if ($LastExitCode) {
-    write-host "libprocess-tests failed to build. Logs can be found at $commitlogDir\build-libprocess-tests.log"
+    write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -102,7 +126,8 @@ write-host "libprocess-tests finished building"
 & .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
 
 if ($LastExitCode) {
-    write-host "libprocess-tests have exited with non zero code. Logs can be found at $commitlogDir\libprocess-tests.log"
+    write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -111,7 +136,8 @@ write-host "libprocess-tests PASSED"
 & cmake --build . --target mesos-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
 
 if ($LastExitCode) {
-    write-host "mesos-tests failed to build. Logs can be found at $commitlogDir\build-mesos-tests.log"
+    write-host "mesos-tests failed to build. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -120,7 +146,8 @@ write-host "mesos-tests finished building"
 & .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
 
 if ($LastExitCode) {
-    write-host "mesos-tests have exited with non zero code. Logs can be found at $commitlogDir\mesos-tests.log"
+    write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -131,7 +158,8 @@ write-host "Started building mesos binaries"
 & cmake --build . | Tee-Object -FilePath "$commitlogDir\mesos-build.log"
 
 if ($LastExitCode) {
-    write-host "Something went wrong with building the binaries. Logs can be found at $commitlogDir\mesos-build.log"
+    write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$commitID"
+    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
     Cleanup
     exit 1
 }
@@ -139,7 +167,21 @@ write-host "Finished building mesos binaries"
 popd
 
 # Copy binaries to a store location
-CopyBinaries
+CopyLocalBinaries
+
+# Copy logs and binaries to the remote location
+write-host "Copying logs to remote log server"
+Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+write-host "Logs can be found at $logs_url\$commitID"
+write-host "Copying binaries to remote server"
+CreateRemotePaths $remotebinariesdirPath
+Copy-RemoteBinaries "$commitbinariesDir\*" $remotebinariesdirPath
+write-host "Binaries can be found at $binaries_url\$commitID"
 
 # Cleanup env
-Cleanup
+if ($is_debug -eq "yes") {
+    write-host "This is a debug job. No running cleanup"
+}
+else {
+    Cleanup
+}
