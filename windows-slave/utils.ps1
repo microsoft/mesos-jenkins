@@ -138,6 +138,11 @@ function CompressLogs ( $logsPath ) {
 }
 
 function Cleanup {
+    if ($is_debug -eq "yes") {
+        write-host "This is a debug job. Not running cleanup"
+        return 0
+    }
+    write-host "Starting Cleanup"
     $msbuildprocess = Get-Process MSBuild* -ErrorAction SilentlyContinue
     $cmakeprocess = Get-Process cmake* -ErrorAction SilentlyContinue
     if ($msbuildprocess) {
@@ -146,6 +151,7 @@ function Cleanup {
     if ($cmakeprocess) {
         Stop-Process -name cmake*
     }
+    write-host "Removing $commitDir"
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
 }
 
