@@ -49,7 +49,7 @@ if (! $has_vs2017) {
     write-host "Downloading installer"
     Invoke-WebRequest -UseBasicParsing -Uri $vs2017_url -OutFile "$tempDir\vs2017.exe"
     write-host "Installing Visual Studio 2017 Community Edition"
-    Start-Process -FilePath $tempDir\vs2017.exe -ArgumentList "--quiet","--norestart","--add","Microsoft.VisualStudio.Workload.NativeDesktop","--add","Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core","--add","Microsoft.VisualStudio.Component.VC.Tools.x86.x64","--add","Microsoft.VisualStudio.Component.VC.DiagnosticTools","--add","Microsoft.VisualStudio.Component.Windows10SDK.15063.Desktop","--add","Microsoft.VisualStudio.Component.VC.CMake.Project","-add","Microsoft.VisualStudio.Component.VC.ATL" -Wait -PassThru
+    Start-Process -FilePath $tempDir\vs2017.exe -ArgumentList "--quiet","--norestart","--add Microsoft.VisualStudio.Workload.NativeDesktop","--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core","--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64","--add Microsoft.VisualStudio.Component.VC.DiagnosticTools","--add Microsoft.VisualStudio.Component.Windows10SDK.15063.Desktop","--add Microsoft.VisualStudio.Component.VC.CMake.Project","-add Microsoft.VisualStudio.Component.VC.ATL" -Wait -PassThru
 }
 
 # Add cmake and git to path
