@@ -2,8 +2,6 @@ function CheckLocalPaths {
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $baseDir
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $buildDir
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $binariesDir
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitbinariesDir
-    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $commitbinariesDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $logDir
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitlogDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitlogDir
@@ -53,8 +51,8 @@ function Set-commitInfo {
 	popd
 }
 
-function Set-VCVars($version="12.0", $platform="amd64") {
-    pushd "$ENV:ProgramFiles (x86)\Microsoft Visual Studio $version\VC\"
+function Set-VCVars($version="", $platform="amd64") {
+    pushd "$ENV:ProgramFiles (x86)\Microsoft Visual Studio $version\2017\Community\VC\Auxiliary\Build"
     try
     {
         cmd /c "vcvarsall.bat $platform & set" |
@@ -157,6 +155,8 @@ function Cleanup {
 
 function CopyLocalBinaries {
     $binaries_path = "$commitbuildDir\src"
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitbinariesDir
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $commitbinariesDir
     if ( Test-Path -Path $binaries_path ) {
         Copy-Item -Force "$binaries_path\*.exe" "$commitbinariesDir\"
     }

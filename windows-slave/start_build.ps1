@@ -7,6 +7,9 @@ $scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
 . "$scriptPath\config.ps1"
 . "$scriptPath\utils.ps1"
 
+# Check if all requiered services are installed
+write-host "Checking prereq software"
+& $scriptPath\check_prereq.ps1
 
 # Add cmake and git to path
 $env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;C:\Python27;C:\Python27\Scripts"
