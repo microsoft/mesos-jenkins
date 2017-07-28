@@ -51,8 +51,14 @@ function Set-commitInfo {
 	popd
 }
 
-function Set-VCVars($version="", $platform="amd64") {
-    pushd "$ENV:ProgramFiles (x86)\Microsoft Visual Studio $version\2017\Community\VC\Auxiliary\Build"
+function Set-VCVars($version="15.0", $platform="amd64") {
+    if ($version -eq "15") {
+        $VCPath = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\"
+    }
+    else {
+        $VCPath = "$ENV:ProgramFiles (x86)\Microsoft Visual Studio $version\VC\"
+    }
+    pushd $VCPath
     try
     {
         cmd /c "vcvarsall.bat $platform & set" |
@@ -149,6 +155,7 @@ function Cleanup {
     if ($cmakeprocess) {
         Stop-Process -name cmake*
     }
+    Start-Sleep -s 20
     write-host "Removing $commitDir"
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
 }

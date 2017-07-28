@@ -12,7 +12,7 @@ write-host "Checking prereq software"
 invoke-expression -Command $scriptPath\check_prereq.ps1
 
 # Add cmake and git to path
-$env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;C:\Python27;C:\Python27\Scripts"
+$env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;C:\Python27;C:\Python27\Scripts;"
 
 # Check and create if the paths are not present
 CheckLocalPaths
@@ -28,10 +28,22 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 #Set-GitCommidID $commitID
 #Set-commitInfo
 
+# Set Visual Studio variables based on tested branch
+if ($branch -eq "master") {
+    Set-VCVars "15"
+}
+else {
+    Set-VCVars "14"
+}
+
 # run config on the repo
 pushd $commitbuildDir
-& cmake "$gitcloneDir" -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
-
+if ($branch -eq "master") {
+    & cmake "$gitcloneDir" -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
+}
+else {
+    & cmake "$gitcloneDir" -G "Visual Studio 14 2015 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
+}
 # First we build the tests and run them. If any of the tests fail we abort the build
 # Build stout-tests
 & cmake --build . --target stout-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-stout-tests.log"
