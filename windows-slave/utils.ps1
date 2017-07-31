@@ -180,6 +180,7 @@ function Cleanup {
     Start-Sleep -s 20
     write-host "Removing $commitDir"
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "$commitDir"
+    #Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log"
 }
 
 function CopyLocalBinaries ($binaries_src, $binaries_dst) {
