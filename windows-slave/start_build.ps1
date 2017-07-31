@@ -56,7 +56,7 @@ if ($LastExitCode) {
 }
 write-host "stout-tests finished building"
 #Run stout-tests
-& .\3rdparty\stout\tests\Debug\stout-tests.exe 2>&1 | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
+& .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
 
 if ($LastExitCode) {
     write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
@@ -76,7 +76,7 @@ if ($LastExitCode) {
 }
 write-host "libprocess-tests finished building"
 # Run libprocess-tests
-& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe 2>&1 | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
+& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
 
 if ($LastExitCode) {
     write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
@@ -96,7 +96,7 @@ if ($LastExitCode) {
 }
 write-host "mesos-tests finished building"
 # Run mesos-tests. These tests must be run with administrator priviliges
-& .\src\mesos-tests.exe --verbose 2>&1 | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
+& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
 
 if ($LastExitCode) {
     write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
