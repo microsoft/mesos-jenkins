@@ -39,14 +39,14 @@ else {
 # run config on the repo
 pushd $commitbuildDir
 if ($branch -eq "master") {
-    & cmake "$gitcloneDir" -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 2>&1 | Tee-Object -FilePath "$commitlogDir\make.log"
+    & cmake "$gitcloneDir" -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
 }
 else {
-    & cmake "$gitcloneDir" -G "Visual Studio 14 2015 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 2>&1 | Tee-Object -FilePath "$commitlogDir\make.log"
+    & cmake "$gitcloneDir" -G "Visual Studio 14 2015 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
 }
 # First we build the tests and run them. If any of the tests fail we abort the build
 # Build stout-tests
-& cmake --build . --target stout-tests --config Debug 2>&1 | Tee-Object -FilePath "$commitlogDir\build-stout-tests.log"
+& cmake --build . --target stout-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-stout-tests.log"
 
 if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
@@ -66,7 +66,7 @@ if ($LastExitCode) {
 }
 write-host "stout-tests PASSED"
 # Build libprocess tests
-& cmake --build . --target libprocess-tests --config Debug 2>&1 | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
+& cmake --build . --target libprocess-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
 
 if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
@@ -86,7 +86,7 @@ if ($LastExitCode) {
 }
 write-host "libprocess-tests PASSED"
 # Build mesos-tests
-& cmake --build . --target mesos-tests --config Debug 2>&1 | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
+& cmake --build . --target mesos-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
 
 if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
@@ -108,7 +108,7 @@ write-host "mesos-tests PASSED"
 
 # After the tests finished and all PASSED is time to build the mesos binaries
 write-host "Started building mesos binaries"
-& cmake --build . 2>&1 | Tee-Object -FilePath "$commitlogDir\mesos-build.log"
+& cmake --build . | Tee-Object -FilePath "$commitlogDir\mesos-build.log"
 
 if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
