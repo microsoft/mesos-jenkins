@@ -57,7 +57,7 @@ function Set-commitInfo {
 }
 
 function Set-VCVars($version="15.0", $platform="amd64") {
-    if ($version -eq "15") {
+    if ($version -eq "15.0") {
         $VCPath = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\"
     }
     else {

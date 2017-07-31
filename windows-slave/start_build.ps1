@@ -30,10 +30,10 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 
 # Set Visual Studio variables based on tested branch
 if ($branch -eq "master") {
-    Set-VCVars "15"
+    Set-VCVars "15.0"
 }
 else {
-    Set-VCVars "14"
+    Set-VCVars "14.0"
 }
 
 # run config on the repo
