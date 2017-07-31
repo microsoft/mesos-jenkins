@@ -1,7 +1,7 @@
 # env variables
 #$commitID = $env:commitid
 # First we will build once per day and not per commit, so the commitID will be a timestamp for the folder naming
-$commitID = (get-date -f dd_MM_yyyy-hh_mm)
+$commitID = (get-date -f dd_MM_yyyy-HH_mm)
 $branch = $env:branch
 $is_debug = $env:debug
 
