@@ -10,9 +10,14 @@ function CheckLocalPaths {
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitbuildDir
 }
 
-function CreateRemotePaths ($remotedirPath) {
+function CreateRemotePaths ($remotedirPath, $remotelnPath="") {
+    $currentdirPath = ""
     $remoteCMD = "mkdir -p $remotedirPath"
+    $remotelnCMD = "ln -s $remotedirPath $remotelnPath "
     ExecSSHCmd $remoteServer $remoteUser $remoteKey $remoteCMD
+    if ($remotelnPath) {
+        ExecSSHCmd $remoteServer $remoteUser $remoteKey $remotelnCMD
+    }
 }
 
 function GitClonePull($path, $url, $branch="master") {
@@ -125,6 +130,11 @@ function Copy-RemoteBinaries ($localbinariesPath) {
     ExecSCPCmd $remoteServer $remoteUser $remoteKey $localbinariesPath $remotebinariesPath
 }
 
+function CompressAll ($filePath, $archiveName) {
+    $arr = Get-ChildItem $filePath | Foreach-Object {$_.FullName}
+    & 7z.exe a -tzip $archiveName $arr -sdel
+}
+
 function CompressLogs ( $logsPath ) {
     $logfiles = Get-ChildItem -File -Recurse -Path $logsPath | Where-Object { $_.Extension -ne ".gz" }
     foreach ($file in $logfiles) {
@@ -147,24 +157,25 @@ function Cleanup {
         return 0
     }
     write-host "Starting Cleanup"
+    $stoutprocess = Get-Process stout* -ErrorAction SilentlyContinue
+    $libprocess = Get-Process libprocess* -ErrorAction SilentlyContinue
+    $mesosprocess = Get-Process mesos* -ErrorAction SilentlyContinue
     $msbuildprocess = Get-Process MSBuild* -ErrorAction SilentlyContinue
     $cmakeprocess = Get-Process cmake* -ErrorAction SilentlyContinue
-    if ($msbuildprocess) {
-        Stop-Process -name MSBuild*
-    }
-    if ($cmakeprocess) {
-        Stop-Process -name cmake*
-    }
+    if ($stoutprocess) {Stop-Process -name stout*}
+    if ($libprocess) {Stop-Process -name libprocess*}
+    if ($mesosprocess) {Stop-Process -name mesos*}
+    if ($msbuildprocess) {Stop-Process -name MSBuild*}
+    if ($cmakeprocess) {Stop-Process -name cmake*}
     Start-Sleep -s 20
     write-host "Removing $commitDir"
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "$commitDir"
 }
 
-function CopyLocalBinaries {
-    $binaries_path = "$commitbuildDir\src"
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitbinariesDir
-    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $commitbinariesDir
-    if ( Test-Path -Path $binaries_path ) {
-        Copy-Item -Force "$binaries_path\*.exe" "$commitbinariesDir\"
+function CopyLocalBinaries ($binaries_src, $binaries_dst) {
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $binaries_dst
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $binaries_dst
+    if ( Test-Path -Path $binaries_src ) {
+        Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") "$binaries_src\*.exe" "$binaries_dst\"
     }
 }

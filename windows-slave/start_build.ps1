@@ -12,13 +12,13 @@ write-host "Checking prereq software"
 invoke-expression -Command $scriptPath\check_prereq.ps1
 
 # Add cmake and git to path
-$env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;C:\Python27;C:\Python27\Scripts;"
+$env:path += ";C:\Program Files\CMake\bin;C:\Program Files\Git\cmd;C:\Program Files\Git\bin;C:\Python27;C:\Python27\Scripts;C:\Program Files\7-Zip;"
 
 # Check and create if the paths are not present
 CheckLocalPaths
 
 # Create remote log paths
-CreateRemotePaths $remotelogdirPath
+CreateRemotePaths "$remotelogdirPath" "$remotelogLn"
 
 # Clone the mesos repo
 GitClonePull $gitcloneDir $mesos_git_url $branch
@@ -50,7 +50,7 @@ else {
 
 if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -60,7 +60,7 @@ write-host "stout-tests finished building"
 
 if ($LastExitCode) {
     write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -70,7 +70,7 @@ write-host "stout-tests PASSED"
 
 if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -80,7 +80,7 @@ write-host "libprocess-tests finished building"
 
 if ($LastExitCode) {
     write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -90,7 +90,7 @@ write-host "libprocess-tests PASSED"
 
 if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -100,7 +100,7 @@ write-host "mesos-tests finished building"
 
 if ($LastExitCode) {
     write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
@@ -112,23 +112,24 @@ write-host "Started building mesos binaries"
 
 if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
 }
 write-host "Finished building mesos binaries"
 popd
 
-# Copy binaries to a store location
-CopyLocalBinaries
+# Copy binaries to a store location and archive them
+CopyLocalBinaries "$commitbuildDir\src" "$commitbinariesDir"
+CompressAll "$commitbinariesDir" "binaries-$commitID.zip"
 
 # Copy logs and binaries to the remote location
 write-host "Copying logs to remote log server"
-Copy-RemoteLogs "$commitlogDir\*" $remotelogdirPath
+Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
 write-host "Logs can be found at $logs_url\$commitID"
 write-host "Copying binaries to remote server"
-CreateRemotePaths $remotebinariesdirPath
-Copy-RemoteBinaries "$commitbinariesDir\*" $remotebinariesdirPath
+CreateRemotePaths "$remotebinariesdirPath" "$remotebinariesLn"
+Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
 write-host "Binaries can be found at $binaries_url\$commitID"
 
 # Cleanup env
