@@ -121,16 +121,17 @@ popd
 
 # Copy binaries to a store location and archive them
 CopyLocalBinaries "$commitbuildDir\src" "$commitbinariesDir"
-CompressAll "$commitbinariesDir" "binaries-$commitID.zip"
+CompressBinaries "$commitbinariesDir" "$commitbinariesDir\binaries-$commitID.zip"
+CompressPDB "$commitbinariesDir" "$commitbinariesDir\pdb-$commitID.zip"
 
 # Copy logs and binaries to the remote location
 write-host "Copying logs to remote log server"
 Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-write-host "Logs can be found at $logs_url\$commitID"
+write-host "Logs can be found at $logs_url\$branch\$commitID"
 write-host "Copying binaries to remote server"
 CreateRemotePaths "$remotebinariesdirPath" "$remotebinariesLn"
 Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
-write-host "Binaries can be found at $binaries_url\$commitID"
+write-host "Binaries can be found at $binaries_url\$branch\$commitID"
 
 # Cleanup env
 Cleanup

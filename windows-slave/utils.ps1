@@ -13,7 +13,7 @@ function CheckLocalPaths {
 function CreateRemotePaths ($remotedirPath, $remotelnPath="") {
     $currentdirPath = ""
     $remoteCMD = "mkdir -p $remotedirPath"
-    $remotelnCMD = "ln -s $remotedirPath $remotelnPath "
+    $remotelnCMD = "ln -s $remotedirPath/ $remotelnPath "
     ExecSSHCmd $remoteServer $remoteUser $remoteKey $remoteCMD
     if ($remotelnPath) {
         ExecSSHCmd $remoteServer $remoteUser $remoteKey $remotelnCMD
@@ -130,9 +130,19 @@ function Copy-RemoteBinaries ($localbinariesPath) {
     ExecSCPCmd $remoteServer $remoteUser $remoteKey $localbinariesPath $remotebinariesPath
 }
 
-function CompressAll ($filePath, $archiveName) {
-    $arr = Get-ChildItem $filePath | Foreach-Object {$_.FullName}
-    & 7z.exe a -tzip $archiveName $arr -sdel
+function CompressBinaries ($filePath, $archiveName) {
+    $arrEXE = Get-ChildItem $filePath -Filter *.exe | Foreach-Object {$_.FullName}
+    & 7z.exe a -tzip $archiveName $arrEXE -sdel
+}
+
+function CompressPDB ($filePath, $archiveName) {
+    $arrPDB = Get-ChildItem $filePath -Filter *.pdb | Foreach-Object {$_.FullName}
+    & 7z.exe a -tzip $archiveName $arrPDB -sdel
+}
+
+function CompressAll ($filePath, $archivePath) {
+    $arrEXE = Get-ChildItem $filePath | Foreach-Object {$_.FullName}
+    & 7z.exe a -tzip $archivePath $arr -sdel
 }
 
 function CompressLogs ( $logsPath ) {
@@ -177,5 +187,6 @@ function CopyLocalBinaries ($binaries_src, $binaries_dst) {
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $binaries_dst
     if ( Test-Path -Path $binaries_src ) {
         Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") "$binaries_src\*.exe" "$binaries_dst\"
+        Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") "$binaries_src\*.pdb" "$binaries_dst\"
     }
 }
