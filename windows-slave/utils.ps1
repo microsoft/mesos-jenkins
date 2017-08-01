@@ -13,7 +13,7 @@ function CheckLocalPaths {
 function CreateRemotePaths ($remotedirPath, $remotelnPath="") {
     $currentdirPath = ""
     $remoteCMD = "mkdir -p $remotedirPath"
-    $remotelnCMD = "unlink latest; ln -s $remotedirPath/ $remotelnPath "
+    $remotelnCMD = "unlink $remotelnPath; ln -s $remotedirPath/ $remotelnPath "
     ExecSSHCmd $remoteServer $remoteUser $remoteKey $remoteCMD
     if ($remotelnPath) {
         ExecSSHCmd $remoteServer $remoteUser $remoteKey $remotelnCMD
