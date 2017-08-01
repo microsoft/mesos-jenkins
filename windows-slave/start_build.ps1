@@ -52,6 +52,7 @@ if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -63,6 +64,7 @@ if ($LastExitCode) {
     write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -74,6 +76,7 @@ if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -85,6 +88,7 @@ if ($LastExitCode) {
     write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -96,6 +100,7 @@ if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -107,6 +112,7 @@ if ($LastExitCode) {
     write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
@@ -120,6 +126,7 @@ if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
     Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    popd
     Cleanup
     exit 1
 }
