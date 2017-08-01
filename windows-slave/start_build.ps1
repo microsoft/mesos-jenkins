@@ -50,7 +50,7 @@ else {
 
 if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -61,7 +61,7 @@ write-host "stout-tests finished building"
 
 if ($LastExitCode) {
     write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -72,7 +72,7 @@ write-host "stout-tests PASSED"
 
 if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -83,7 +83,7 @@ write-host "libprocess-tests finished building"
 
 if ($LastExitCode) {
     write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -94,7 +94,7 @@ write-host "libprocess-tests PASSED"
 
 if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -105,7 +105,7 @@ write-host "mesos-tests finished building"
 
 if ($LastExitCode) {
     write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -118,7 +118,7 @@ write-host "Started building mesos binaries"
 
 if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
     Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
     Cleanup
     exit 1
@@ -132,7 +132,7 @@ CompressBinaries "$commitbinariesDir" "$commitbinariesDir\binaries-$commitID.zip
 CompressPDB "$commitbinariesDir" "$commitbinariesDir\pdb-$commitID.zip"
 
 # Copy logs and binaries to the remote location
-Copy-Item -Force "$env:WORKSPACE\mesos-build-1_2_x-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
 write-host "Copying logs to remote log server"
 Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
 write-host "Logs can be found at $logs_url\$branch\$commitID"

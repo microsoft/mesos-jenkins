@@ -187,7 +187,7 @@ function CopyLocalBinaries ($binaries_src, $binaries_dst) {
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $binaries_dst
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $binaries_dst
     if ( Test-Path -Path $binaries_src ) {
-        Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") "$binaries_src\*.exe" "$binaries_dst\"
-        Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") "$binaries_src\*.pdb" "$binaries_dst\"
+        Copy-Item -Force -ErrorAction SilentlyContinue -Exclude @("mesos-tests.exe","test-helper.exe") "$binaries_src\*.exe" "$binaries_dst\"
+        Copy-Item -Force -ErrorAction SilentlyContinue -Exclude @("mesos-tests.pdb","test-helper.pdb") "$binaries_src\*.pdb" "$binaries_dst\"
     }
 }
