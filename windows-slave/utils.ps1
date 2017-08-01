@@ -125,8 +125,8 @@ function Copy-RemoteLogs ($locallogPath, $remotelogPath) {
     ExecSCPCmd $remoteServer $remoteUser $remoteKey $locallogPath $remotelogPath
 }
 
-function Copy-RemoteBinaries ($localbinariesPath) {
-    write-host "Started copying generated binaries to remote location ${server}:${remotemsiPath}"
+function Copy-RemoteBinaries ($localbinariesPath, $remotebinariesPath) {
+    write-host "Started copying generated binaries to remote location ${server}:${remotebinariesPath}"
     ExecSCPCmd $remoteServer $remoteUser $remoteKey $localbinariesPath $remotebinariesPath
 }
 
