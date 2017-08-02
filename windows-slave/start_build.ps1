@@ -58,7 +58,7 @@ write-host "stout-tests finished building"
 #& .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
 try {
     Write-Host "Running stout tests"
-    WaitTimeout -ProcessPath ".\3rdparty\stout\tests\Debug\stout-tests.exe" -StdOut "$commitlogDir\stout-tests-stdout.log" -StdErr "$commitlogDir\stout-tests-StdErr.log"
+    WaitTimeout -ProcessPath "$commitbuildDir\3rdparty\stout\tests\Debug\stout-tests.exe" -StdOut "$commitlogDir\stout-tests-stdout.log" -StdErr "$commitlogDir\stout-tests-StdErr.log"
 }
 catch {
     Get-Content $commitlogDir\stout-tests-stdout.log
@@ -82,7 +82,7 @@ write-host "libprocess-tests finished building"
 #& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
 try {
     Write-Host "Running libprocess tests"
-    WaitTimeout -ProcessPath ".\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" -StdOut "$commitlogDir\libprocess-tests-stdout.log" -StdErr "$commitlogDir\libprocess-tests-StdErr.log"
+    WaitTimeout -ProcessPath "$commitbuildDir\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" -StdOut "$commitlogDir\libprocess-tests-stdout.log" -StdErr "$commitlogDir\libprocess-tests-StdErr.log"
 }
 catch {
     Get-Content $commitlogDir\libprocess-tests-stdout.log
@@ -106,7 +106,7 @@ write-host "mesos-tests finished building"
 #& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
 try {
     Write-Host "Running mesos tests"
-    WaitTimeout -ProcessPath "\src\mesos-tests.exe" -ArgumentList "--verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
+    WaitTimeout -ProcessPath "$commitbuildDir\src\mesos-tests.exe" -ArgumentList "--verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
 }
 catch {
     Get-Content $commitlogDir\mesos-tests-stdout.log
