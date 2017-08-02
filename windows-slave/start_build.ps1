@@ -57,6 +57,7 @@ write-host "stout-tests finished building"
 #Run stout-tests
 #& .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
 try {
+    Write-Host "Running stout tests"
     WaitTimeout -ProcessPath ".\3rdparty\stout\tests\Debug\stout-tests.exe" -StdOut "$commitlogDir\stout-tests-stdout.log" -StdErr "$commitlogDir\stout-tests-StdErr.log"
 }
 catch {
@@ -65,8 +66,8 @@ catch {
     CleanupFailedJob
     exit 1
 }
-write-host "stout-tests PASSED"
 Get-Content $commitlogDir\stout-tests-stdout.log
+write-host "stout-tests PASSED"
 
 # Build libprocess tests
 & cmake --build . --target libprocess-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
@@ -80,6 +81,7 @@ write-host "libprocess-tests finished building"
 # Run libprocess-tests
 #& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
 try {
+    Write-Host "Running libprocess tests"
     WaitTimeout -ProcessPath ".\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" -StdOut "$commitlogDir\libprocess-tests-stdout.log" -StdErr "$commitlogDir\libprocess-tests-StdErr.log"
 }
 catch {
@@ -88,8 +90,8 @@ catch {
     CleanupFailedJob
     exit 1
 }
-write-host "libprocess-tests PASSED"
 Get-Content $commitlogDir\libprocess-tests-stdout.log
+write-host "libprocess-tests PASSED"
 
 # Build mesos-tests
 & cmake --build . --target mesos-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
@@ -103,6 +105,7 @@ write-host "mesos-tests finished building"
 # Run mesos-tests. These tests must be run with administrator priviliges
 #& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
 try {
+    Write-Host "Running mesos tests"
     WaitTimeout -ProcessPath "\src\mesos-tests.exe" -ArgumentList "--verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
 }
 catch {
@@ -111,8 +114,8 @@ catch {
     CleanupFailedJob
     exit 1
 }
-write-host "mesos-tests PASSED"
 Get-Content $commitlogDir\mesos-tests-stdout.log
+write-host "mesos-tests PASSED"
 
 # After the tests finished and all PASSED is time to build the mesos binaries
 write-host "Started building mesos binaries"

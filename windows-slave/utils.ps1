@@ -115,7 +115,7 @@ function WaitTimeout {
         [Parameter(Mandatory=$true)]
         [String]$ProcessPath,
         [Parameter(Mandatory=$false)]
-        [String[]]$ArgumentList,
+        [String[]]$ArgumentList=$false,
         [Parameter(Mandatory=$false)]
         [String]$StdOut,
         [Parameter(Mandatory=$false)]
@@ -146,7 +146,7 @@ function WaitTimeout {
     }
     catch
     {
-        Write-Warning -Message 'Process exceeded Timeout, will be killed now.'
+        Write-Warning -Message 'Process either exceeded Timeout or exited with non-zero value.'
         Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
         throw $_
     }
