@@ -110,6 +110,48 @@ function ExecRetry ($command, $maxRetryCount = 10, $retryInterval=2) {
     $ErrorActionPreference = $currErrorActionPreference
 }
 
+function WaitTimeout {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [String]$ProcessPath,
+        [Parameter(Mandatory=$false)]
+        [String[]]$ArgumentList,
+        [Parameter(Mandatory=$false)]
+        [String]$StdOut,
+        [Parameter(Mandatory=$false)]
+        [String]$StdErr,
+        [Parameter(Mandatory=$false)]
+        [String]$Timeout=7200
+    )
+    
+    $parameters = @{
+        'FilePath' = $ProcessPath
+        'ArgumentList' = $ArgumentList
+        'NoNewWindow' = $true
+        'PassThru' = $true
+    }
+    if ($StdOut) {
+        $parameters['RedirectStandardOutput'] = $StdOut
+    }
+    if ($StdErr) {
+        $parameters['RedirectStandardError'] = $StdErr
+    }
+
+    $process = Start-Process @parameters
+    
+    try
+    {
+        Wait-Process -InputObject $process -Timeout $Timeout -ErrorAction Stop
+        Write-Warning -Message 'Process successfully completed within Timeout.'
+    }
+    catch
+    {
+        Write-Warning -Message 'Process exceeded Timeout, will be killed now.'
+        Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
+        throw $_
+    }
+}
+
 function ExecSSHCmd ($server, $user, $key, $cmd) {
     write-host "Running ssh command $cmd on remote server $server"
     echo Y | plink.exe $server -l $user -i $key $cmd
@@ -161,7 +203,14 @@ function CompressLogs ( $logsPath ) {
     }
 }
 
-function Cleanup {
+function CleanupFailedJob {
+    cd $env:WORKSPACE
+    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
+    CleanupJob
+}
+
+function CleanupJob {
     if ($is_debug -eq "yes") {
         write-host "This is a debug job. Not running cleanup"
         return 0

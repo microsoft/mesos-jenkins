@@ -50,73 +50,69 @@ else {
 
 if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "stout-tests finished building"
 #Run stout-tests
-& .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
-
-if ($LastExitCode) {
+#& .\3rdparty\stout\tests\Debug\stout-tests.exe | Tee-Object -FilePath "$commitlogDir\stout-tests.log"
+try {
+    WaitTimeout -ProcessPath ".\3rdparty\stout\tests\Debug\stout-tests.exe" -StdOut "$commitlogDir\stout-tests-stdout.log" -StdErr "$commitlogDir\stout-tests-StdErr.log"
+}
+catch {
+    Get-Content $commitlogDir\stout-tests-stdout.log
     write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "stout-tests PASSED"
+Get-Content $commitlogDir\stout-tests-stdout.log
+
 # Build libprocess tests
 & cmake --build . --target libprocess-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
 
 if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "libprocess-tests finished building"
 # Run libprocess-tests
-& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
-
-if ($LastExitCode) {
+#& .\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe | Tee-Object -FilePath "$commitlogDir\libprocess-tests.log"
+try {
+    WaitTimeout -ProcessPath ".\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" -StdOut "$commitlogDir\libprocess-tests-stdout.log" -StdErr "$commitlogDir\libprocess-tests-StdErr.log"
+}
+catch {
+    Get-Content $commitlogDir\libprocess-tests-stdout.log
     write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "libprocess-tests PASSED"
+Get-Content $commitlogDir\libprocess-tests-stdout.log
+
 # Build mesos-tests
 & cmake --build . --target mesos-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
 
 if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "mesos-tests finished building"
 # Run mesos-tests. These tests must be run with administrator priviliges
-& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
-
-if ($LastExitCode) {
+#& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
+try {
+    WaitTimeout -ProcessPath "\src\mesos-tests.exe" -ArgumentList "--verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
+}
+catch {
+    Get-Content $commitlogDir\mesos-tests-stdout.log
     write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "mesos-tests PASSED"
+Get-Content $commitlogDir\mesos-tests-stdout.log
 
 # After the tests finished and all PASSED is time to build the mesos binaries
 write-host "Started building mesos binaries"
@@ -124,10 +120,7 @@ write-host "Started building mesos binaries"
 
 if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
-    Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
-    Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-    popd
-    Cleanup
+    CleanupFailedJob
     exit 1
 }
 write-host "Finished building mesos binaries"
@@ -149,4 +142,4 @@ Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
 write-host "Binaries can be found at $binaries_url\$branch\$commitID"
 
 # Cleanup env
-Cleanup
+CleanupJob
