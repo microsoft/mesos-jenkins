@@ -115,7 +115,7 @@ function WaitTimeout {
         [Parameter(Mandatory=$true)]
         [String]$ProcessPath,
         [Parameter(Mandatory=$false)]
-        [String[]]$ArgumentList=$false,
+        [String[]]$ArgumentList,
         [Parameter(Mandatory=$false)]
         [String]$StdOut,
         [Parameter(Mandatory=$false)]
@@ -126,9 +126,11 @@ function WaitTimeout {
     
     $parameters = @{
         'FilePath' = $ProcessPath
-        'ArgumentList' = $ArgumentList
         'NoNewWindow' = $true
         'PassThru' = $true
+    }
+    if ($ArgumentList.Count -gt 0) {
+        $parameters['ArgumentList'] = $ArgumentList
     }
     if ($StdOut) {
         $parameters['RedirectStandardOutput'] = $StdOut
