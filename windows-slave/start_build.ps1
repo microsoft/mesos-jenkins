@@ -34,7 +34,7 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 if ($commitID -ne $commitIsDate) {
     pushd $gitcloneDir
     # Apply the patch to master branch
-    & python .\support\apply-reviews.py -r $commitID
+    & python .\support\apply-reviews.py -n -r $commitID
     popd
 }
 else {
