@@ -20,6 +20,10 @@ CheckLocalPaths
 # Create remote log paths
 CreateRemotePaths "$remotelogdirPath" "$remotelogLn"
 
+# Set git login credentials
+git config --global user.email "m.capsali@gmail.com"
+git config --global user.name "capsali"
+
 # Clone the mesos repo
 GitClonePull $gitcloneDir $mesos_git_url $branch
 
@@ -27,6 +31,15 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 # We don't run per commit build yet, just one per day so no commitID is necesarry
 #Set-GitCommidID $commitID
 #Set-commitInfo
+if ($commitID -ne $commitIsDate) {
+    pushd $gitcloneDir
+    # Apply the patch to master branch
+    & python .\support\apply-reviews.py -r $commitID
+    popd
+}
+else {
+    Write-Host "No commitID/patchID provided. Building on latest master"
+}
 
 # Set Visual Studio variables based on tested branch
 if ($branch -eq "master") {
