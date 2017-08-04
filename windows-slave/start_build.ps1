@@ -57,12 +57,18 @@ if ($branch -eq "master") {
 else {
     & cmake "$gitcloneDir" -G "Visual Studio 14 2015 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath "$commitlogDir\make.log"
 }
+
+if ($LastExitCode) {
+    write-host "mesos failed to build. Logs can be found at $logs_url/$branch/$commitID"
+    CleanupFailedJob
+    exit 1
+}
 # First we build the tests and run them. If any of the tests fail we abort the build
 # Build stout-tests
 & cmake --build . --target stout-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-stout-tests.log"
 
 if ($LastExitCode) {
-    write-host "stout-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "stout-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -75,7 +81,7 @@ try {
 }
 catch {
     Get-Content $commitlogDir\stout-tests-stdout.log
-    write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -86,7 +92,7 @@ write-host "stout-tests PASSED"
 & cmake --build . --target libprocess-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-libprocess-tests.log"
 
 if ($LastExitCode) {
-    write-host "libprocess-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "libprocess-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -99,7 +105,7 @@ try {
 }
 catch {
     Get-Content $commitlogDir\libprocess-tests-stdout.log
-    write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -110,7 +116,7 @@ write-host "libprocess-tests PASSED"
 & cmake --build . --target mesos-tests --config Debug | Tee-Object -FilePath "$commitlogDir\build-mesos-tests.log"
 
 if ($LastExitCode) {
-    write-host "mesos-tests failed to build. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "mesos-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -123,7 +129,7 @@ try {
 }
 catch {
     Get-Content $commitlogDir\mesos-tests-stdout.log
-    write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -135,7 +141,7 @@ write-host "Started building mesos binaries"
 & cmake --build . | Tee-Object -FilePath "$commitlogDir\mesos-build.log"
 
 if ($LastExitCode) {
-    write-host "Something went wrong with building the binaries. Logs can be found at $logs_url\$branch\$commitID"
+    write-host "Something went wrong with building the binaries. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -149,13 +155,15 @@ CompressPDB "$commitbinariesDir" "$commitbinariesDir\pdb-$commitID.zip"
 
 # Copy logs and binaries to the remote location
 Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
+
 write-host "Copying logs to remote log server"
 Copy-RemoteLogs "$commitlogDir\*" "$remotelogdirPath"
-write-host "Logs can be found at $logs_url\$branch\$commitID"
+write-host "Logs can be found at $logs_url/$branch/$commitID"
+
 write-host "Copying binaries to remote server"
 CreateRemotePaths "$remotebinariesdirPath" "$remotebinariesLn"
 Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
-write-host "Binaries can be found at $binaries_url\$branch\$commitID"
+write-host "Binaries can be found at $binaries_url/$branch/$commitID"
 
 # Cleanup env
 CleanupJob
