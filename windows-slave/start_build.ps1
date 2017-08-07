@@ -81,7 +81,7 @@ try {
 }
 catch {
     Get-Content $commitlogDir\stout-tests-stdout.log
-    write-host "stout-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
+    write-host "stout-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -105,7 +105,7 @@ try {
 }
 catch {
     Get-Content $commitlogDir\libprocess-tests-stdout.log
-    write-host "libprocess-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
+    write-host "libprocess-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }
@@ -125,11 +125,11 @@ write-host "mesos-tests finished building"
 #& .\src\mesos-tests.exe --verbose | Tee-Object -FilePath "$commitlogDir\mesos-tests.log"
 try {
     Write-Host "Running mesos tests"
-    WaitTimeout -ProcessPath "$commitbuildDir\src\mesos-tests.exe" -ArgumentList "--verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
+    WaitTimeout -ProcessPath "$commitbuildDir\src\mesos-tests.exe" -ArgumentList "--gtest_filter=`"-SlaveTest.UnreachableAgentReregisterAfterFailover:SlaveTest.RegisteredAgentReregisterAfterFailover`" --verbose" -StdOut "$commitlogDir\mesos-tests-stdout.log" -StdErr "$commitlogDir\mesos-tests-StdErr.log"
 }
 catch {
     Get-Content $commitlogDir\mesos-tests-stdout.log
-    write-host "mesos-tests have exited with non zero code. Logs can be found at $logs_url/$branch/$commitID"
+    write-host "mesos-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
     exit 1
 }

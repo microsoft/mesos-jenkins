@@ -144,12 +144,20 @@ function WaitTimeout {
     try
     {
         Wait-Process -InputObject $process -Timeout $Timeout -ErrorAction Stop
-        Write-Warning -Message 'Process successfully completed within Timeout.'
+        if ($process.ExitCode -ne 0) {
+            throw 2
+        }
+        Write-Host "Process successfully completed within timeout."
     }
     catch
     {
-        Write-Warning -Message 'Process either exceeded Timeout or exited with non-zero value.'
-        Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
+        if ("$_" -eq "2") {
+            Write-Host "Tests exited with non-zero value. Please check logs."
+        }
+        else {
+            Write-Host "Process exceeded timeout."
+            Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
+        }
         throw $_
     }
 }
