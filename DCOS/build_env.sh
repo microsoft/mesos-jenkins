@@ -39,4 +39,4 @@ agent_public_ip = $(az vm list-ip-addresses --name $agent_vm_name --output table
 echo "Public IP Address for agent Mesos is: $agent_public_ip"
 
 # Start mesos agent on windows agent node
-python /home/ubuntu/ci-tools/wsman.py -U https://$agent_public_ip:5986/wsman -u $az_user -p $az_password 'powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip $master_private_ip -agent_ip $agent_private_ip'
+python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password 'powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip $master_private_ip -agent_ip $agent_private_ip'
