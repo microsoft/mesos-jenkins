@@ -7,6 +7,7 @@ if (! $commitID) {
     $commitIsDate = $commitID
 }
 
+$workspacePath = $env:WORKSPACE
 $branch = $env:branch
 $is_debug = $env:debug
 
@@ -21,6 +22,9 @@ $logDir = "$baseDir\logs"
 $commitlogDir = "$logDir\$branch\$commitID"
 $gitclonedir = "$commitDir\mesos"
 $tempDir = $env:temp
+
+# Parameter file
+$paramFile = "$workspacePath\params-${commitID}.txt"
 
 
 $git_path = "C:\Program Files\Git"

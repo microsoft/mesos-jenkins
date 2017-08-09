@@ -61,6 +61,7 @@ else {
 if ($LastExitCode) {
     write-host "mesos failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 # First we build the tests and run them. If any of the tests fail we abort the build
@@ -70,6 +71,7 @@ if ($LastExitCode) {
 if ($LastExitCode) {
     write-host "stout-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 write-host "stout-tests finished building"
@@ -83,6 +85,7 @@ catch {
     Get-Content $commitlogDir\stout-tests-stdout.log
     write-host "stout-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 Get-Content $commitlogDir\stout-tests-stdout.log
@@ -94,6 +97,7 @@ write-host "stout-tests PASSED"
 if ($LastExitCode) {
     write-host "libprocess-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 write-host "libprocess-tests finished building"
@@ -107,6 +111,7 @@ catch {
     Get-Content $commitlogDir\libprocess-tests-stdout.log
     write-host "libprocess-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 Get-Content $commitlogDir\libprocess-tests-stdout.log
@@ -118,6 +123,7 @@ write-host "libprocess-tests PASSED"
 if ($LastExitCode) {
     write-host "mesos-tests failed to build. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 write-host "mesos-tests finished building"
@@ -131,6 +137,7 @@ catch {
     Get-Content $commitlogDir\mesos-tests-stdout.log
     write-host "mesos-tests failed to finish. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 Get-Content $commitlogDir\mesos-tests-stdout.log
@@ -143,6 +150,7 @@ write-host "Started building mesos binaries"
 if ($LastExitCode) {
     write-host "Something went wrong with building the binaries. Logs can be found at $logs_url/$branch/$commitID"
     CleanupFailedJob
+    Add-Content $paramFile "status=FAIL"
     exit 1
 }
 write-host "Finished building mesos binaries"
@@ -164,6 +172,9 @@ write-host "Copying binaries to remote server"
 CreateRemotePaths "$remotebinariesdirPath" "$remotebinariesLn"
 Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
 write-host "Binaries can be found at $binaries_url/$branch/$commitID"
+
+# Write param file
+Add-Content $paramFile "status=PASS"
 
 # Cleanup env
 CleanupJob
