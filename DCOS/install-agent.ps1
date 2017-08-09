@@ -58,6 +58,13 @@ else {
     popd
 }
 
+# Check if binaries are present
+$check_binaries = Test-Path -Path "$binaries_path\mesos-agent.exe"
+if ($check_binaries) {
+    Write-Host "Binaries exist."
+    exit 0
+}
+
 # Download the binaries
 Write-Host "Downloading mesos binaries from $binaries_url"
 Invoke-WebRequest -UseBasicParsing -Uri $binaries_url -OutFile "$tempDir\binaries.zip"
@@ -67,6 +74,6 @@ Expand-Archive -LiteralPath "$tempDir\binaries.zip" -DestinationPath "$binaries_
 
 # Open firewall port 5051 on agent node
 Write-Host "Opening port 5051"
-New-NetFirewallRule -DisplayName "Allow inbound TCP Port 5051" -Direction inbound –LocalPort 5051 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Allow inbound TCP Port 5051" -Direction inbound -LocalPort 5051 -Protocol TCP -Action Allow
 
 Write-Host "Finished preparing agent system"
