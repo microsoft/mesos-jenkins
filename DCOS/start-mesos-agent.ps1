@@ -27,15 +27,23 @@ if (! $agent_ip) {
 $mesos_agent = "$binaries_path\mesos-agent.exe"
 $argument_list = @("--master=zk://${master_ip}:2181/mesos", "--work_dir=${workingdir_path}", "--runtime_dir=${workingdir_path}", "--launcher_dir=${binaries_path}", "--isolation=windows/cpu,filesystem/windows", "--ip=${agent_ip}", "--containerizers=docker,mesos", "--log_dir=${mesoslog_path}\")
 
+# Check if process is running
+if (Get-Process -Name mesos-agent -ErrorAction SilentlyContinue) {
+    Write-Host "Process is already running"
+    exit 0
+}
+
 Start-Process -FilePath $mesos_agent -ArgumentList $argument_list -RedirectStandardOutput "$mesoslog_path\agent-stdout.log" -RedirectStandardError "$mesoslog_path\agent-err.log" -NoNewWindow -PassThru
 
 # Wait 20 seconds before checking process
 Start-Sleep -s 20
 
 # Check if process is active. If not, clean the working dir and try starting it again
-$check_process = Get-Process -Name mesos-agent -ErrorAction SilentlyContinue
-if (! $check_process) {
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "${workingdir_path}\*"
+if (! (Get-Process -Name mesos-agent -ErrorAction SilentlyContinue)) {
+    # Workaround for powershell Remove-Item bug where we can't remove a folder with symlinks.
+    # Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "${workingdir_path}\*"
+    & 'C:\Program Files\Git\usr\bin\rm.exe' -rf $workingdir_path
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $workingdir_path
     Start-Process -FilePath $mesos_agent -ArgumentList $argument_list -RedirectStandardOutput "$mesoslog_path\agent-stdout.log" -RedirectStandardError "$mesoslog_path\agent-err.log" -NoNewWindow -PassThru
 }
 else {

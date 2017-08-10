@@ -35,13 +35,13 @@ agent_vm_name=$(az vm list --resource-group $resource_group --output table | gre
 
 # Get Private and Public IP addresses
 echo "Getting mesos master IP addresses"
-master_private_ip=$(az vm list-ip-addresses --name $master_vm_name --output table | grep "$master_vm_name"  | awk '{ print $3 }')
+master_private_ip=$(az vm list-ip-addresses --name $master_vm_name --output table | grep "$master_vm_name"  | awk '{ print $2 }')
 echo "Private IP Address for master Mesos is : $master_private_ip"
 #master_public_ip = $(az vm list-ip-addresses --name $master_vm_name --output table | grep "$master_vm_name"  | awk '{ print $2 }')
 master_public_ip=$(az network public-ip list --resource-group $resource_group --output table | grep "$master_dns_prefix" | awk '{ print $2 }')
 echo "Public IP Address for master Mesos is: $master_public_ip"
 echo "Getting mesos agent IP addresses"
-agent_private_ip=$(az vm list-ip-addresses --name $agent_vm_name --output table | grep "$agent_vm_name"  | awk '{ print $3 }')
+agent_private_ip=$(az vm list-ip-addresses --name $agent_vm_name --output table | grep "$agent_vm_name"  | awk '{ print $2 }')
 echo "Private IP Address for agent Mesos is: $agent_private_ip"
 #agent_public_ip = $(az vm list-ip-addresses --name $agent_vm_name --output table | grep "$agent_vm_name"  | awk '{ print $2 }')
 agent_public_ip=$(az network public-ip list --resource-group $resource_group --output table | grep "$agent_dns_prefix" | awk '{ print $2 }')
@@ -54,4 +54,4 @@ az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --
 az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $basedir/../AzureTemplate/install-agent.json
 
 # Start mesos agent on windows agent node
-python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password 'powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip $master_private_ip -agent_ip $agent_private_ip'
+python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password "powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip '$master_private_ip' -agent_ip '$agent_private_ip'"
