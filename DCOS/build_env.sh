@@ -45,7 +45,7 @@ az group deployment create -g $resource_group --template-file $deploy_template_f
 
 # Get Master and Agent VM names
 master_vm_name=$(az vm list --resource-group $resource_group --output table | grep "master" | awk '{ print $1 }')
-agent_vm_name=$(az vm list --resource-group $resource_group --output table | grep "win-ag" | awk '{ print $1 }')
+agent_vm_name=$(az vm list --resource-group $resource_group --output table | grep "acs" | awk '{ print $1 }')
 
 # Get Private and Public IP addresses
 echo "Getting mesos master IP addresses"

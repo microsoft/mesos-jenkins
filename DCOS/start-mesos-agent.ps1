@@ -7,6 +7,8 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
+$repo_path = "C:\mesos-jenkins"
+$repo_url = "https://github.com/capsali/mesos-jenkins"
 $mesos_path = "C:\mesos"
 $binaries_path = "$mesos_path\bin"
 $service_path = "$mesos_path\service"
@@ -21,12 +23,24 @@ if (! (Test-Path -Path "$binaries_path\mesos-agent.exe")) {
 
 if (Get-Service -Name mesos-agent -ErrorAction SilentlyContinue) {
     Write-Host "Mesos agent service already installed. Trying to start service"
-    Start-Service -Name mesos-agent
+    Start-Service mesos-agent
     if ((Get-Service -Name mesos-agent).Status -ne "Running") {
         Write-Host "Service failed to start. Exiting"
         exit 1
     }
     
+}
+
+# Clone the mesos-jenkins repo
+$has_repo = Test-Path -Path $repo_path
+if (! $has_repo) {
+    Write-Host "Cloning mesos-jenkins repo"
+    & git clone $repo_url $repo_path
+}
+else {
+    pushd $repo_path
+    git pull
+    popd
 }
 
 if (! $agent_ip) {
@@ -53,7 +67,7 @@ $render_template.Save("$service_path\mesos-service.xml")
 Start-Process -FilePath $service_path\mesos-service.exe -ArgumentList "install" -NoNewWindow -PassThru -Wait
 
 # Start mesos agent service
-Start-Process -Name mesos-agent
+Start-Service mesos-agent
 
 # Wait 20 seconds before checking service
 Start-Sleep -s 20
@@ -64,7 +78,7 @@ if ((Get-Service -Name mesos-agent).Status -ne "Running") {
     # Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "${workingdir_path}\*"
     & 'C:\Program Files\Git\usr\bin\rm.exe' -rf $workingdir_path
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $workingdir_path
-    Start-Service -Name mesos-agent
+    Start-Service mesos-agent
 }
 else {
     Write-Host "Process is running. Finished starting mesos-agent"
