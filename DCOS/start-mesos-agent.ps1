@@ -9,12 +9,24 @@ $ErrorActionPreference = "Stop"
 
 $mesos_path = "C:\mesos"
 $binaries_path = "$mesos_path\bin"
+$service_path = "$mesos_path\service"
 $workingdir_path = "$mesos_path\work"
 $mesoslog_path = "$mesos_path\logs"
+$templates_path = "C:\mesos-jenkins\templates"
 
 if (! (Test-Path -Path "$binaries_path\mesos-agent.exe")) {
     Write-Host "Can not find mesos-agent binary. Please run install-agent.ps1 script"
     exit 1
+}
+
+if (Get-Service -Name mesos-agent -ErrorAction SilentlyContinue) {
+    Write-Host "Mesos agent service already installed. Trying to start service"
+    Start-Service -Name mesos-agent
+    if ((Get-Service -Name mesos-agent).Status -ne "Running") {
+        Write-Host "Service failed to start. Exiting"
+        exit 1
+    }
+    
 }
 
 if (! $agent_ip) {
@@ -23,28 +35,36 @@ if (! $agent_ip) {
     $agent_ip = ((ipconfig | findstr [0-9].\.)[0]).Split()[-1]
 }
 
-# Start mesos agent process
-$mesos_agent = "$binaries_path\mesos-agent.exe"
-$argument_list = @("--master=zk://${master_ip}:2181/mesos", "--work_dir=${workingdir_path}", "--runtime_dir=${workingdir_path}", "--launcher_dir=${binaries_path}", "--isolation=windows/cpu,filesystem/windows", "--ip=${agent_ip}", "--containerizers=docker,mesos", "--log_dir=${mesoslog_path}\")
-
-# Check if process is running
-if (Get-Process -Name mesos-agent -ErrorAction SilentlyContinue) {
-    Write-Host "Process is already running"
-    exit 0
+# Create service for mesos-agent.exe
+if (! (Test-Path -Path "$service_path")) {
+    New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $service_path
 }
+# Download service wrapper
+Invoke-WebRequest -UseBasicParsing -Uri "http://104.210.40.105/downloads/WinSW.NET4.exe" -OutFile "$service_path\mesos-service.exe"
 
-Start-Process -FilePath $mesos_agent -ArgumentList $argument_list -RedirectStandardOutput "$mesoslog_path\agent-stdout.log" -RedirectStandardError "$mesoslog_path\agent-err.log" -NoNewWindow -PassThru
+# Render XML template
+[xml]$render_template = cat "$templates_path\mesos-service.xml"
+$render_template.configuration.arguments = "--master=zk://${master_ip}:2181/mesos --work_dir=$workingdir_path --runtime_dir=$workingdir_path --launcher_dir=$binaries_path --isolation=windows/cpu,filesystem/windows --ip=$agent_ip --containerizers=docker,mesos --log_dir=$mesoslog_path\"
+$render_template.configuration.logpath = "$mesoslog_path"
+$render_template.Save("$service_path\mesos-service.xml")
 
-# Wait 20 seconds before checking process
+# Install service
+#& $service_path\mesos-service.exe install
+Start-Process -FilePath $service_path\mesos-service.exe -ArgumentList "install" -NoNewWindow -PassThru -Wait
+
+# Start mesos agent service
+Start-Process -Name mesos-agent
+
+# Wait 20 seconds before checking service
 Start-Sleep -s 20
 
-# Check if process is active. If not, clean the working dir and try starting it again
-if (! (Get-Process -Name mesos-agent -ErrorAction SilentlyContinue)) {
+# Check if service is running. If not, clean the working dir and try starting it again
+if ((Get-Service -Name mesos-agent).Status -ne "Running") {
     # Workaround for powershell Remove-Item bug where we can't remove a folder with symlinks.
     # Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path "${workingdir_path}\*"
     & 'C:\Program Files\Git\usr\bin\rm.exe' -rf $workingdir_path
     New-Item -ItemType Directory -ErrorAction SilentlyContinue -Path $workingdir_path
-    Start-Process -FilePath $mesos_agent -ArgumentList $argument_list -RedirectStandardOutput "$mesoslog_path\agent-stdout.log" -RedirectStandardError "$mesoslog_path\agent-err.log" -NoNewWindow -PassThru
+    Start-Service -Name mesos-agent
 }
 else {
     Write-Host "Process is running. Finished starting mesos-agent"
@@ -54,13 +74,13 @@ else {
 # Wait 20 more seconds before checking process the last time
 Start-Sleep -s 20
 
-# Check the process again and if it is not running error out.
-if (Get-Process -Name mesos-agent -ErrorAction SilentlyContinue) {
-    Write-Host "Process is running. Finished starting mesos-agent"
+# Check the service again and if it is not running error out.
+if ((Get-Service -Name mesos-agent).Status -eq "Running") {
+    Write-Host "Service is running. Finished starting mesos-agent"
     exit 0
 }
 else {
-    Write-Host "Process is not running. Exiting with error"
+    Write-Host "Service is not running. Exiting with error"
     exit 1
 }
 

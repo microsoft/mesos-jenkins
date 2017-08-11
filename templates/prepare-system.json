@@ -1,0 +1,4 @@
+{
+  "fileUris": ["https://raw.githubusercontent.com/capsali/mesos-jenkins/master/DCOS/prepare-system.ps1"],
+  "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File prepare-system.ps1 -PatchID ${commitid} -Branch ${branch}"
+}

@@ -5,14 +5,16 @@ basedir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 set -e
 
 resource_group="dcos_mesos_${commitid}"
-template_path="$basedir/../AzureTemplate"
+template_path="$basedir/../templates"
 deploy_template_file="$template_path/azuredeploy.json"
 deploy_param_file="$template_path/azuredeploy.parameters.json"
 #master_vm_name="master-${commitid}0"
 #agent_vm_name="agent-${commitid}0"
 agent_dns_prefix="dcosagentpre"
 master_dns_prefix="dcosmasterpre"
-render_params=$(mktemp)
+render_azure_params=$(mktemp)
+render_system_json=$(mktemp)
+render_agent_json=$(mktemp)
 
 # Login to Azure
 az login -u ${az_user} -p ${az_password}
@@ -24,7 +26,19 @@ az group create -l ${azure_region} -n $resource_group
 eval "cat <<EOF
 $(<${deploy_param_file})
 EOF
-" >> $render_params
+" >> $render_azure_params
+
+# Render prep-system.json
+eval "cat <<EOF
+$(<${template_path}\prepare-system.json)
+EOF
+" >> $render_system_json
+
+# Render mesos-agent json
+eval "cat <<EOF
+$(<${template_path}\start-mesos-agent.json)
+EOF
+" >> $render_agent_json
 
 # Deploy the env into Azure
 az group deployment create -g $resource_group --template-file $deploy_template_file --parameters @${render_params}
@@ -48,10 +62,14 @@ agent_public_ip=$(az network public-ip list --resource-group $resource_group --o
 echo "Public IP Address for agent Mesos is: $agent_public_ip"
 
 # Enable WinRM on windows node
-az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $basedir/../AzureTemplate/enable-winrm.json
+az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $template_path/enable-winrm.json
 
-# Install agent
-az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $basedir/../AzureTemplate/install-agent.json
+# Prepare agent system
+az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $render_system_json
+
+# Install agent as Windows service and start it
+az vm extension set --resource-group $resource_group --vm-name $agent_vm_name --name CustomScriptExtension --publisher Microsoft.Compute --settings $render_agent_json
 
 # Start mesos agent on windows agent node
-python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password "powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip '$master_private_ip' -agent_ip '$agent_private_ip'"
+#python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password "powershell -ExecutionPolicy RemoteSigned C:\mesos-jenkins\DCOS\start-mesos-agent.ps1 -master_ip '$master_private_ip' -agent_ip '$agent_private_ip'"
+python /home/ubuntu/ci-tools/wsman.py -U https://${agent_public_ip}:5986/wsman -u $az_user -p $az_password "powershell -ExecutionPolicy RemoteSigned Get-Service -Name mesos-agent"
