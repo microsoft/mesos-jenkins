@@ -35,6 +35,9 @@ if ($commitID -ne $commitIsDate) {
     pushd $gitcloneDir
     # Apply the patch to master branch
     & python .\support\apply-reviews.py -n -r $commitID
+    if ($LastExitCode) {
+        throw "Apply patch failed. Bailing out!"
+    }
     popd
 }
 else {
@@ -174,7 +177,11 @@ Copy-RemoteBinaries "$commitbinariesDir\*" "$remotebinariesdirPath"
 write-host "Binaries can be found at $binaries_url/$branch/$commitID"
 
 # Write param file
-Add-Content $paramFile "status=PASS"
-
+if ($env:commitid) {
+    Add-Content $paramFile "status=PASS"
+}
+else {
+    Write-Host "The job is not triggered with a review ID. Will not trigger post-review."
+}
 # Cleanup env
 CleanupJob

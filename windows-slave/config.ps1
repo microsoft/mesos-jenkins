@@ -7,8 +7,10 @@ if (! $commitID) {
     $commitIsDate = $commitID
 }
 
+
 $workspacePath = $env:WORKSPACE
-$branch = $env:branch
+# We do a split in case $branch is a git tag of the form "tags/1.x.x"
+$branch = Split-Path -Path $env:branch -Leaf
 $is_debug = $env:debug
 
 # Path variables
