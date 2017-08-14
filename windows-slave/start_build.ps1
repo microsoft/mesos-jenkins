@@ -34,14 +34,17 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 if ($commitID -ne $commitIsDate) {
     pushd $gitcloneDir
     # Apply the patch to master branch
-    & python .\support\apply-reviews.py -n -r $commitID
+    & python .\support\apply-reviews.py -n -r $commitID | Tee-Object -FilePath "$commitlogDir\apply-reviews.log"
     if ($LastExitCode) {
-        throw "Apply patch failed. Bailing out!"
+        Write-Host "Failed to apply patch $commmitID"
+        CleanupFailedJob
+        Add-Content $paramFile "status=ERROR"
+        exit 1
     }
     popd
 }
 else {
-    Write-Host "No commitID/patchID provided. Building on latest master"
+    Write-Host "No commitID/patchID provided. Building on latest $branch"
 }
 
 # Set Visual Studio variables based on tested branch
