@@ -23,6 +23,7 @@ $commitbinariesDir = "$binariesDir\$branch\$commitID"
 $logDir = "$baseDir\logs"
 $commitlogDir = "$logDir\$branch\$commitID"
 $gitclonedir = "$commitDir\mesos"
+$dcoswinrepoDir = "$baseDir\dcos-windows"
 $tempDir = $env:temp
 
 # Parameter file
@@ -48,6 +49,7 @@ $7zip_url = "http://d.7-zip.org/a/7z1700-x64.msi"
 
 # Git url
 $mesos_git_url = "https://github.com/apache/mesos"
+$dcos_win_url = "https://github.com/yakman2020/dcos-windows"
 
 # Remote log server
 $remoteServer = "10.3.1.6"

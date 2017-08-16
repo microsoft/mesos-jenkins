@@ -167,6 +167,20 @@ CopyLocalBinaries "$commitbuildDir\src" "$commitbinariesDir"
 CompressBinaries "$commitbinariesDir" "$commitbinariesDir\binaries-$commitID.zip"
 CompressPDB "$commitbinariesDir" "$commitbinariesDir\pdb-$commitID.zip"
 
+# Clone or pull dcos-windows repo and put it in binaries directory for upload
+if (Test-Path -Path $dcoswinrepoDir) {
+    Write-Host "DCOS-Windows repo already cloned. Pulling latest changes"
+    pushd $dcoswinrepoDir
+    & git pull
+    popd
+}
+else {
+    Write-Host "No DCOS-Windows repo clone found on disk. Cloning"
+    GitClonePull $dcoswinrepoDir $dcos_win_url
+}
+Write-Host "Copying dcos-windows scripts to binaries folder"
+Copy-Item -Recurse -Force -ErrorAction SilentlyContinue -Exclude @(".git","README.md") "$dcoswinrepoDir\*" "$binaries_dst\"
+
 # Copy logs and binaries to the remote location
 Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"
 
