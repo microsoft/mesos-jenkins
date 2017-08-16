@@ -40,6 +40,7 @@ if ($commitID -ne $commitIsDate) {
         exit 1
     }
     $reviewIDs = Get-Content $reviewIDsFile
+    Write-Host "This are the patches that need applied: $reviewIDs"
     foreach($id in $reviewIDs) {
         Write-Output "Applying review ID: $id"
         pushd $gitcloneDir
