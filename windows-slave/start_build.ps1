@@ -32,16 +32,25 @@ GitClonePull $gitcloneDir $mesos_git_url $branch
 #Set-GitCommidID $commitID
 #Set-commitInfo
 if ($commitID -ne $commitIsDate) {
-    pushd $gitcloneDir
-    # Apply the patch to master branch
-    & python .\support\apply-reviews.py -n -r $commitID | Tee-Object -FilePath "$commitlogDir\apply-reviews.log"
-    if ($LastExitCode) {
-        Write-Host "Failed to apply patch $commmitID"
+    $reviewIDsFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
+    python "$mesosjenkinsDir\files\get-review-ids.py" -r $commitID -o $reviewIDsFile | Tee-Object -FilePath "$commitlogDir\get-review-ids.log"
+    if($LASTEXITCODE) {
+        Write-Host "ERROR: Cannot get the dependent review IDs for review request: $commitID"
         CleanupFailedJob
-        Add-Content $paramFile "status=ERROR"
         exit 1
     }
-    popd
+    $reviewIDs = Get-Content $reviewIDsFile
+    foreach($id in $reviewIDs) {
+        Write-Output "Applying review ID: $id"
+        pushd $gitcloneDir
+        python .\support\apply-reviews.py -n -r $id | Tee-Object -Append -FilePath "$commitlogDir\apply-reviews.log"
+        if($LASTEXITCODE) {
+            Write-Host "ERROR: Cannot apply review ID: $id"
+            CleanupFailedJob
+            Add-Content $paramFile "status=ERROR"
+            exit 1
+        }
+    }
 }
 else {
     Write-Host "No commitID/patchID provided. Building on latest $branch"
@@ -164,8 +173,8 @@ popd
 
 # Copy binaries to a store location and archive them
 CopyLocalBinaries "$commitbuildDir\src" "$commitbinariesDir"
-CompressBinaries "$commitbinariesDir" "$commitbinariesDir\binaries-$commitID.zip"
-CompressPDB "$commitbinariesDir" "$commitbinariesDir\pdb-$commitID.zip"
+CompressBinaries "$commitbinariesDir" "$commitbinariesDir\mesos-binaries.zip"
+CompressPDB "$commitbinariesDir" "$commitbinariesDir\mesos-pdb.zip"
 
 # Clone or pull dcos-windows repo and put it in binaries directory for upload
 if (Test-Path -Path $dcoswinrepoDir) {

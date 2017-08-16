@@ -24,6 +24,7 @@ $logDir = "$baseDir\logs"
 $commitlogDir = "$logDir\$branch\$commitID"
 $gitclonedir = "$commitDir\mesos"
 $dcoswinrepoDir = "$baseDir\dcos-windows"
+$mesosjenkinsDir = "C:\mesos-jenkins"
 $tempDir = $env:temp
 
 # Parameter file
