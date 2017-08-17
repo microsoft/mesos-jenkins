@@ -27,10 +27,10 @@ git config --global user.name "capsali"
 # Clone the mesos repo
 GitClonePull $gitcloneDir $mesos_git_url $branch
 
-# Set the commitID we are working with
-# We don't run per commit build yet, just one per day so no commitID is necesarry
+# Get the patch message and save it in logs
 #Set-GitCommidID $commitID
-#Set-commitInfo
+Set-commitInfo
+
 if ($commitID -ne $commitIsDate) {
     $reviewIDsFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
     python "$mesosjenkinsDir\files\get-review-ids.py" -r $commitID -o $reviewIDsFile | Tee-Object -FilePath "$commitlogDir\get-review-ids.log"
@@ -189,7 +189,7 @@ else {
     GitClonePull $dcoswinrepoDir $dcos_win_url
 }
 Write-Host "Copying dcos-windows scripts to binaries folder"
-Copy-Item -Recurse -Force -ErrorAction SilentlyContinue -Exclude @(".git","README.md") "$dcoswinrepoDir\*" "$binaries_dst\"
+Copy-Item -Recurse -Force -ErrorAction SilentlyContinue -Exclude @(".git","README.md") "$dcoswinrepoDir\*" "$commitbinariesDir\"
 
 # Copy logs and binaries to the remote location
 Copy-Item -Force -ErrorAction SilentlyContinue "$env:WORKSPACE\mesos-build-$branch-$env:BUILD_NUMBER.log" "$commitlogDir\console.log"

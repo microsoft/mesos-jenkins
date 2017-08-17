@@ -250,3 +250,10 @@ function CopyLocalBinaries ($binaries_src, $binaries_dst) {
         Copy-Item -Force -ErrorAction SilentlyContinue -Exclude @("mesos-tests.pdb","test-helper.pdb") "$binaries_src\*.pdb" "$binaries_dst\"
     }
 }
+
+function Set-commitInfo {
+	write-host "Reading and saving commit author and message."
+	pushd "$gitcloneDir"
+    & git log -n 1 $commitID | Add-Content "$commitlogDir\patch-message.log"
+	popd
+}
