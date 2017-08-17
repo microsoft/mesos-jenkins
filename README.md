@@ -8,7 +8,7 @@ The process can be broken into 3 Jenkins jobs.
 First job will handle the Reviewboard polling and getting the patches that need verification.
 This is achieved through "files/verify-review-requests.py", a modified version of the original mesos "verify-reviews.py".
 
-    verify-review-requests.py -u $USER -p $PASSWORD -o $OUT_FILE
+    verify-review-requests.py -u $USER -p $PASSWORD file -o $OUT_FILE
     
     -u : Reviewboard username
     -p : Reviewboard password
