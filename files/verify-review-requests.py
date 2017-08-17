@@ -16,170 +16,130 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This script is used to verify reviews that are posted to ReviewBoard.
-The script is intended for use by automated "ReviewBots".
-
-The script performs the following sequence:
-* A query grabs review IDs from Reviewboard.
-* In reverse order (most recent first), the script determines if the
-  review needs verification (if the review has been updated or changed
-  since the last run through this script).
-* An output list of review IDs that need verification is written to the
-  '--out-file'.
-"""
-
 import argparse
-import json
-import urllib
-import urllib2
+import simplejson
+import os
+import sys
+import uuid
 
-from datetime import datetime
+sys.path.append(os.getcwd())
 
-parser = argparse.ArgumentParser(
-    description="Verify reviews from the Review Board")
-parser.add_argument("-u", "--user", type=str, required=True,
-                    help="Review Board user name")
-parser.add_argument("-p", "--password", type=str, required=True,
-                    help="Review Board user password")
-parser.add_argument("-o", "--out-file", type=str, required=True,
-                    help="The out file with the reviews IDs that "
-                         "need verification")
-parser.add_argument("-r", "--reviews", type=int, required=False, default=-1,
-                    help="The number of reviews to fetch, that need "
-                         "verification")
-parser.add_argument("-q", "--query", type=str, required=False,
-                    help="Query parameters",
-                    default="?to-groups=mesos&status=pending&"
-                            "last-updated-from=2017-01-01T00:00:00")
-parameters = parser.parse_args()
+from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL # noqa
 
 
-REVIEWBOARD_URL = "https://reviews.apache.org"
+def parse_parameters():
+    parser = argparse.ArgumentParser(
+        description="Verify reviews from the Review Board")
+    parser.add_argument("-u", "--user", type=str, required=True,
+                        help="Review Board user name")
+    parser.add_argument("-p", "--password", type=str, required=True,
+                        help="Review Board user password")
+    parser.add_argument("-r", "--reviews", type=int, required=False,
+                        default=-1, help="The number of reviews to fetch, "
+                                         "that will need verification")
+    parser.add_argument("-q", "--query", type=str, required=False,
+                        help="Query parameters",
+                        default="?to-groups=mesos&status=pending&"
+                                "last-updated-from=2017-01-01T00:00:00")
+
+    subparsers = parser.add_subparsers(title="The script plug-in type")
+
+    file_parser = subparsers.add_parser(
+        "file", description="File plug-in just writes to a file all "
+                            "the review ids that need verification")
+    file_parser.add_argument("-o", "--out-file", type=str, required=True,
+                             help="The out file with the reviews IDs that "
+                                  "need verification")
+
+    gearman_parser = subparsers.add_parser(
+        "gearman", description="Gearman plug-in is used to connect to "
+                               "a gearman server to trigger jobs to "
+                               "registered Jenkins servers")
+    gearman_parser.add_argument("-s", "--server", type=str, required=False,
+                                default="127.0.0.1",
+                                help="The gearman server address")
+    gearman_parser.add_argument("-p", "--port", type=int, required=False,
+                                default=4730, help="The gearman server port")
+    gearman_parser.add_argument("-j", "--job", type=str, required=True,
+                                help="The Jenkins build job name")
+    gearman_parser.add_argument("--params",
+                                type=str, required=False, default=None,
+                                help="Extra parameters to pass to every build "
+                                     "(must be given as JSON encoded string)")
+
+    return parser.parse_args()
 
 
-class ReviewError(Exception):
-    """Custom exception raised when a review is bad"""
-    pass
+def check_gearman_request_status(job_request):
+    import gearman
+    if job_request.complete:
+        print "Job %s finished!\n%s" % (job_request.job.unique,
+                                        job_request.result)
+    elif job_request.timed_out:
+        print "Job %s timed out!" % job_request.job.unique
+    elif job_request.state == gearman.JOB_UNKNOWN:
+        print "Job %s connection failed!" % job_request.unique
 
 
-def api(url, data=None):
-    """Call the ReviewBoard API."""
-    try:
-        auth_handler = urllib2.HTTPBasicAuthHandler()
-        auth_handler.add_password(
-            realm="Web API",
-            uri="reviews.apache.org",
-            user=parameters.user,
-            passwd=parameters.password)
-
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
-
-        return json.loads(urllib2.urlopen(url, data=data).read())
-    except urllib2.HTTPError as err:
-        print "Error handling URL %s: %s (%s)" % (url, err.reason, err.read())
-        exit(1)
-    except urllib2.URLError as err:
-        print "Error handling URL %s: %s" % (url, err.reason)
-        exit(1)
-
-
-def get_review_ids(review_request):
-    """Get the review id(s) for the current review request and any potential
-    dependent reviews. The function raises an exception if a cyclic dependency
-    is found"""
-
-    reviews_id = [review_request["id"]]
-    for review in review_request["depends_on"]:
-        review_url = review["href"]
-        print "Dependent review: %s " % review_url
-        dependent_review = api(review_url)["review_request"]
-        # First recursively all the dependent reviews.
-        if dependent_review["id"] in reviews_id:
-            raise ReviewError("Circular dependency detected for review %s."
-                              "Please fix the 'depends_on' field."
-                              % review_request["id"])
-        reviews_id += get_review_ids(dependent_review)
-
-    return reviews_id
+def trigger_gearman_jobs(review_ids, server, port, job_name, params=None):
+    if len(review_ids) == 0:
+        # We don't need to trigger any jobs
+        return
+    task_name = "build:%s" % job_name
+    jobs = []
+    for review_id in review_ids:
+        print "Preparing build job with review id: %s" % review_id
+        job_id = uuid.uuid4().hex
+        job_params = {
+            "commitid": review_id,
+            "OFFLINE_NODE_WHEN_COMPLETE": "false"
+        }
+        if params is not None:
+            job_params.update(simplejson.loads(params))
+        jobs.append(dict(
+            unique=job_id,
+            task=task_name,
+            data=simplejson.dumps(job_params)
+        ))
+    import gearman
+    gearman_server = "%s:%s" % (server, port)
+    client = gearman.GearmanClient([gearman_server])
+    print "Triggered all the jobs and waiting them to finish"
+    completed_job_requests = client.submit_multiple_jobs(
+        jobs_to_submit=jobs, wait_until_complete=True,
+        max_retries=0, poll_timeout=None)
+    for job_request in completed_job_requests:
+        check_gearman_request_status(job_request)
 
 
-def post_review(review_request, message):
-    """Post a review on the review board."""
-    review_request_url = "%s/r/%s" % (REVIEWBOARD_URL, review_request['id'])
-    print "Posting to review request: %s\n%s" % (review_request_url, message)
+def verify_reviews(review_ids, parameters):
+    nr_reviews = len(review_ids)
+    print "There are %s review requests that need verification" % nr_reviews
 
-    review_url = review_request["links"]["reviews"]["href"]
-    data = urllib.urlencode({'body_top': message, 'public': 'true'})
-    api(review_url, data)
+    if hasattr(parameters, 'out_file'):
+        # Using file plug-in
+        with open(parameters.out_file, 'w') as f:
+            f.write('\n'.join(review_ids))
+        return
 
-
-def needs_verification(review_request):
-    """Return True if this review request needs to be verified."""
-    print "Checking if review: %s needs verification" % review_request["id"]
-
-    # Now apply this review if not yet submitted.
-    if review_request["status"] == "submitted":
-        print "The review is already already submitted"
-        return False
-
-    # Skip if the review blocks another review.
-    if review_request["blocks"]:
-        print "Skipping blocking review %s" % review_request["id"]
-        return False
-
-    diffs_url = review_request["links"]["diffs"]["href"]
-    diffs = api(diffs_url)
-    if len(diffs["diffs"]) == 0:  # No diffs attached!
-        print "Skipping review %s as it has no diffs" % review_request["id"]
-        return False
-
-    # Get the timestamp of the latest diff.
-    timestamp = diffs["diffs"][-1]["timestamp"]
-    rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
-    diff_time = datetime.strptime(timestamp, rb_date_format)
-    print "Latest diff timestamp: %s" % diff_time
-
-    # Get the timestamp of the latest review from this script.
-    reviews_url = review_request["links"]["reviews"]["href"]
-    reviews = api(reviews_url + "?max-results=200")
-    review_time = None
-    for review in reversed(reviews["reviews"]):
-        if review["links"]["user"]["title"] == parameters.user:
-            timestamp = review["timestamp"]
-            review_time = datetime.strptime(timestamp, rb_date_format)
-            print "Latest review timestamp: %s" % review_time
-            break
-
-    # TODO: Apply this check recursively up the dependency chain.
-    changes_url = review_request["links"]["changes"]["href"]
-    changes = api(changes_url)
-    dependency_time = None
-    for change in changes["changes"]:
-        if "depends_on" in change["fields_changed"]:
-            timestamp = change["timestamp"]
-            dependency_time = datetime.strptime(timestamp, rb_date_format)
-            print "Latest dependency change timestamp: %s" % dependency_time
-            break
-
-    # Needs verification if there is a new diff, or if the
-    # dependencies changed, after the last time it was verified.
-    return (not review_time or review_time < diff_time or
-            (dependency_time and review_time < dependency_time))
+    # Using Gearman plug-in
+    trigger_gearman_jobs(review_ids=review_ids, job_name=parameters.job,
+                         server=parameters.server, port=parameters.port,
+                         params=parameters.params)
 
 
 def main():
     """Main function to verify the submitted reviews."""
+    parameters = parse_parameters()
     review_requests_url = "%s/api/review-requests/%s" % (REVIEWBOARD_URL,
                                                          parameters.query)
-
-    review_requests = api(review_requests_url)
+    handler = ReviewBoardHandler(parameters.user, parameters.password)
     num_reviews = 0
     review_ids = []
+    review_requests = handler.api(review_requests_url)
     for review_request in reversed(review_requests["review_requests"]):
         if ((parameters.reviews == -1 or num_reviews < parameters.reviews) and
-           needs_verification(review_request)):
+           handler.needs_verification(review_request)):
             try:
                 # If there are no reviewers specified throw an error.
                 if not review_request["target_people"]:
@@ -187,17 +147,15 @@ def main():
                                       "a reviewer by asking on JIRA or the "
                                       "mailing list.")
                 # An exception is raised if cyclic dependencies are found
-                get_review_ids(review_request)
+                handler.get_review_ids(review_request)
             except ReviewError as err:
                 message = ("Bad review!\n\n"
                            "Error:\n%s" % (err.args[0]))
-                post_review(review_request, message)
+                handler.post_review(review_request, message)
                 continue
             review_ids.append(str(review_request["id"]))
             num_reviews += 1
-
-    with open(parameters.out_file, 'w') as f:
-        f.write('\n'.join(review_ids))
+    verify_reviews(review_ids, parameters)
 
 
 if __name__ == '__main__':

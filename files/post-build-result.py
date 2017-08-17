@@ -16,93 +16,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import argparse
-import json
-import urllib
-import urllib2
+import os
+import sys
 
-parser = argparse.ArgumentParser(
-    description="Post review results to Review Board")
-parser.add_argument("-u", "--user", type=str, required=True,
-                    help="Review board user name")
-parser.add_argument("-p", "--password", type=str, required=True,
-                    help="Review board user password")
-parser.add_argument("-r", "--review-id", type=str, required=True,
-                    help="Review ID")
-parser.add_argument("-m", "--message", type=str, required=True,
-                    help="The post message")
-parser.add_argument("-l", "--logs-url", type=str, required=True,
-                    help="The URL with the available logs")
-parameters = parser.parse_args()
+sys.path.append(os.getcwd())
+
+from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL # noqa
 
 
-REVIEWBOARD_URL = "https://reviews.apache.org"
-
-
-class ReviewError(Exception):
-    """Custom exception raised when a review is bad"""
-    pass
-
-
-def api(url, data=None):
-    """Call the ReviewBoard API."""
-    try:
-        auth_handler = urllib2.HTTPBasicAuthHandler()
-        auth_handler.add_password(
-            realm="Web API",
-            uri="reviews.apache.org",
-            user=parameters.user,
-            passwd=parameters.password)
-
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
-
-        return json.loads(urllib2.urlopen(url, data=data).read())
-    except urllib2.HTTPError as err:
-        print "Error handling URL %s: %s (%s)" % (url, err.reason, err.read())
-        exit(1)
-    except urllib2.URLError as err:
-        print "Error handling URL %s: %s" % (url, err.reason)
-        exit(1)
-
-
-def post_review(review_request, message):
-    """Post a review on the review board."""
-    review_request_url = "%s/r/%s" % (REVIEWBOARD_URL, review_request['id'])
-    print "Posting to review request: %s\n%s" % (review_request_url, message)
-
-    review_url = review_request["links"]["reviews"]["href"]
-    data = urllib.urlencode({'body_top': message, 'public': 'true'})
-    api(review_url, data)
-
-
-def get_review_ids(review_request):
-    """Get the review id(s) for the current review request and any potential
-    dependent reviews."""
-
-    review_ids = [review_request["id"]]
-    for review in review_request["depends_on"]:
-        review_url = review["href"]
-        print "Dependent review: %s " % review_url
-        dependent_review = api(review_url)["review_request"]
-        # First recursively all the dependent reviews.
-        if dependent_review["id"] in review_ids:
-            raise ReviewError("Circular dependency detected for review %s. "
-                              "Please fix the 'depends_on' field."
-                              % review_request["id"])
-        review_ids += get_review_ids(dependent_review)
-
-    return review_ids
+def parse_parameters():
+    parser = argparse.ArgumentParser(
+        description="Post review results to Review Board")
+    parser.add_argument("-u", "--user", type=str, required=True,
+                        help="Review board user name")
+    parser.add_argument("-p", "--password", type=str, required=True,
+                        help="Review board user password")
+    parser.add_argument("-r", "--review-id", type=str, required=True,
+                        help="Review ID")
+    parser.add_argument("-m", "--message", type=str, required=True,
+                        help="The post message")
+    parser.add_argument("-l", "--logs-url", type=str, required=True,
+                        help="The URL with the available logs")
+    return parser.parse_args()
 
 
 def main():
-    review_request_url = \
-        "%s/api/review-requests/%s/" % (REVIEWBOARD_URL, parameters.review_id)
-
-    review_request = api(review_request_url)["review_request"]
+    parameters = parse_parameters()
+    review_request_url = "%s/api/review-requests/%s/" % (REVIEWBOARD_URL,
+                                                         parameters.review_id)
+    handler = ReviewBoardHandler(parameters.user, parameters.password)
+    review_request = handler.api(review_request_url)["review_request"]
     try:
-        review_ids = get_review_ids(review_request)
+        review_ids = handler.get_review_ids(review_request)
         message = ("%s\n\n"
                    "Reviews applied: %s\n\n"
                    "Logs available here: %s") % (parameters.message,
@@ -111,7 +57,7 @@ def main():
     except ReviewError as err:
         message = ("Bad review!\n\n"
                    "Error:\n%s" % (err.args[0]))
-    post_review(review_request, message)
+    handler.post_review(review_request, message)
 
 
 if __name__ == '__main__':

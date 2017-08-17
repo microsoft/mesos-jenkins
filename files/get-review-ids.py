@@ -17,68 +17,31 @@
 # limitations under the License.
 
 import argparse
-import json
-import urllib2
+import os
+import sys
 
-parser = argparse.ArgumentParser(description="Get all dependent review IDs")
-parser.add_argument("-r", "--review-id", type=str, required=True,
-                    help="Review ID")
-parser.add_argument("-o", "--out-file", type=str, required=True,
-                    help="The out file with the reviews IDs")
-parameters = parser.parse_args()
+sys.path.append(os.getcwd())
+
+from common import ReviewBoardHandler, REVIEWBOARD_URL # noqa
 
 
-REVIEWBOARD_URL = "https://reviews.apache.org"
-
-
-class ReviewError(Exception):
-    """Custom exception raised when a review is bad"""
-    pass
-
-
-def api(url, data=None):
-    """Call the ReviewBoard API."""
-    try:
-        auth_handler = urllib2.HTTPBasicAuthHandler()
-
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
-
-        return json.loads(urllib2.urlopen(url, data=data).read())
-    except urllib2.HTTPError as err:
-        print "Error handling URL %s: %s (%s)" % (url, err.reason, err.read())
-        exit(1)
-    except urllib2.URLError as err:
-        print "Error handling URL %s: %s" % (url, err.reason)
-        exit(1)
-
-
-def get_review_ids(review_request):
-    """Get the review id(s) for the current review request and any potential
-    dependent reviews."""
-
-    review_ids = [review_request["id"]]
-    for review in review_request["depends_on"]:
-        review_url = review["href"]
-        print "Dependent review: %s " % review_url
-        dependent_review = api(review_url)["review_request"]
-        # First recursively all the dependent reviews.
-        if dependent_review["id"] in review_ids:
-            raise ReviewError("Circular dependency detected for review %s. "
-                              "Please fix the 'depends_on' field."
-                              % review_request["id"])
-        review_ids += get_review_ids(dependent_review)
-
-    return review_ids
+def parse_parameters():
+    parser = argparse.ArgumentParser(
+        description="Get all dependent review IDs")
+    parser.add_argument("-r", "--review-id", type=str, required=True,
+                        help="Review ID")
+    parser.add_argument("-o", "--out-file", type=str, required=True,
+                        help="The out file with the reviews IDs")
+    return parser.parse_args()
 
 
 def main():
-    review_request_url = \
-        "%s/api/review-requests/%s/" % (REVIEWBOARD_URL, parameters.review_id)
-
-    review_request = api(review_request_url)["review_request"]
-    review_ids = get_review_ids(review_request)
-
+    parameters = parse_parameters()
+    review_request_url = "%s/api/review-requests/%s/" % (REVIEWBOARD_URL,
+                                                         parameters.review_id)
+    handler = ReviewBoardHandler()
+    review_request = handler.api(review_request_url)["review_request"]
+    review_ids = handler.get_review_ids(review_request)
     with open(parameters.out_file, 'w') as f:
         for r_id in list(reversed(review_ids)):
             f.write("%s\n" % (str(r_id)))
