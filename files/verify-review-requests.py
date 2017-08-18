@@ -26,6 +26,8 @@ sys.path.append(os.getcwd())
 
 from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL # noqa
 
+DEFAULT_GEARMAN_PORT = 4730
+
 
 def parse_parameters():
     parser = argparse.ArgumentParser(
@@ -55,11 +57,9 @@ def parse_parameters():
         "gearman", description="Gearman plug-in is used to connect to "
                                "a gearman server to trigger jobs to "
                                "registered Jenkins servers")
-    gearman_parser.add_argument("-s", "--server", type=str, required=False,
+    gearman_parser.add_argument("-s", "--servers", type=str, required=False,
                                 default="127.0.0.1",
-                                help="The gearman server address")
-    gearman_parser.add_argument("-p", "--port", type=int, required=False,
-                                default=4730, help="The gearman server port")
+                                help="The gearman servers' addresses")
     gearman_parser.add_argument("-j", "--job", type=str, required=True,
                                 help="The Jenkins build job name")
     gearman_parser.add_argument("--params",
@@ -81,10 +81,13 @@ def check_gearman_request_status(job_request):
         print "Job %s connection failed!" % job_request.unique
 
 
-def trigger_gearman_jobs(review_ids, server, port, job_name, params=None):
+def trigger_gearman_jobs(review_ids, job_name, german_servers, params=None):
+    import gearman
     if len(review_ids) == 0:
         # We don't need to trigger any jobs
         return
+    if len(german_servers) == 0:
+        raise Exception("No gearman servers to trigger the jobs")
     task_name = "build:%s" % job_name
     jobs = []
     for review_id in review_ids:
@@ -101,9 +104,8 @@ def trigger_gearman_jobs(review_ids, server, port, job_name, params=None):
             task=task_name,
             data=simplejson.dumps(job_params)
         ))
-    import gearman
-    gearman_server = "%s:%s" % (server, port)
-    client = gearman.GearmanClient([gearman_server])
+    print "Using the following Gearman servers: %s" % german_servers
+    client = gearman.GearmanClient(german_servers)
     print "Triggered all the jobs and waiting them to finish"
     completed_job_requests = client.submit_multiple_jobs(
         jobs_to_submit=jobs, wait_until_complete=True,
@@ -122,10 +124,20 @@ def verify_reviews(review_ids, parameters):
             f.write('\n'.join(review_ids))
         return
 
+    servers = []
+    for server in parameters.servers.split(","):
+        server = server.strip()
+        s_split = server.split(":")
+        address = s_split[0]
+        if len(s_split) == 2:
+            port = s_split[1]
+        else:
+            port = DEFAULT_GEARMAN_PORT
+        servers.append("%s:%s" % (address, port))
+
     # Using Gearman plug-in
     trigger_gearman_jobs(review_ids=review_ids, job_name=parameters.job,
-                         server=parameters.server, port=parameters.port,
-                         params=parameters.params)
+                         german_servers=servers, params=parameters.params)
 
 
 def main():
