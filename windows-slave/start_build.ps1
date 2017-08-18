@@ -173,9 +173,9 @@ write-host "Finished building mesos binaries"
 popd
 
 # Copy binaries to a store location and archive them
-CopyLocalBinaries "$commitbuildDir\src" "$commitbinariesDir"
-CompressBinaries "$commitbinariesDir" "$commitbinariesDir\mesos-binaries.zip"
-CompressPDB "$commitbinariesDir" "$commitbinariesDir\mesos-pdb.zip"
+CopyLocalBinaries "$commitbuildDir\src" "$localbinariesDir"
+CompressBinaries "$localbinariesDir" "$localbinariesDir\mesos-binaries.zip"
+CompressPDB "$localbinariesDir" "$localbinariesDir\mesos-pdb.zip"
 
 # Clone or pull dcos-windows repo and put it in binaries directory for upload
 if (Test-Path -Path $dcoswinrepoDir) {

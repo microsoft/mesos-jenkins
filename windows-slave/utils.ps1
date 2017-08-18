@@ -8,12 +8,13 @@ function CheckLocalPaths {
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue -Path $commitDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitDir
     New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $commitbuildDir
+    New-Item -ItemType Directory -Force -ErrorAction SilentlyContinue -Path $localbinariesDir
 }
 
 function CreateRemotePaths ($remotedirPath, $remotelnPath="") {
     $currentdirPath = ""
-    $remoteCMD = "mkdir -p $remotedirPath"
-    $remotelnCMD = "unlink $remotelnPath; ln -s $remotedirPath/ $remotelnPath "
+    $remoteCMD = "if [[ -d $remotedirPath ]]; then rm -rf $remotedirPath; fi; mkdir -p $remotedirPath"
+    $remotelnCMD = "if [[ -h $remotelnPath ]]; then unlink $remotelnPath; fi; ln -s $remotedirPath/ $remotelnPath "
     ExecSSHCmd $remoteServer $remoteUser $remoteKey $remoteCMD
     if ($remotelnPath) {
         ExecSSHCmd $remoteServer $remoteUser $remoteKey $remotelnCMD
