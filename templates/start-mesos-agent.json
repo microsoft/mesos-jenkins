@@ -1,4 +1,0 @@
-{
-  "fileUris": ["https://raw.githubusercontent.com/capsali/mesos-jenkins/master/DCOS/start-mesos-agent.ps1"],
-  "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File start-mesos-agent.ps1 -master_ip ${master_private_ip} -agent_ip ${agent_private_ip}"
-}

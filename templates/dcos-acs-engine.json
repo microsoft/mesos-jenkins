@@ -1,0 +1,43 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS"
+    },
+    "masterProfile": {
+      "count": ${LINUX_MASTERS_COUNT},
+      "dnsPrefix": "${LINUX_MASTERS_DNS_PREFIX}",
+      "vmSize": "${LINUX_MASTERS_VM_SIZE}"
+    },
+    "agentPoolProfiles": [
+       {
+        "name": "${WINDOWS_SLAVES_PUBLIC_POOL_NAME}",
+        "count": ${WINDOWS_SLAVES_COUNT},
+        "vmSize": "${WINDOWS_SLAVES_VM_SIZE}",
+        "availabilityProfile": "AvailabilitySet",
+        "osType": "Windows",
+        "dnsPrefix": "${WINDOWS_SLAVES_DNS_PREFIX}",
+        "ports": [
+             80,
+             443,
+             8080,
+             3389
+          ]
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "${WINDOWS_SLAVES_ADMIN}",
+      "adminPassword": "${WINDOWS_SLAVES_ADMIN_PASSWORD}"
+    },
+    "linuxProfile": {
+      "adminUsername": "${LINUX_MASTERS_ADMIN}",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "${LINUX_MASTERS_PUBLIC_SSH_KEY}"
+          }
+        ]
+      }
+    }
+  }
+}
