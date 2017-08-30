@@ -17,7 +17,7 @@
 # limitations under the License.
 
 import argparse
-import simplejson
+import json
 import os
 import sys
 import uuid
@@ -37,7 +37,7 @@ def parse_parameters():
     parser.add_argument("-p", "--password", type=str, required=True,
                         help="Review Board user password")
     parser.add_argument("-r", "--reviews", type=int, required=False,
-                        default=-1, help="The number of reviews to fetch, "
+                        default=-1, help="The number of reviews to fetch, "              
                                          "that will need verification")
     parser.add_argument("-q", "--query", type=str, required=False,
                         help="Query parameters",
@@ -98,11 +98,11 @@ def trigger_gearman_jobs(review_ids, job_name, german_servers, params=None):
             "OFFLINE_NODE_WHEN_COMPLETE": "false"
         }
         if params is not None:
-            job_params.update(simplejson.loads(params))
+            job_params.update(json.loads(params))
         jobs.append(dict(
             unique=job_id,
             task=task_name,
-            data=simplejson.dumps(job_params)
+            data=json.dumps(job_params)
         ))
     print "Using the following Gearman servers: %s" % german_servers
     client = gearman.GearmanClient(german_servers)
