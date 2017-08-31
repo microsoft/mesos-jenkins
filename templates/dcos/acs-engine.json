@@ -1,6 +1,7 @@
 {
   "apiVersion": "vlabs",
   "properties": {
+    "dcosWindowsBootstrapURL": "https://dcosdevstorage.blob.core.windows.net/dcos-windows",
     "orchestratorProfile": {
       "orchestratorType": "DCOS"
     },
@@ -10,11 +11,10 @@
       "vmSize": "${LINUX_MASTERS_VM_SIZE}"
     },
     "agentPoolProfiles": [
-       {
+      {
         "name": "${WINDOWS_SLAVES_PUBLIC_POOL_NAME}",
         "count": ${WINDOWS_SLAVES_COUNT},
         "vmSize": "${WINDOWS_SLAVES_VM_SIZE}",
-        "availabilityProfile": "AvailabilitySet",
         "osType": "Windows",
         "dnsPrefix": "${WINDOWS_SLAVES_DNS_PREFIX}",
         "ports": [
