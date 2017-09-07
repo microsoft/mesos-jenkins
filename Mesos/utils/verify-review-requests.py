@@ -24,7 +24,7 @@ import uuid
 
 sys.path.append(os.getcwd())
 
-from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL # noqa
+from common import ReviewBoardHandler, GearmanClient, ReviewError, REVIEWBOARD_URL # noqa
 
 DEFAULT_GEARMAN_PORT = 4730
 
@@ -37,7 +37,7 @@ def parse_parameters():
     parser.add_argument("-p", "--password", type=str, required=True,
                         help="Review Board user password")
     parser.add_argument("-r", "--reviews", type=int, required=False,
-                        default=-1, help="The number of reviews to fetch, "              
+                        default=-1, help="The number of reviews to fetch, "
                                          "that will need verification")
     parser.add_argument("-q", "--query", type=str, required=False,
                         help="Query parameters",
@@ -70,60 +70,14 @@ def parse_parameters():
     return parser.parse_args()
 
 
-def check_gearman_request_status(job_request):
-    import gearman
-    if job_request.complete:
-        print "Job %s finished!\n%s" % (job_request.job.unique,
-                                        job_request.result)
-    elif job_request.timed_out:
-        print "Job %s timed out!" % job_request.job.unique
-    elif job_request.state == gearman.JOB_UNKNOWN:
-        print "Job %s connection failed!" % job_request.unique
-
-
-def trigger_gearman_jobs(review_ids, job_name, german_servers, params=None):
-    import gearman
-    if len(review_ids) == 0:
-        # We don't need to trigger any jobs
-        return
-    if len(german_servers) == 0:
-        raise Exception("No gearman servers to trigger the jobs")
-    task_name = "build:%s" % job_name
-    jobs = []
-    for review_id in review_ids:
-        print "Preparing build job with review id: %s" % review_id
-        job_id = uuid.uuid4().hex
-        job_params = {
-            "commitid": review_id,
-            "OFFLINE_NODE_WHEN_COMPLETE": "false"
-        }
-        if params is not None:
-            job_params.update(json.loads(params))
-        jobs.append(dict(
-            unique=job_id,
-            task=task_name,
-            data=json.dumps(job_params)
-        ))
-    print "Using the following Gearman servers: %s" % german_servers
-    client = gearman.GearmanClient(german_servers)
-    print "Triggered all the jobs and waiting them to finish"
-    completed_job_requests = client.submit_multiple_jobs(
-        jobs_to_submit=jobs, wait_until_complete=True,
-        max_retries=0, poll_timeout=None)
-    for job_request in completed_job_requests:
-        check_gearman_request_status(job_request)
-
-
 def verify_reviews(review_ids, parameters):
     nr_reviews = len(review_ids)
     print "There are %s review requests that need verification" % nr_reviews
-
     if hasattr(parameters, 'out_file'):
         # Using file plug-in
         with open(parameters.out_file, 'w') as f:
             f.write('\n'.join(review_ids))
         return
-
     servers = []
     for server in parameters.servers.split(","):
         server = server.strip()
@@ -134,10 +88,27 @@ def verify_reviews(review_ids, parameters):
         else:
             port = DEFAULT_GEARMAN_PORT
         servers.append("%s:%s" % (address, port))
-
-    # Using Gearman plug-in
-    trigger_gearman_jobs(review_ids=review_ids, job_name=parameters.job,
-                         german_servers=servers, params=parameters.params)
+    # Using the Gearman plug-in
+    if len(review_ids) == 0:
+        # We don't need to trigger any jobs
+        return
+    jobs = []
+    task_name = "build:%s" % parameters.job
+    for review_id in review_ids:
+        print "Preparing build job with review id: %s" % review_id
+        job_params = {
+            'REVIEW_ID': review_id,
+            "OFFLINE_NODE_WHEN_COMPLETE": "false"
+        }
+        if parameters.params is not None:
+            job_params.update(json.loads(parameters.params))
+        jobs.append(dict(
+            unique=uuid.uuid4().hex,
+            task=task_name,
+            data=json.dumps(job_params)
+        ))
+    client = GearmanClient(servers=servers, jobs=jobs)
+    client.trigger_gearman_jobs()
 
 
 def main():

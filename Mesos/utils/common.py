@@ -139,3 +139,33 @@ class ReviewBoardHandler(object):
         # dependencies changed, after the last time it was verified.
         return (not review_time or review_time < diff_time or
                 (dependency_time and review_time < dependency_time))
+
+
+class GearmanClient(object):
+
+    def __init__(self, servers, jobs):
+        self.servers = servers
+        self.jobs = jobs
+
+    def check_gearman_request_status(self, job_request):
+        import gearman
+        if job_request.complete:
+            print "Job %s finished!\n%s" % (job_request.job.unique,
+                                            job_request.result)
+        elif job_request.timed_out:
+            print "Job %s timed out!" % job_request.job.unique
+        elif job_request.state == gearman.JOB_UNKNOWN:
+            print "Job %s connection failed!" % job_request.unique
+
+    def trigger_gearman_jobs(self):
+        import gearman
+        if len(self.servers) == 0:
+            raise Exception("No gearman servers to trigger the jobs")
+        print "Using the following Gearman servers: %s" % self.servers
+        client = gearman.GearmanClient(self.servers)
+        print "Triggered all the jobs and waiting them to finish"
+        completed_job_requests = client.submit_multiple_jobs(
+            jobs_to_submit=self.jobs, wait_until_complete=True,
+            max_retries=0, poll_timeout=None)
+        for job_request in completed_job_requests:
+            self.check_gearman_request_status(job_request)
