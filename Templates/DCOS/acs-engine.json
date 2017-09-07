@@ -1,0 +1,69 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}",
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS"
+    },
+    "masterProfile": {
+      "count": 3,
+      "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
+      "vmSize": "${LINUX_MASTER_SIZE}"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "${WIN_AGENT_PUBLIC_POOL}",
+        "count": 1,
+        "vmSize": "${WIN_AGENT_VM_SIZE}",
+        "osType": "Windows",
+        "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
+        "ports": [
+             80,
+             443,
+             8080,
+             3389
+          ]
+      },
+      {
+        "name": "${WIN_AGENT_PRIVATE_POOL}",
+        "count": 1,
+        "vmSize": "${WIN_AGENT_VM_SIZE}",
+        "osType": "Windows",
+        "dnsPrefix": ""
+      },
+      {
+        "name": "${LINUX_AGENT_PUBLIC_POOL}",
+        "count": 1,
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "osType": "linux",
+        "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
+        "ports": [
+             80,
+             443,
+             22
+          ]
+      },
+      {
+        "name": "${LINUX_AGENT_PRIVATE_POOL}",
+        "count": 1,
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "osType": "linux",
+        "dnsPrefix": ""
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "${WIN_AGENT_ADMIN}",
+      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}"
+    },
+    "linuxProfile": {
+      "adminUsername": "${LINUX_ADMIN}",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "${LINUX_PUBLIC_SSH_KEY}"
+          }
+        ]
+      }
+    }
+  }
+}
