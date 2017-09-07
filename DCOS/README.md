@@ -13,24 +13,27 @@ export AZURE_USER_PASSWORD="<azure_password_value>"
 export AZURE_REGION="West US"
 export AZURE_RESOURCE_GROUP="dcos_mesos_rg"
 
-export LINUX_MASTERS_COUNT=1
-export LINUX_MASTERS_VM_SIZE="Standard_D2_v2"
-export LINUX_MASTERS_DNS_PREFIX="dcos-mstr"
-export LINUX_MASTERS_ADMIN="azureuser"
-export LINUX_MASTERS_PUBLIC_SSH_KEY="<public_key_content>"
+export LINUX_MASTER_SIZE="Standard_D2_v2"
+export LINUX_MASTER_DNS_PREFIX="ib-master"
+export LINUX_AGENT_SIZE="Standard_D2_v2"
+export LINUX_AGENT_PUBLIC_POOL="iblinpublic"
+export LINUX_AGENT_DNS_PREFIX="ib-linagent"
+export LINUX_AGENT_PRIVATE_POOL="iblinprivate"
+export LINUX_ADMIN="azureuser"
+export LINUX_PUBLIC_SSH_KEY="<public_key_content>"
 
-export WINDOWS_SLAVES_COUNT=1
-export WINDOWS_SLAVES_VM_SIZE="Standard_D2_v2"
-export WINDOWS_SLAVES_PUBLIC_POOL_NAME="winpool"
-export WINDOWS_SLAVES_DNS_PREFIX="dcos-slv"
-export WINDOWS_SLAVES_ADMIN="azureuser"
-export WINDOWS_SLAVES_ADMIN_PASSWORD="<admin_password_value>"
+export WIN_AGENT_VM_SIZE="Standard_D2_v2"
+export WIN_AGENT_PUBLIC_POOL="ibwinpublic"
+export WIN_AGENT_DNS_PREFIX="ib-winagent"
+export WIN_AGENT_PRIVATE_POOL="ibwinprivate"
+export WIN_AGENT_ADMIN="azureuser"
+export WIN_AGENT_ADMIN_PASSWORD="<admin_password_value>"
+
+export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus.cloudapp.azure.com/mesos-build/master/latest/dcos-windows"
 ```
-
 
 The script workflow is the following:
 
 - Generate the necessary ARM JSON templates for the Azure deployment
 - Create the Azure resource group
 - Deploy the DC/OS environment with the Azure CLI 2.0
-- Enable WinRM on all Windows Slaves (in case we will execute any remote commands in the future via WinRM)

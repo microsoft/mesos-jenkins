@@ -7,21 +7,26 @@ if [[ -z $AZURE_USER_PASSWORD ]]; then echo "ERROR: Parameter AZURE_USER_PASSWOR
 if [[ -z $AZURE_REGION ]]; then echo "ERROR: Parameter AZURE_REGION is not set"; exit 1; fi
 if [[ -z $AZURE_RESOURCE_GROUP ]]; then echo "ERROR: Parameter AZURE_RESOURCE_GROUP is not set"; exit 1; fi
 
-if [[ -z $WINDOWS_SLAVES_COUNT ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_COUNT is not set"; exit 1; fi
-if [[ -z $WINDOWS_SLAVES_VM_SIZE ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_VM_SIZE is not set"; exit 1; fi
-if [[ -z $WINDOWS_SLAVES_PUBLIC_POOL_NAME ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_PUBLIC_POOL_NAME is not set"; exit 1; fi
-if [[ -z $WINDOWS_SLAVES_DNS_PREFIX ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_DNS_PREFIX is not set"; exit 1; fi
-if [[ -z $WINDOWS_SLAVES_ADMIN ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_ADMIN is not set"; exit 1; fi
-if [[ -z $WINDOWS_SLAVES_ADMIN_PASSWORD ]]; then echo "ERROR: Parameter WINDOWS_SLAVES_ADMIN_PASSWORD is not set"; exit 1; fi
+if [[ -z $LINUX_MASTER_SIZE ]]; then echo "ERROR: Parameter LINUX_MASTER_SIZE is not set"; exit 1; fi
+if [[ -z $LINUX_MASTER_DNS_PREFIX ]]; then echo "ERROR: Parameter LINUX_MASTER_DNS_PREFIX is not set"; exit 1; fi
+if [[ -z $LINUX_AGENT_SIZE ]]; then echo "ERROR: Parameter LINUX_AGENT_SIZE is not set"; exit 1; fi
+if [[ -z $LINUX_AGENT_PUBLIC_POOL ]]; then echo "ERROR: Parameter LINUX_AGENT_PUBLIC_POOL is not set"; exit 1; fi
+if [[ -z $LINUX_AGENT_DNS_PREFIX ]]; then echo "ERROR: Parameter LINUX_AGENT_DNS_PREFIX is not set"; exit 1; fi
+if [[ -z $LINUX_AGENT_PRIVATE_POOL ]]; then echo "ERROR: Parameter LINUX_AGENT_PRIVATE_POOL is not set"; exit 1; fi
+if [[ -z $LINUX_ADMIN ]]; then echo "ERROR: Parameter LINUX_ADMIN is not set"; exit 1; fi
+if [[ -z $LINUX_PUBLIC_SSH_KEY ]]; then echo "ERROR: Parameter LINUX_PUBLIC_SSH_KEY is not set"; exit 1; fi
 
-if [[ -z $LINUX_MASTERS_COUNT ]]; then echo "ERROR: Parameter LINUX_MASTERS_COUNT is not set"; exit 1; fi
-if [[ -z $LINUX_MASTERS_VM_SIZE ]]; then echo "ERROR: Parameter LINUX_MASTERS_VM_SIZE is not set"; exit 1; fi
-if [[ -z $LINUX_MASTERS_DNS_PREFIX ]]; then echo "ERROR: Parameter LINUX_MASTERS_DNS_PREFIX is not set"; exit 1; fi
-if [[ -z $LINUX_MASTERS_ADMIN ]]; then echo "ERROR: Parameter LINUX_MASTERS_ADMIN is not set"; exit 1; fi
-if [[ -z $LINUX_MASTERS_PUBLIC_SSH_KEY ]]; then echo "ERROR: Parameter LINUX_MASTERS_PUBLIC_SSH_KEY is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_VM_SIZE ]]; then echo "ERROR: Parameter WIN_AGENT_VM_SIZE is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_PUBLIC_POOL ]]; then echo "ERROR: Parameter WIN_AGENT_PUBLIC_POOL is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_DNS_PREFIX ]]; then echo "ERROR: Parameter WIN_AGENT_DNS_PREFIX is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_PRIVATE_POOL ]]; then echo "ERROR: Parameter WIN_AGENT_PRIVATE_POOL is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_ADMIN ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN is not set"; exit 1; fi
+if [[ -z $WIN_AGENT_ADMIN_PASSWORD ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN_PASSWORD is not set"; exit 1; fi
+
+if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then echo "ERROR: Parameter DCOS_WINDOWS_BOOTSTRAP_URL is not set"; exit 1; fi
 
 BASE_DIR=$(dirname $0)
-TEMPLATES_DIR="$BASE_DIR/../../templates"
+TEMPLATES_DIR="$BASE_DIR/../Templates"
 
 
 install_go_1_8() {
@@ -49,8 +54,6 @@ install_acs_engine_from_src() {
     which acs-engine > /dev/null && echo "ACS Engine is already installed" && return || echo "Installing ACS Engine from source"
     go get -v github.com/Azure/acs-engine
     cd $GOPATH/src/github.com/Azure/acs-engine
-    git remote add dcos-windows https://github.com/yakman2020/acs-engine
-    git pull -q dcos-windows brcampbe/windows-dcos --no-edit
     make bootstrap
     make build
     if [[ ! -e ~/bin ]]; then
@@ -79,9 +82,8 @@ install_acs_engine_requirements
 install_acs_engine_from_src
 install_azure_cli_2
 
-
 # 2. Generate the Azure ARM deploy files
-ACS_TEMPLATE="$TEMPLATES_DIR/dcos/acs-engine.json"
+ACS_TEMPLATE="$TEMPLATES_DIR/DCOS/acs-engine.json"
 ACS_RENDERED_TEMPLATE="/tmp/dcos-acs-engine.json"
 DCOS_DEPLOY_DIR="/tmp/dcos-windows-deploy-dir"
 eval "cat << EOF
@@ -93,7 +95,6 @@ acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf $BASE_DIR/translations # Left-over after running 'acs-engine generate'
 rm $ACS_RENDERED_TEMPLATE
 
-
 # 3. Deploy the DCOS with Mesos environment
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
@@ -102,15 +103,3 @@ az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP"
 echo "Started the DCOS deployment"
 az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE
 rm -rf $DCOS_DEPLOY_DIR
-
-
-# 4. Enable WinRM on the Windows slaves
-WINDOWS_SLAVES=$(az vm list --resource-group $AZURE_RESOURCE_GROUP --output table | grep -v "^dcos-master-" | sed 1,2d | awk '{print $1}')
-for VM in $WINDOWS_SLAVES; do
-    echo "Enabling WinRM on Windows slave: $VM"
-    az vm extension set --resource-group $AZURE_RESOURCE_GROUP \
-                        --vm-name $VM \
-                        --name CustomScriptExtension \
-                        --publisher Microsoft.Compute \
-                        --settings $TEMPLATES_DIR/enable-winrm.json
-done
