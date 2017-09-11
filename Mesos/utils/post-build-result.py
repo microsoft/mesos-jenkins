@@ -51,7 +51,7 @@ def get_build_message(message, outputs_url, logs_urls=[], review_ids=[]):
     build_msg = ("%s\n\n"
                  "Reviews applied: %s\n\n"
                  "All the build artifacts "
-                 "available here: %s\n\n") % (message, review_ids, outputs_url)
+                 "available at: %s\n\n") % (message, review_ids, outputs_url)
     logs_msg = ''
     for url in logs_urls:
         response = urllib2.urlopen(url)
