@@ -17,9 +17,7 @@ $ciUtils = (Resolve-Path "$PSScriptRoot\..\..\Modules\CIUtils").Path
 Import-Module $ciUtils
 . $globalVariables
 
-$global:LOG_TAIL_LIMIT = 30
 $global:BUILD_STATUS = $null
-$global:BUILD_RESULT_HTML_MESSAGE = $null
 $global:LOGS_URLS = $null
 
 
@@ -97,40 +95,6 @@ function Install-Prerequisites {
     }
 }
 
-function Get-HtmlBuildMessage {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$Message,
-        [Parameter(Mandatory=$false)]
-        [HashTable[]]$Logs
-    )
-    $htmlMessage = [System.Collections.Generic.List[String]](New-Object "System.Collections.Generic.List[String]")
-    $htmlMessage.Add("<br/>$Message<br/>")
-    if($Logs.Count -eq 0) {
-        return $htmlMessage
-    }
-    $logsHtmlMessage = [System.Collections.Generic.List[String]](New-Object "System.Collections.Generic.List[String]")
-    foreach($log in $Logs) {
-        $content = Get-Content $log['Path'] -Last $global:LOG_TAIL_LIMIT
-        if(!$content) {
-            continue
-        }
-        $logName = Split-Path $log['Path'] -Leaf
-        $logsHtmlMessage.Add("<li>$logName (full log: $($log['URL'])):</li><br/>")
-        $htmlContent = ($content -join '<br/>')
-        $logsHtmlMessage.Add("<pre>$htmlContent</pre><br/>")
-    }
-    if($logsHtmlMessage.Count -eq 0) {
-        return $htmlMessage
-    }
-    $htmlMessage.Add("<br/>Relevant logs:<br/>")
-    $htmlMessage.Add("<ul>")
-    $logsHtmlMessage | Foreach-Object { $htmlMessage.Add($_) }
-    $htmlMessage.Add("<ul>")
-    $htmlMessage.Add("</ul>")
-    return $htmlMessage
-}
-
 function Add-ReviewBoardPatch {
     Param(
         [Parameter(Mandatory=$true)]
@@ -147,7 +111,6 @@ function Add-ReviewBoardPatch {
         if ($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'ERROR'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Throw $errMsg
     }
@@ -164,7 +127,6 @@ function Add-ReviewBoardPatch {
             if ($LASTEXITCODE) { Throw $errMsg }
         } catch {
             $global:BUILD_STATUS = 'ERROR'
-            $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
             $global:LOGS_URLS = @("$logsUrl/$fileName")
             Pop-Location
             Throw $errMsg
@@ -236,7 +198,6 @@ function Start-MesosBuild {
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Throw $errMsg
     } finally {
@@ -257,7 +218,6 @@ function Start-STDOutTests {
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Pop-Location
         Throw $errMsg
@@ -276,8 +236,6 @@ function Start-STDOutTests {
                              -StandardOutput $stdoutFile -StandardError $stderrFile
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $stdoutFile; 'URL' = $stdoutUrl},
-                                                                                   @{'Path' = $stderrFile; 'URL' = $stderrUrl})
         $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
         Throw $errMsg
     } finally {
@@ -300,7 +258,6 @@ function Start-LibProcessTests {
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Pop-Location
         Throw $errMsg
@@ -319,8 +276,6 @@ function Start-LibProcessTests {
                              -StandardOutput $stdoutFile -StandardError $stderrFile
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $stdoutFile; 'URL' = $stdoutUrl},
-                                                                                   @{'Path' = $stderrFile; 'URL' = $stderrUrl})
         $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
         Throw $errMsg
     } finally {
@@ -343,7 +298,6 @@ function Start-MesosTests {
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Pop-Location
         Throw $errMsg
@@ -362,8 +316,6 @@ function Start-MesosTests {
                              -StandardOutput $stdoutFile -StandardError $stderrFile
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $stdoutFile; 'URL' = $stdoutUrl},
-                                                                                   @{'Path' = $stderrFile; 'URL' = $stderrUrl})
         $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
         Throw $errMsg
     } finally {
@@ -386,7 +338,6 @@ function New-MesosBinaries {
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg -Logs @(@{'Path' = $logFile; 'URL' = "$logsUrl/$fileName"})
         $global:LOGS_URLS = @("$logsUrl/$fileName")
         Pop-Location
         Throw $errMsg
@@ -532,8 +483,6 @@ try {
         $msg = "Mesos nightly build and testing was successful."
     }
     Add-Content $ParametersFile "MESSAGE=$msg"
-    $htmlMsg = Get-HtmlBuildMessage -Message $msg
-    Add-Content $ParametersFile "HTML_MESSAGE=$htmlMsg"
     Start-LogServerFilesUpload -CreateLatestSymlink
     Start-EnvironmentCleanup
 } catch {
@@ -542,16 +491,12 @@ try {
     if(!$global:BUILD_STATUS) {
         $global:BUILD_STATUS = 'ERROR'
     }
-    if(!$global:BUILD_RESULT_HTML_MESSAGE) {
-        $global:BUILD_RESULT_HTML_MESSAGE = Get-HtmlBuildMessage -Message $errMsg
-    }
     if($global:LOGS_URLS) {
         $strLogsUrls = $global:LOGS_URLS -join '|'
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
     Add-Content -Path $ParametersFile -Value "MESSAGE=$errMsg"
-    Add-Content -Path $ParametersFile -Value "HTML_MESSAGE=${global:BUILD_RESULT_HTML_MESSAGE}"
     Start-LogServerFilesUpload
     Start-EnvironmentCleanup
     exit 1
