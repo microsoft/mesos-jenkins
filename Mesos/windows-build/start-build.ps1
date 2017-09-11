@@ -109,15 +109,24 @@ function Get-HtmlBuildMessage {
     if($Logs.Count -eq 0) {
         return $htmlMessage
     }
+    $logsHtmlMessage = [System.Collections.Generic.List[String]](New-Object "System.Collections.Generic.List[String]")
+    foreach($log in $Logs) {
+        $content = Get-Content $log['Path'] -Last $global:LOG_TAIL_LIMIT
+        if(!$content) {
+            continue
+        }
+        $logName = Split-Path $log['Path'] -Leaf
+        $logsHtmlMessage.Add("<li>$logName (full log: $($log['URL'])):</li><br/>")
+        $htmlContent = ($content -join '<br/>')
+        $logsHtmlMessage.Add("<pre>$htmlContent</pre><br/>")
+    }
+    if($logsHtmlMessage.Count -eq 0) {
+        return $htmlMessage
+    }
     $htmlMessage.Add("<br/>Relevant logs:<br/>")
     $htmlMessage.Add("<ul>")
-    foreach($log in $Logs) {
-        $logName = Split-Path $log['Path'] -Leaf
-        $htmlMessage.Add("<li>$logName (full log: $($log['URL'])):</li><br/>")
-        $content = Get-Content $log['Path'] -Last $global:LOG_TAIL_LIMIT
-        $htmlContent = ($content -join '<br/>')
-        $htmlMessage.Add("<pre>$htmlContent</pre><br/>")
-    }
+    $logsHtmlMessage | Foreach-Object { $htmlMessage.Add($_) }
+    $htmlMessage.Add("<ul>")
     $htmlMessage.Add("</ul>")
     return $htmlMessage
 }

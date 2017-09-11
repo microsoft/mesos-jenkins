@@ -51,20 +51,21 @@ def get_build_message(message, outputs_url, logs_urls=[], review_ids=[]):
     build_msg = ("%s\n\n"
                  "Reviews applied: %s\n\n"
                  "All the build artifacts "
-                 "available [here](%s).\n\n") % (message,
-                                                 review_ids,
-                                                 outputs_url)
-    if len(logs_urls) == 0:
-        return build_msg
-    build_msg += "Relevant logs:\n\n"
+                 "available here: %s\n\n") % (message, review_ids, outputs_url)
+    logs_msg = ''
     for url in logs_urls:
-        file_name = url.split('/')[-1]
-        build_msg += " - %s (full log [here](%s)):\n" % (file_name, url)
-        build_msg += "```\n"
         response = urllib2.urlopen(url)
-        log_tail = response.read().split("\n")[-LOG_TAIL_LIMIT:]
-        build_msg += "\n".join(log_tail)
-        build_msg += "```\n"
+        log_content = response.read()
+        if log_content == '':
+            continue
+        file_name = url.split('/')[-1]
+        logs_msg += " - %s:\n\n" % (file_name)
+        log_tail = log_content.split("\n")[-LOG_TAIL_LIMIT:]
+        logs_msg += "\n".join(log_tail)
+        logs_msg += "\nFull log available at: %s\n\n" % (url)
+    if logs_msg == '':
+        return build_msg
+    build_msg += "Relevant logs:\n\n%s" % (logs_msg)
     return build_msg
 
 
