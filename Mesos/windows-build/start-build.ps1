@@ -107,7 +107,7 @@ function Add-ReviewBoardPatch {
         $fileName = "get-review-ids.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Failed to get dependent review IDs for patch $PatchID."
-        python.exe "$MESOS_JENKINS_GIT_REPO_DIR\Mesos\utils\get-review-ids.py" -r $PatchID -o $tempFile | Tee-Object -FilePath $logFile
+        python.exe "$MESOS_JENKINS_GIT_REPO_DIR\Mesos\utils\get-review-ids.py" -r $PatchID -o $tempFile 2>&1 | Tee-Object -FilePath $logFile
         if ($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'ERROR'
@@ -123,7 +123,7 @@ function Add-ReviewBoardPatch {
             $fileName = "apply-reviews.log"
             $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
             $errMsg = "Failed to apply patch $id."
-            python.exe ".\support\apply-reviews.py" -n -r $id | Tee-Object -Append -FilePath "$MESOS_BUILD_LOGS_DIR\$fileName"
+            python.exe ".\support\apply-reviews.py" -n -r $id 2>&1 | Tee-Object -Append -FilePath "$MESOS_BUILD_LOGS_DIR\$fileName"
             if ($LASTEXITCODE) { Throw $errMsg }
         } catch {
             $global:BUILD_STATUS = 'ERROR'
@@ -194,7 +194,7 @@ function Start-MesosBuild {
         $fileName = "mesos-cmake-build.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Mesos failed to build."
-        cmake.exe "$MESOS_GIT_REPO_DIR" -G $generatorName -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 | Tee-Object -FilePath $logFile
+        cmake.exe "$MESOS_GIT_REPO_DIR" -G $generatorName -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 2>&1 | Tee-Object -FilePath $logFile
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
@@ -214,7 +214,7 @@ function Start-STDOutTests {
         $fileName = "stout-tests-cmake-build.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Mesos stdout-tests failed to build."
-        cmake.exe --build . --target stout-tests --config Debug | Tee-Object -FilePath $logFile
+        cmake.exe --build . --target stout-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
@@ -254,7 +254,7 @@ function Start-LibProcessTests {
         $fileName = "libprocess-tests-cmake-build.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Mesos libprocess-tests failed to build."
-        cmake.exe --build . --target libprocess-tests --config Debug | Tee-Object -FilePath $logFile
+        cmake.exe --build . --target libprocess-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
@@ -294,7 +294,7 @@ function Start-MesosTests {
         $fileName = "mesos-tests-cmake-build.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Mesos tests failed to build."
-        cmake.exe --build . --target mesos-tests --config Debug | Tee-Object -FilePath $logFile
+        cmake.exe --build . --target mesos-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
@@ -334,7 +334,7 @@ function New-MesosBinaries {
         $fileName = "mesos-binaries-cmake-build.log"
         $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
         $errMsg = "Mesos binaries failed to build."
-        cmake.exe --build . | Tee-Object -FilePath $logFile
+        cmake.exe --build . 2>&1 | Tee-Object -FilePath $logFile
         if($LASTEXITCODE) { Throw $errMsg }
     } catch {
         $global:BUILD_STATUS = 'FAIL'
