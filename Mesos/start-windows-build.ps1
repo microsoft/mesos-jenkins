@@ -11,8 +11,8 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
-$globalVariables = (Resolve-Path "$PSScriptRoot\..\..\global-variables.ps1").Path
-$ciUtils = (Resolve-Path "$PSScriptRoot\..\..\Modules\CIUtils").Path
+$globalVariables = (Resolve-Path "$PSScriptRoot\..\global-variables.ps1").Path
+$ciUtils = (Resolve-Path "$PSScriptRoot\..\Modules\CIUtils").Path
 
 Import-Module $ciUtils
 . $globalVariables
@@ -93,46 +93,78 @@ function Install-Prerequisites {
             Throw "Failed to install prerequisite $programFile during the environment setup"
         }
     }
+    # Add all the tools to PATH
+    $toolsDirs = @("$CMAKE_DIR\bin", "$GIT_DIR\cmd", "$GIT_DIR\bin", "$PYTHON_DIR",
+                   "$PYTHON_DIR\Scripts", "$7ZIP_DIR", "$GNU_WIN32_DIR\bin")
+    $env:PATH += ';' + ($toolsDirs -join ';')
+}
+
+function Start-MesosCIProcess {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ProcessPath,
+        [Parameter(Mandatory=$false)]
+        [string[]]$ArgumentList,
+        [Parameter(Mandatory=$true)]
+        [string]$StdoutFileName,
+        [Parameter(Mandatory=$true)]
+        [string]$StderrFileName,
+        [Parameter(Mandatory=$true)]
+        [string]$BuildErrorMessage
+    )
+    $stdoutFile = Join-Path $MESOS_BUILD_LOGS_DIR $StdoutFileName
+    $stderrFile = Join-Path $MESOS_BUILD_LOGS_DIR $StderrFileName
+    New-Item -ItemType File -Path $stdoutFile
+    New-Item -ItemType File -Path $stderrFile
+    $logsUrl = Get-BuildLogsUrl
+    $stdoutUrl = "${logsUrl}/${StdoutFileName}"
+    $stderrUrl = "${logsUrl}/${StderrFileName}"
+    $command = $ProcessPath -replace '\\', '\\'
+    if($ArgumentList.Count) {
+        $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
+    }
+    try {
+        Wait-ProcessToFinish -ProcessPath $ProcessPath -ArgumentList $ArgumentList `
+                             -StandardOutput $stdoutFile -StandardError $stderrFile
+        $msg = "Successfully executed: $command"
+    } catch {
+        $msg = "Failed to execute: $command"
+        $global:BUILD_STATUS = 'FAIL'
+        $global:LOGS_URLS = $($stdoutUrl, $stderrUrl)
+        Write-Output "Exception: $($_.ToString())"
+        Add-Content -Path $ParametersFile -Value "FAILED_COMMAND=$command"
+        Throw $BuildErrorMessage
+    } finally {
+        Write-Output $msg
+        Write-Output "Stdout log available at: $stdoutUrl"
+        Write-Output "Stderr log available at: $stderrUrl"
+    }
 }
 
 function Add-ReviewBoardPatch {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$PatchID
-    )
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
-    $logsUrl = Get-BuildLogsUrl
-    try {
-        $fileName = "get-review-ids.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Failed to get dependent review IDs for patch $PatchID."
-        python.exe "$MESOS_JENKINS_GIT_REPO_DIR\Mesos\utils\get-review-ids.py" -r $PatchID -o $tempFile 2>&1 | Tee-Object -FilePath $logFile
-        if ($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'ERROR'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
-        Throw $errMsg
-    }
+    Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "get-review-ids-stdout.log" -StderrFileName "get-review-ids-stderr.log" `
+                         -ArgumentList @("$MESOS_JENKINS_GIT_REPO_DIR\Mesos\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
+                         -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
     Write-Output "Patches IDs that need to be applied: $reviewIDs"
-    Push-Location $MESOS_GIT_REPO_DIR
     foreach($id in $reviewIDs) {
         Write-Output "Applying patch ID: $id"
+        Push-Location $MESOS_GIT_REPO_DIR
         try {
-            $fileName = "apply-reviews.log"
-            $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-            $errMsg = "Failed to apply patch $id."
-            python.exe ".\support\apply-reviews.py" -n -r $id 2>&1 | Tee-Object -Append -FilePath "$MESOS_BUILD_LOGS_DIR\$fileName"
-            if ($LASTEXITCODE) { Throw $errMsg }
-        } catch {
-            $global:BUILD_STATUS = 'ERROR'
-            $global:LOGS_URLS = @("$logsUrl/$fileName")
+            if($id -eq $ReviewID) {
+                $buildErrorMsg = "Failed to apply the current review."
+            } else {
+                $buildErrorMsg = "Failed to apply the dependent review: $id."
+            }
+            Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "apply-review-${id}-stdout.log" -StderrFileName "apply-review-${id}-stderr.log" `
+                                 -ArgumentList @(".\support\apply-reviews.py", "-n", "-r", $id) -BuildErrorMessage $buildErrorMsg
+        } finally {
             Pop-Location
-            Throw $errMsg
         }
     }
-    Pop-Location
+    Add-Content -Path $ParametersFile -Value "APPLIED_REVIEWS=$($reviewIDs -join '|')"
     Write-Output "Finished applying Reviewboard patch(es)"
 }
 
@@ -142,8 +174,8 @@ function Set-LatestMesosCommit {
         if($CommitID) {
             Start-ExternalCommand { git.exe reset --hard $CommitID } -ErrorMessage "Failed to set Mesos git repo last commit to: $CommitID."
         }
-        Start-ExternalCommand { git.exe log -n 1 } -ErrorMessage "Failed to get the Mesos git repo latest commit message" | Out-File "$MESOS_BUILD_LOGS_DIR\latest-commit.log"
-        $mesosCommitId = Start-ExternalCommand { git.exe log --format="%H" -n 1 } -ErrorMessage "Failed to get the Mesos git repo latest commit id"
+        Start-ExternalCommand { git.exe log -n 1 } -ErrorMessage "Failed to get the latest commit message for the Mesos git repo" | Out-File "$MESOS_BUILD_LOGS_DIR\latest-commit.log"
+        $mesosCommitId = Start-ExternalCommand { git.exe log --format="%H" -n 1 } -ErrorMessage "Failed to get the latest commit id for the Mesos git repo"
         Set-Variable -Name "LATEST_COMMIT_ID" -Value $mesosCommitId -Scope Global -Option ReadOnly
     } finally {
         Pop-Location
@@ -175,180 +207,117 @@ function New-Environment {
     Set-LatestMesosCommit
     Start-GitClone -Path $MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL -Branch 'master'
     if($ReviewID) {
-        # Pull the patch is a review ID was given
-        Add-ReviewBoardPatch -PatchID $ReviewID
+        # Pull the patch and all the dependent ones, if a review ID was given
+        Add-ReviewBoardPatch
     }
-    Write-Output "Created new tests environment"
+    Start-ExternalCommand { git.exe config --global user.email "ibalutoiu@cloudbasesolutions.com" } -ErrorMessage "Failed to set git user email"
+    Start-ExternalCommand { git.exe config --global user.name "ionutbalutoiu" } -ErrorMessage "Failed to set git user name"
+    # Set Visual Studio variables based on tested branch
+    if ($branch -eq "master") {
+        Set-VCVariables "15.0"
+    } else {
+        Set-VCVariables "14.0"
+    }
+    Write-Output "New tests environment was successfully created"
 }
 
 function Start-MesosBuild {
     Write-Output "Building Mesos"
     Push-Location $MESOS_DIR
-    if($Branch -eq "master") {
-        $generatorName = "Visual Studio 15 2017 Win64"
-    } else {
-        $generatorName = "Visual Studio 14 2015 Win64"
-    }
-    $logsUrl = Get-BuildLogsUrl
     try {
-        $fileName = "mesos-cmake-build.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Mesos failed to build."
-        cmake.exe "$MESOS_GIT_REPO_DIR" -G $generatorName -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 2>&1 | Tee-Object -FilePath $logFile
-        if($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
-        Throw $errMsg
+        if($Branch -eq "master") {
+            $generatorName = "Visual Studio 15 2017 Win64"
+        } else {
+            $generatorName = "Visual Studio 14 2015 Win64"
+        }
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-cmake-build-stdout.log" -StderrFileName "mesos-cmake-build-stderr.log" `
+                             -ArgumentList @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=1", "-DHAS_AUTHENTICATION=0") `
+                             -BuildErrorMessage "Mesos failed to build."
     } finally {
         Pop-Location
     }
-    Write-Output "Mesos successfully was successfully built"
+    Write-Output "Mesos was successfully built"
 }
 
-function Start-STDOutTests {
+function Start-StdoutTestsBuild {
     Write-Output "Started Mesos stdout-tests build"
     Push-Location $MESOS_DIR
-    $logsUrl = Get-BuildLogsUrl
     try {
-        $fileName = "stout-tests-cmake-build.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Mesos stdout-tests failed to build."
-        cmake.exe --build . --target stout-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
-        if($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-cmake-build-stdout.log" -StderrFileName "stout-tests-cmake-build-stderr.log" `
+                             -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug") `
+                             -BuildErrorMessage "Mesos stdout-tests failed to build."
+    } finally {
         Pop-Location
-        Throw $errMsg
     }
     Write-Output "stdout-tests were successfully built"
+}
+
+function Start-StdoutTestsRun {
     Write-Output "Started Mesos stdout-tests run"
-    try {
-        $stdoutFileName = "stdout-tests-stdout.log"
-        $stderrFileName = "stdout-tests-stderr.log"
-        $stdoutFile = Join-Path $MESOS_BUILD_LOGS_DIR $stdoutFileName
-        $stderrFile = Join-Path $MESOS_BUILD_LOGS_DIR $stderrFileName
-        $stdoutUrl = "$logsUrl/$stdoutFileName"
-        $stderrUrl = "$logsUrl/$stderrFileName"
-        $errMsg = "Some Mesos stdout-tests failed."
-        Wait-ProcessToFinish -ProcessPath "$MESOS_DIR\3rdparty\stout\tests\Debug\stout-tests.exe" `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
-        Throw $errMsg
-    } finally {
-        Write-Output "stdout-tests standard output available at: $stdoutUrl"
-        Write-Output "stdout-tests standard error available at: $stderrUrl"
-        Pop-Location
-    }
+    Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\stout\tests\Debug\stout-tests.exe" `
+                         -StdoutFileName "stdout-tests-stdout.log" -StderrFileName "stdout-tests-stderr.log" `
+                         -BuildErrorMessage "Some Mesos stdout-tests tests failed."
     Write-Output "stdout-tests PASSED"
 }
 
-function Start-LibProcessTests {
+function Start-LibprocessTestsBuild {
     Write-Output "Started Mesos libprocess-tests build"
     Push-Location $MESOS_DIR
-    $logsUrl = Get-BuildLogsUrl
     try {
-        $fileName = "libprocess-tests-cmake-build.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Mesos libprocess-tests failed to build."
-        cmake.exe --build . --target libprocess-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
-        if($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
-        Pop-Location
-        Throw $errMsg
-    }
-    Write-Output "libprocess-tests finished building"
-    Write-Output "Started Mesos libprocess-tests run"
-    try {
-        $stdoutFileName = "libprocess-tests-stdout.log"
-        $stderrFileName = "libprocess-tests-stderr.log"
-        $stdoutFile = Join-Path $MESOS_BUILD_LOGS_DIR $stdoutFileName
-        $stderrFile = Join-Path $MESOS_BUILD_LOGS_DIR $stderrFileName
-        $stdoutUrl = "$logsUrl/$stdoutFileName"
-        $stderrUrl = "$logsUrl/$stderrFileName"
-        $errMsg = "Some Mesos libprocess-tests failed."
-        Wait-ProcessToFinish -ProcessPath "$MESOS_DIR\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
-        Throw $errMsg
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "libprocess-tests-cmake-build-stdout.log" -StderrFileName "libprocess-tests-cmake-build-stderr.log" `
+                             -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug") `
+                             -BuildErrorMessage "Mesos libprocess-tests failed to build"
     } finally {
-        Write-Output "libprocess-tests standard output available at: $stdoutUrl"
-        Write-Output "libprocess-tests standard error available at: $stderrUrl"
         Pop-Location
     }
+    Write-Output "libprocess-tests were successfully built"
+}
+
+function Start-LibprocessTestsRun {
+    Write-Output "Started Mesos libprocess-tests run"
+    Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" `
+                         -StdoutFileName "libprocess-tests-stdout.log" -StderrFileName "libprocess-tests-stderr.log" `
+                         -BuildErrorMessage "Some Mesos libprocess-tests failed."
     Write-Output "libprocess-tests PASSED"
 }
 
-function Start-MesosTests {
+function Start-MesosTestsBuild {
     Write-Output "Started Mesos tests build"
     Push-Location $MESOS_DIR
-    $logsUrl = Get-BuildLogsUrl
     try {
-        $fileName = "mesos-tests-cmake-build.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Mesos tests failed to build."
-        cmake.exe --build . --target mesos-tests --config Debug 2>&1 | Tee-Object -FilePath $logFile
-        if($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
-        Pop-Location
-        Throw $errMsg
-    }
-    Write-Output "Mesos tests successfully built"
-    Write-Output "Started Mesos tests run"
-    try {
-        $stdoutFileName = "mesos-tests-stdout.log"
-        $stderrFileName = "mesos-tests-stderr.log"
-        $stdoutFile = Join-Path $MESOS_BUILD_LOGS_DIR $stdoutFileName
-        $stderrFile = Join-Path $MESOS_BUILD_LOGS_DIR $stderrFileName
-        $stdoutUrl = "$logsUrl/$stdoutFileName"
-        $stderrUrl = "$logsUrl/$stderrFileName"
-        $errMsg = "Some Mesos tests failed."
-        Wait-ProcessToFinish -ProcessPath "$MESOS_DIR\src\mesos-tests.exe" -ArgumentList @("--verbose") `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @($stdoutUrl, $stderrUrl)
-        Throw $errMsg
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-tests-cmake-build-stdout.log" -StderrFileName "mesos-tests-cmake-build-stderr.log" `
+                             -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug") `
+                             -BuildErrorMessage "Mesos tests failed to build."
     } finally {
-        Write-Output "mesos-tests standard output available at: $stdoutUrl"
-        Write-Output "mesos-tests standard error available at: $stderrUrl"
         Pop-Location
     }
+    Write-Output "Mesos tests were successfully built"
+}
+
+function Start-MesosTestsRun {
+    Write-Output "Started Mesos tests run"
+    Start-MesosCIProcess -ProcessPath "$MESOS_DIR\src\mesos-tests.exe" -ArgumentList @('--verbose') `
+                         -StdoutFileName "mesos-tests-stdout.log" -StderrFileName "mesos-tests-stderr.log" `
+                         -BuildErrorMessage "Some Mesos tests failed."
     Write-Output "mesos-tests PASSED"
 }
 
 function New-MesosBinaries {
-    Push-Location $MESOS_DIR
     Write-Output "Started building Mesos binaries"
-    $logsUrl = Get-BuildLogsUrl
+    Push-Location $MESOS_DIR
     try {
-        $fileName = "mesos-binaries-cmake-build.log"
-        $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $fileName
-        $errMsg = "Mesos binaries failed to build."
-        cmake.exe --build . 2>&1 | Tee-Object -FilePath $logFile
-        if($LASTEXITCODE) { Throw $errMsg }
-    } catch {
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS = @("$logsUrl/$fileName")
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-cmake-build-stdout.log" -StderrFileName "mesos-binaries-cmake-build-stderr.log" `
+                             -ArgumentList @("--build", ".") -BuildErrorMessage "Mesos binaries failed to build."
+    } finally {
         Pop-Location
-        Throw $errMsg
     }
-    Write-Output "Successfully generated Mesos binaries"
+    Write-Output "Mesos binaries were successfully built"
     New-Directory $MESOS_BUILD_BINARIES_DIR
     Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\mesos\"
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\mesos\" -Filter "*.exe" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-binaries.zip"
     Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\mesos\"
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\mesos\" -Filter "*.pdb" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-pdb.zip"
-    Pop-Location
+    Write-Output "Mesos binaries were successfully generated"
 }
 
 function Copy-FilesToRemoteServer {
@@ -425,15 +394,9 @@ function Start-LogServerFilesUpload {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath
-    $logsUrl = Get-BuildLogsUrl
     $buildOutputsUrl = Get-BuildOutputsUrl
     Add-Content -Path $ParametersFile -Value "BUILD_OUTPUTS_URL=$buildOutputsUrl"
-    Write-Output "Logs can be found at: $logsUrl"
-    if((Test-Path $MESOS_BUILD_BINARIES_DIR)) {
-        # This means that binaries build was successful and binaries were generated.
-        $binariesUrl = Get-BuildBinariesUrl
-        Write-Output "Binaries can be found at: $binariesUrl"
-    }
+    Write-Output "Build artifacts can be found at: $buildOutputsUrl"
     if($CreateLatestSymlink) {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
@@ -448,48 +411,35 @@ function Start-EnvironmentCleanup {
     Invoke-Expression -Command "cmd /C rmdir /s /q $MESOS_DIR" -ErrorAction SilentlyContinue
 }
 
+function Get-SuccessBuildMessage {
+    if($ReviewID) {
+        return "Mesos patch $ReviewID was successfully built and tested."
+    }
+    return "Mesos nightly build and testing was successful."
+}
+
 
 try {
     Install-Prerequisites
-    $toolsDirs = @(
-        "$CMAKE_DIR\bin",
-        "$GIT_DIR\cmd",
-        "$GIT_DIR\bin",
-        "$PYTHON_DIR",
-        "$PYTHON_DIR\Scripts",
-        "$7ZIP_DIR",
-        "$GNU_WIN32_DIR\bin"
-    )
-    $env:PATH += ';' + ($toolsDirs -join ';')
-    Start-ExternalCommand { git.exe config --global user.email "ibalutoiu@cloudbasesolutions.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ionutbalutoiu" } -ErrorMessage "Failed to set git user name"
-    # Set Visual Studio variables based on tested branch
-    if ($branch -eq "master") {
-        Set-VCVariables "15.0"
-    } else {
-        Set-VCVariables "14.0"
-    }
     New-Environment
     Start-MesosBuild
-    Start-STDOutTests
-    Start-LibProcessTests
-    Start-MesosTests
-    # After all the tests finished and all PASSED. It's time to build the Mesos binaries
+    Start-StdoutTestsBuild
+    Start-StdoutTestsRun
+    Start-LibprocessTestsBuild
+    Start-LibprocessTestsRun
+    Start-MesosTestsBuild
+    Start-MesosTestsRun
     New-MesosBinaries
+    Start-MesosBinariesUpload
     Add-Content $ParametersFile "STATUS=PASS"
-    if($ReviewID) {
-        $msg = "Mesos patch $ReviewID was successfully built and tested."
-    } else {
-        $msg = "Mesos nightly build and testing was successful."
-    }
-    Add-Content $ParametersFile "MESSAGE=$msg"
+    Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
     Start-LogServerFilesUpload -CreateLatestSymlink
     Start-EnvironmentCleanup
 } catch {
     $errMsg = $_.ToString()
     Write-Output $errMsg
     if(!$global:BUILD_STATUS) {
-        $global:BUILD_STATUS = 'ERROR'
+        $global:BUILD_STATUS = 'FAIL'
     }
     if($global:LOGS_URLS) {
         $strLogsUrls = $global:LOGS_URLS -join '|'
