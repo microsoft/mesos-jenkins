@@ -232,19 +232,15 @@ function Wait-ProcessToFinish {
     $errorMessage = "The process $ProcessPath didn't finish successfully"
     try {
         Wait-Process -InputObject $process -Timeout $Timeout -ErrorAction Stop
-        $exitCode = $process.ExitCode
-        if ($exitCode -ne 0) {
-            Throw $errorMessage
-        }
-        Write-Output "Process successfully completed within the timeout of $Timeout seconds"
-    } catch {
-        if(($_.ToString() -eq $errorMessage) -and $exitCode) {
-            Write-Output "$errorMessage. Exit code: $exitCode"
-        } else {
-            Write-Output "The process $ProcessPath exceeded the timeout of $Timeout seconds"
-            Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
-        }
+        Write-Output "Process finished within the timeout of $Timeout seconds"
+    } catch [System.TimeoutException] {
+        Write-Output "The process $ProcessPath exceeded the timeout of $Timeout seconds"
+        Stop-Process -InputObject $process -Force -ErrorAction SilentlyContinue
         Throw $_
+    }
+    if($process.ExitCode -ne 0) {
+        Write-Output "$errorMessage. Exit code: $exitCode"
+        Throw $errorMessage
     }
 }
 
