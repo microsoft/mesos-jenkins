@@ -41,17 +41,27 @@ def parse_parameters():
                         help="The post message")
     parser.add_argument("-o", "--outputs-url", type=str, required=True,
                         help="The output build artifacts URL")
-    parser.add_argument("-l", "--logs-urls", type=str, required=True,
+    parser.add_argument("-l", "--logs-urls", type=str, required=False,
                         help="The URLs for the logs to be included in the "
                               "posted build message")
+    parser.add_argument("--applied-reviews", type=str, required=False,
+                        help="The Review IDs that have been applied for the "
+                             "current patch")
+    parser.add_argument("--failed-command", type=str, required=False,
+                        help="The command that failed during the build "
+                             "process")
     return parser.parse_args()
 
 
-def get_build_message(message, outputs_url, logs_urls=[], review_ids=[]):
-    build_msg = ("%s\n\n"
-                 "Reviews applied: %s\n\n"
-                 "All the build artifacts "
-                 "available at: %s\n\n") % (message, review_ids, outputs_url)
+def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
+                      failed_command=None):
+    build_msg = "%s\n\n" % message
+    if len(applied_reviews) > 0:
+        build_msg += "Reviews applied: `%s`\n\n" % applied_reviews
+    if failed_command is not None:
+        build_msg += "Failed command: `%s`\n\n" % failed_command
+    build_msg += ("All the build artifacts available "
+                  "at: %s\n\n" % (outputs_url))
     logs_msg = ''
     for url in logs_urls:
         response = urllib2.urlopen(url)
@@ -59,10 +69,11 @@ def get_build_message(message, outputs_url, logs_urls=[], review_ids=[]):
         if log_content == '':
             continue
         file_name = url.split('/')[-1]
-        logs_msg += " - %s:\n\n" % (file_name)
+        logs_msg += "- [%s](%s):\n\n" % (file_name, url)
+        logs_msg += "```\n"
         log_tail = log_content.split("\n")[-LOG_TAIL_LIMIT:]
         logs_msg += "\n".join(log_tail)
-        logs_msg += "\nFull log available at: %s\n\n" % (url)
+        logs_msg += "```\n\n"
     if logs_msg == '':
         return build_msg
     build_msg += "Relevant logs:\n\n%s" % (logs_msg)
@@ -76,14 +87,17 @@ def main():
     handler = ReviewBoardHandler(parameters.user, parameters.password)
     review_request = handler.api(review_request_url)["review_request"]
     try:
-        review_ids = handler.get_review_ids(review_request)
         logs_urls = []
         if parameters.logs_urls:
             logs_urls = parameters.logs_urls.split('|')
+        applied_reviews = []
+        if parameters.applied_reviews:
+            applied_reviews = parameters.applied_reviews.split('|')
         message = get_build_message(message=parameters.message,
                                     logs_urls=logs_urls,
-                                    review_ids=list(reversed(review_ids)),
-                                    outputs_url=parameters.outputs_url)
+                                    applied_reviews=applied_reviews,
+                                    outputs_url=parameters.outputs_url,
+                                    failed_command=parameters.failed_command)
     except ReviewError as err:
         message = ("Bad review!\n\n"
                    "Error:\n%s" % (err.args[0]))
