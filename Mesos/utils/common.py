@@ -74,14 +74,21 @@ class ReviewBoardHandler(object):
             review_ids += self.get_review_ids(dependent_review)
         return review_ids
 
-    def post_review(self, review_request, message):
+    def post_review(self, review_request, message, text_type='markdown'):
         """Post a review on the review board."""
+        valid_text_types = ['markdown', 'plain']
+        if text_type not in valid_text_types:
+            raise Exception("Invalid %s text type when trying "
+                            "to post review. Valid text "
+                            "types are: %s" % (text_type, valid_text_types))
         review_request_url = "%s/r/%s" % (REVIEWBOARD_URL,
                                           review_request['id'])
         print "Posting to review request: %s\n%s" % (review_request_url,
                                                      message)
         review_url = review_request["links"]["reviews"]["href"]
-        data = urllib.urlencode({'body_top': message, 'public': 'true'})
+        data = urllib.urlencode({'body_top': message,
+                                 'body_top_text_type': text_type,
+                                 'public': 'true'})
         self.api(review_url, data)
 
     def needs_verification(self, review_request):
