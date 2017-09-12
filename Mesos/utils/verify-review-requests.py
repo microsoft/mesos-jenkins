@@ -21,6 +21,7 @@ import json
 import os
 import sys
 import uuid
+import time
 
 sys.path.append(os.getcwd())
 
@@ -114,6 +115,8 @@ def verify_reviews(review_ids, parameters):
 def main():
     """Main function to verify the submitted reviews."""
     parameters = parse_parameters()
+    print "\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
+                                 os.path.abspath(__file__))
     review_requests_url = "%s/api/review-requests/%s" % (REVIEWBOARD_URL,
                                                          parameters.query)
     handler = ReviewBoardHandler(parameters.user, parameters.password)
