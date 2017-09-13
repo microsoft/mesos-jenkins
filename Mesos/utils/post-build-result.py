@@ -58,7 +58,7 @@ def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
     build_msg = "%s\n\n" % message
     if len(applied_reviews) > 0:
         build_msg += "Reviews applied: `%s`\n\n" % applied_reviews
-    if failed_command is not None:
+    if len(failed_command) > 0:
         build_msg += "Failed command: `%s`\n\n" % failed_command
     build_msg += ("All the build artifacts available "
                   "at: %s\n\n" % (outputs_url))

@@ -15,7 +15,7 @@ $MESOS_LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $MESOS_BUILD_BASE_URL = "$MESOS_LOG_SERVER_BASE_URL/mesos-build"
 $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
 $MESOS_BUILD_LOGS_DIR = Join-Path $MESOS_BUILD_OUT_DIR "logs"
-$MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "dcos-windows"
+$MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "binaries"
 $ZOOKEEPER_PORT = 2181
 
 # Installers URLs

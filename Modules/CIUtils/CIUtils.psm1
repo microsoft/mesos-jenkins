@@ -239,7 +239,7 @@ function Wait-ProcessToFinish {
         Throw $_
     }
     if($process.ExitCode -ne 0) {
-        Write-Output "$errorMessage. Exit code: $exitCode"
+        Write-Output "$errorMessage. Exit code: $($process.ExitCode)"
         Throw $errorMessage
     }
 }
