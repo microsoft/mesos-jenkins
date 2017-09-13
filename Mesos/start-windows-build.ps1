@@ -332,10 +332,10 @@ function New-MesosBinaries {
     }
     Write-Output "Mesos binaries were successfully built"
     New-Directory $MESOS_BUILD_BINARIES_DIR
-    Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\mesos\"
-    Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\mesos\" -Filter "*.exe" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-binaries.zip"
-    Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\mesos\"
-    Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\mesos\" -Filter "*.pdb" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-pdb.zip"
+    Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\"
+    Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.exe" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-binaries.zip"
+    Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\"
+    Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.pdb" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-pdb.zip"
     Write-Output "Mesos binaries were successfully generated"
 }
 
@@ -407,7 +407,7 @@ function Get-BuildBinariesUrl {
 function Start-LogServerFilesUpload {
     Param(
         [Parameter(Mandatory=$false)]
-        [switch]$CreateLatestSymlink
+        [switch]$NewLatest
     )
     Copy-Item -Force "${env:WORKSPACE}\mesos-build-$Branch-${env:BUILD_NUMBER}.log" "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
@@ -416,7 +416,7 @@ function Start-LogServerFilesUpload {
     $buildOutputsUrl = Get-BuildOutputsUrl
     Add-Content -Path $ParametersFile -Value "BUILD_OUTPUTS_URL=$buildOutputsUrl"
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
-    if($CreateLatestSymlink) {
+    if($NewLatest) {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
     }
@@ -449,10 +449,9 @@ try {
     Start-MesosTestsBuild
     Start-MesosTestsRun
     New-MesosBinaries
-    Start-MesosBinariesUpload
     Add-Content $ParametersFile "STATUS=PASS"
     Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
-    Start-LogServerFilesUpload -CreateLatestSymlink
+    Start-LogServerFilesUpload -NewLatest
     Start-EnvironmentCleanup
 } catch {
     $errMsg = $_.ToString()
