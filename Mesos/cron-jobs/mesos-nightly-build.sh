@@ -14,7 +14,7 @@ DIR=$(dirname $0)
 PYTHON_SCRIPT=$(realpath "$DIR/../utils/trigger-gearman-jobs.py") || (echo "ERROR: Failed to get the absolute path for trigger-gearman-jobs.py" && exit 1)
 LOG_FILE=$(realpath "$LOGS_DIR/cron-mesos-nightly-build.log") || (echo "ERROR: Failed to get the absolute path for cron-mesos-nightly-build.log" && exit 1)
 
-ps aux | grep -v " grep " | grep -q "$PYTHON_SCRIPT" && echo -e "The script is already running\n" >> $LOG_FILE && exit 0
+ps aux | grep -v " grep " | grep -q "$PYTHON_SCRIPT" && echo -e "$(date +%m-%d-%y-%T) - The script $PYTHON_SCRIPT is already running\n" >> $LOG_FILE && exit 0
 
 python $PYTHON_SCRIPT -s "$GEARMAN_SERVERS_LIST" -j 'mesos-nightly-build' --params '{"BRANCH": "master"}' 2>&1 >> $LOG_FILE
 

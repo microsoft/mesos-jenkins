@@ -16,7 +16,7 @@ DIR=$(dirname $0)
 PYTHON_SCRIPT=$(realpath "$DIR/../utils/verify-review-requests.py") || (echo "ERROR: Failed to get the absolute path for verify-review-requests.py" && exit 1)
 LOG_FILE=$(realpath "$LOGS_DIR/cron-mesos-verify-review-requests.log") || (echo "ERROR: Failed to get the absolute path for cron-mesos-verify-review-requests.log" && exit 1)
 
-ps aux | grep -v " grep " | grep -q "$PYTHON_SCRIPT" && echo -e "The script is already running\n" >> $LOG_FILE && exit 0
+ps aux | grep -v " grep " | grep -q "$PYTHON_SCRIPT" && echo -e "$(date +%m-%d-%y-%T) - The script $PYTHON_SCRIPT is already running\n" >> $LOG_FILE && exit 0
 
 python $PYTHON_SCRIPT -u "$REVIEWBOARD_USER" -p "$REVIEWBOARD_USER_PASSWORD" \
                       gearman -s "$GEARMAN_SERVERS_LIST" -j 'mesos-build' --params '{"BRANCH": "master"}' 2>&1 >> $LOG_FILE
