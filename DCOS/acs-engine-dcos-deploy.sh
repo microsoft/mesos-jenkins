@@ -24,9 +24,10 @@ if [[ -z $WIN_AGENT_ADMIN ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN is not
 if [[ -z $WIN_AGENT_ADMIN_PASSWORD ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN_PASSWORD is not set"; exit 1; fi
 
 if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then echo "ERROR: Parameter DCOS_WINDOWS_BOOTSTRAP_URL is not set"; exit 1; fi
+if [[ -z $DCOS_DEPLOYMENT_TYPE ]]; then echo "ERROR: Parameter DCOS_DEPLOYMENT_TYPE is not set"; exit 1; fi
 
 BASE_DIR=$(dirname $0)
-TEMPLATES_DIR="$BASE_DIR/../Templates"
+TEMPLATES_DIR="$BASE_DIR/templates"
 
 
 install_go_1_8() {
@@ -83,7 +84,7 @@ install_acs_engine_from_src
 install_azure_cli_2
 
 # 2. Generate the Azure ARM deploy files
-ACS_TEMPLATE="$TEMPLATES_DIR/DCOS/acs-engine.json"
+ACS_TEMPLATE="$TEMPLATES_DIR/DCOS/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
 ACS_RENDERED_TEMPLATE="/tmp/dcos-acs-engine.json"
 DCOS_DEPLOY_DIR="/tmp/dcos-windows-deploy-dir"
 eval "cat << EOF

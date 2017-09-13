@@ -1,9 +1,9 @@
-The `build-azure-environment.sh` script is used to spawn a DC/OS environment in Azure.
+The `acs-engine-dcos-deploy.sh` script is used to spawn a DC/OS environment in Azure.
 
 Requirements:
-- Ubuntu >= 14.04
-- [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- Interactively login to Azure with the Azure CLI 2.0 in case the user has 2-way authentication enabled, otherwise the unattended login will fail
+- Ubuntu >= 14.04;
+- [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli);
+- Interactively login to Azure with the Azure CLI 2.0 in case the user has 2-way authentication enabled, otherwise the unattended login will fail.
 
 Before running the script, some environment variables must be set. These are used as deployment config options by the script:
 
@@ -29,11 +29,12 @@ export WIN_AGENT_PRIVATE_POOL="ibwinprivate"
 export WIN_AGENT_ADMIN="azureuser"
 export WIN_AGENT_ADMIN_PASSWORD="<admin_password_value>"
 
-export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus.cloudapp.azure.com/mesos-build/master/latest/dcos-windows"
+export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/stable"
+export DCOS_DEPLOYMENT_TYPE="hybrid"
 ```
 
 The script workflow is the following:
 
-- Generate the necessary ARM JSON templates for the Azure deployment
-- Create the Azure resource group
-- Deploy the DC/OS environment with the Azure CLI 2.0
+- Generate the necessary ARM JSON templates for the Azure deployment;
+- Create the Azure resource group;
+- Deploy the DC/OS environment with the Azure CLI 2.0.
