@@ -21,6 +21,7 @@ import json
 import os
 import sys
 import uuid
+import time
 
 sys.path.append(os.getcwd())
 
@@ -47,6 +48,8 @@ def parse_parameters():
 def main():
     """Main function to verify the submitted reviews."""
     parameters = parse_parameters()
+    print "\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
+                                 os.path.abspath(__file__))
     servers = []
     for server in parameters.servers.split(","):
         server = server.strip()
