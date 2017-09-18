@@ -128,7 +128,7 @@ function Start-MesosCIProcess {
                              -StandardOutput $stdoutFile -StandardError $stderrFile
         $msg = "Successfully executed: $command"
     } catch {
-        $msg = "Failed to execute: $command"
+        $msg = "Failed command: $command"
         $global:BUILD_STATUS = 'FAIL'
         $global:LOGS_URLS += $($stdoutUrl, $stderrUrl)
         Write-Output "Exception: $($_.ToString())"
@@ -157,8 +157,9 @@ function Copy-CmakeBuildLogs {
 function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
+
     Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "get-review-ids-stdout.log" -StderrFileName "get-review-ids-stderr.log" `
-                         -ArgumentList @("$MESOS_JENKINS_GIT_REPO_DIR\Mesos\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
+                         -ArgumentList @("$PSScriptRoot\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
                          -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
     Write-Output "Patches IDs that need to be applied: $reviewIDs"
@@ -218,7 +219,6 @@ function New-Environment {
     # Clone Mesos repository
     Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
     Set-LatestMesosCommit
-    Start-GitClone -Path $MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL -Branch 'master'
     if($ReviewID) {
         # Pull the patch and all the dependent ones, if a review ID was given
         Add-ReviewBoardPatch
