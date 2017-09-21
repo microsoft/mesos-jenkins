@@ -4,7 +4,8 @@ Param(
     [Parameter(Mandatory=$true)]
     [string[]]$MasterAddress,
     [string]$AgentPrivateIP,
-    [switch]$Public=$false
+    [switch]$Public=$false,
+    [string]$CustomAttributes
 )
 
 
@@ -42,26 +43,33 @@ function Install-MesosBinaries {
     Expand-Archive -LiteralPath $binariesPath -DestinationPath $MESOS_BIN_DIR
 }
 
+function Get-MesosAgentAttributes {
+    # TODO: Decide what to do with the custom attributes passed from the ACS Engine
+    $attributes = "os:windows"
+    return $attributes
+}
+
+function Get-MesosAgentPrivateIP {
+    if($AgentPrivateIP) {
+        return $AgentPrivateIP
+    }
+    $primaryIfIndex = (Get-NetRoute -DestinationPrefix "0.0.0.0/0").ifIndex
+    return (Get-NetIPAddress -AddressFamily IPv4 -ifIndex $primaryIfIndex).IPAddress
+}
+
 function New-MesosWindowsAgent {
     $mesosBinary = Join-Path $MESOS_BIN_DIR "mesos-agent.exe"
-    $agentAddress = $AgentPrivateIP
-    if(!$agentAddress) {
-        (Get-NetRoute -DestinationPrefix "0.0.0.0/0").ifIndex
-        $agentAddress = (Get-NetIPAddress -AddressFamily IPv4 -ifIndex (Get-NetRoute -DestinationPrefix "0.0.0.0/0").ifIndex).IPAddress
-    }
-    $mesosAgentArguments = ("--master=zk://$($MasterAddress -join ',')/mesos" + `
-                           " --work_dir=${MESOS_WORK_DIR}" + `
-                           " --runtime_dir=${MESOS_WORK_DIR}" + `
-                           " --launcher_dir=${MESOS_BIN_DIR}" + `
-                           " --log_dir=${MESOS_LOG_DIR}" + `
-                           " --ip=${agentAddress}" + `
-                           " --isolation=windows/cpu,filesystem/windows" + `
-                           " --containerizers=docker,mesos")
-    if($Public) {
-        $mesosAgentArguments += " --attributes=os:windows;public_ip:yes --default_role='slave_public'"
-    } else {
-        $mesosAgentArguments += " --attributes=os:windows"
-    }
+    $agentAddress = Get-MesosAgentPrivateIP
+    $mesosAttributes = Get-MesosAgentAttributes
+    $mesosAgentArguments = ("--master=`"zk://$($MasterAddress -join ',')/mesos`"" + `
+                           " --work_dir=`"${MESOS_WORK_DIR}`"" + `
+                           " --runtime_dir=`"${MESOS_WORK_DIR}`"" + `
+                           " --launcher_dir=`"${MESOS_BIN_DIR}`"" + `
+                           " --log_dir=`"${MESOS_LOG_DIR}`"" + `
+                           " --ip=`"${agentAddress}`"" + `
+                           " --isolation=`"windows/cpu,filesystem/windows`"" + `
+                           " --containerizers=`"docker,mesos`"" + `
+                           " --attributes=`"${mesosAttributes}`"")
     $windowsServiceTemplate = @"
 <configuration>
   <id>$MESOS_SERVICE_NAME</id>
@@ -138,6 +146,7 @@ try {
     Start-PollingMesosServiceStatus
     Open-MesosFirewallRule
     Open-ZookeeperFirewallRule # It's needed on the private DCOS agents
+    Set-NetFirewallRule -Name 'FPS-SMB-In-TCP' -Enabled True # The SMB firewall rule is needed when collecting logs
 } catch {
     Write-Output $_.ToString()
     exit 1
