@@ -1,9 +1,11 @@
 {
   "apiVersion": "vlabs",
   "properties": {
-    "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}",
     "orchestratorProfile": {
-      "orchestratorType": "DCOS"
+      "orchestratorType": "DCOS",
+      "dcosConfig": {
+          "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
+      }
     },
     "masterProfile": {
       "count": 3,
@@ -14,7 +16,7 @@
       {
         "name": "${WIN_AGENT_PUBLIC_POOL}",
         "count": 1,
-        "vmSize": "${WIN_AGENT_VM_SIZE}",
+        "vmSize": "${WIN_AGENT_SIZE}",
         "osType": "Windows",
         "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
         "ports": [
@@ -27,7 +29,7 @@
       {
         "name": "${WIN_AGENT_PRIVATE_POOL}",
         "count": 1,
-        "vmSize": "${WIN_AGENT_VM_SIZE}",
+        "vmSize": "${WIN_AGENT_SIZE}",
         "osType": "Windows",
         "dnsPrefix": ""
       },
