@@ -467,5 +467,5 @@ try {
     Add-Content -Path $ParametersFile -Value "MESSAGE=$errMsg"
     Start-LogServerFilesUpload
     Start-EnvironmentCleanup
-    exit 1
+    Throw $_
 }
