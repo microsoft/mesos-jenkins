@@ -10,7 +10,6 @@ $MESOS_SERVICE_NAME = "mesos-agent"
 $MESOS_AGENT_PORT = 5051
 $MESOS_BINARIES_DIR = Join-Path $MESOS_DIR "binaries"
 $MESOS_GIT_REPO_DIR = Join-Path $MESOS_DIR "mesos"
-$MESOS_JENKINS_GIT_REPO_DIR = Join-Path $MESOS_DIR "mesos-jenkins"
 $MESOS_LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $MESOS_BUILD_BASE_URL = "$MESOS_LOG_SERVER_BASE_URL/mesos-build"
 $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
@@ -39,8 +38,6 @@ $7ZIP_DIR = Join-Path $env:ProgramFiles "7-Zip"
 
 # Git repositories URLs
 $MESOS_GIT_URL = "https://github.com/apache/mesos"
-$MESOS_JENKINS_GIT_URL = "https://github.com/ionutbalutoiu/mesos-jenkins" # TODO(ibalutoiu): Change it to official repository
-$DCOS_WINDOWS_URL = "https://github.com/yakman2020/dcos-windows"
 
 # Remote log server
 $REMOTE_LOG_SERVER = "10.3.1.6"
