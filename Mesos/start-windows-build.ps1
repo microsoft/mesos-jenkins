@@ -427,7 +427,7 @@ function Start-EnvironmentCleanup {
     $processes = @('python', 'git', 'cl', 'cmake',
                    'stdout-tests', 'libprocess-tests', 'mesos-tests')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
-    Invoke-Expression -Command "cmd /C rmdir /s /q $MESOS_DIR" -ErrorAction SilentlyContinue
+    Invoke-Expression -Command "cmd /C 'rmdir /s /q $MESOS_DIR & exit /B 0'" -ErrorAction SilentlyContinue 2>&1 | Out-Null
 }
 
 function Get-SuccessBuildMessage {
@@ -454,8 +454,6 @@ try {
     Start-LogServerFilesUpload -NewLatest
     Start-EnvironmentCleanup
 } catch {
-    $errMsg = $_.ToString()
-    Write-Output $errMsg
     if(!$global:BUILD_STATUS) {
         $global:BUILD_STATUS = 'FAIL'
     }
@@ -464,7 +462,7 @@ try {
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
-    Add-Content -Path $ParametersFile -Value "MESSAGE=$errMsg"
+    Add-Content -Path $ParametersFile -Value "MESSAGE=$($_.ToString())"
     Start-LogServerFilesUpload
     Start-EnvironmentCleanup
     Throw $_
