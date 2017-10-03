@@ -427,7 +427,8 @@ function Start-EnvironmentCleanup {
     $processes = @('python', 'git', 'cl', 'cmake',
                    'stdout-tests', 'libprocess-tests', 'mesos-tests')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
-    Invoke-Expression -Command "cmd /C 'rmdir /s /q $MESOS_DIR & exit /B 0'" -ErrorAction SilentlyContinue 2>&1 | Out-Null
+    & "$GIT_DIR\usr\bin\rm.exe" -rf $MESOS_DIR 2>&1 | Out-Null
+    $LASTEXITCODE = $null # The above 'rm.exe -rf' command should be non-fatal. Thus, we unset any resulted exit code.
 }
 
 function Get-SuccessBuildMessage {
