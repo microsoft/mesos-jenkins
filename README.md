@@ -1,14 +1,8 @@
+## Jenkins CI scripts for Mesos and DC/OS
 
-# Contributing
+The current repository contains the necessary scripts to create a Jenkins based CI. It has the following structure:
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.microsoft.com.
-
-When you submit a pull request, a CLA-bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+* `Mesos` - directory with the cron jobs scripts (for checking the pending Mesos review requests and starting the Mesos nightly build), the main Mesos Jenkins jobs scripts and other helper scripts (written Python and PowerShell);
+* `DCOS` - directory with the scripts necessary to spawn a [DC/OS](https://dcos.io/) cluster on Azure using [acs-engine](https://github.com/Azure/acs-engine) automation tool. See the README from the DCOS directory for additional information;
+* `Modules` - directory with the common PowerShell modules;
+* `global-variables.ps1`, PowerShell file with all the global variables. This is sourced on the Windows building nodes when trying to build any of the projects in the CI.
