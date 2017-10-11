@@ -211,10 +211,6 @@ function New-Environment {
     New-Directory $MESOS_BINARIES_DIR
     New-Directory $MESOS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $MESOS_BUILD_LOGS_DIR
-    if(Test-Path $ParametersFile) {
-        Remove-Item -Force $ParametersFile
-    }
-    New-Item -ItemType File -Path $ParametersFile
     Add-Content -Path $ParametersFile -Value "BRANCH=$Branch"
     # Clone Mesos repository
     Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
@@ -439,6 +435,11 @@ function Get-SuccessBuildMessage {
 
 
 try {
+    # Recreate the parameters file at the beginning of the job
+    if(Test-Path $ParametersFile) {
+        Remove-Item -Force $ParametersFile
+    }
+    New-Item -ItemType File -Path $ParametersFile
     Install-Prerequisites
     New-Environment
     Start-MesosBuild
