@@ -453,9 +453,12 @@ try {
     Start-MesosTestsBuild
     Start-MesosTestsRun
     New-MesosBinaries
+    $global:BUILD_STATUS = 'PASS'
     Add-Content $ParametersFile "STATUS=PASS"
     Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
 } catch {
+    $errMsg = $_.ToString()
+    Write-Output $errMsg
     if(!$global:BUILD_STATUS) {
         $global:BUILD_STATUS = 'FAIL'
     }
@@ -464,8 +467,8 @@ try {
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
-    Add-Content -Path $ParametersFile -Value "MESSAGE=$($_.ToString())"
-    Throw $_
+    Add-Content -Path $ParametersFile -Value "MESSAGE=${errMsg}"
+    exit 1
 } finally {
     if($global:BUILD_STATUS -eq 'PASS') {
         Start-LogServerFilesUpload -NewLatest
@@ -474,3 +477,4 @@ try {
     }
     Start-EnvironmentCleanup
 }
+exit 0
