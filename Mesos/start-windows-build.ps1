@@ -455,8 +455,6 @@ try {
     New-MesosBinaries
     Add-Content $ParametersFile "STATUS=PASS"
     Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
-    Start-LogServerFilesUpload -NewLatest
-    Start-EnvironmentCleanup
 } catch {
     if(!$global:BUILD_STATUS) {
         $global:BUILD_STATUS = 'FAIL'
@@ -467,7 +465,12 @@ try {
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
     Add-Content -Path $ParametersFile -Value "MESSAGE=$($_.ToString())"
-    Start-LogServerFilesUpload
-    Start-EnvironmentCleanup
     Throw $_
+} finally {
+    if($global:BUILD_STATUS -eq 'PASS') {
+        Start-LogServerFilesUpload -NewLatest
+    } else {
+        Start-LogServerFilesUpload
+    }
+    Start-EnvironmentCleanup
 }
