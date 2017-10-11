@@ -405,7 +405,10 @@ function Start-LogServerFilesUpload {
         [Parameter(Mandatory=$false)]
         [switch]$NewLatest
     )
-    Copy-Item -Force "${env:WORKSPACE}\mesos-build-$Branch-${env:BUILD_NUMBER}.log" "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    $consoleLog = Join-Path $env:WORKSPACE "mesos-build-$Branch-${env:BUILD_NUMBER}.log"
+    if(Test-Path $consoleLog) {
+        Copy-Item -Force $consoleLog "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    }
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath
