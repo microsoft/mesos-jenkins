@@ -1,3 +1,11 @@
+# Remote log server
+$REMOTE_LOG_SERVER = "10.3.1.6"
+$REMOTE_USER = "logs"
+$REMOTE_KEY = Join-Path $env:SystemDrive "jenkins\workspace\key\logs_id_rsa.ppk"
+$REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
+$REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
+$LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
+
 # Mesos configurations
 $BOOTSTRAP_TEMP_DIR = Join-Path $env:Temp "DCOS_Bootstrap"
 $MESOS_DIR = Join-Path $env:SystemDrive "mesos"
@@ -10,19 +18,25 @@ $MESOS_SERVICE_NAME = "mesos-agent"
 $MESOS_AGENT_PORT = 5051
 $MESOS_BINARIES_DIR = Join-Path $MESOS_DIR "binaries"
 $MESOS_GIT_REPO_DIR = Join-Path $MESOS_DIR "mesos"
-$MESOS_LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
-$MESOS_BUILD_BASE_URL = "$MESOS_LOG_SERVER_BASE_URL/mesos-build"
+$MESOS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/mesos-build"
 $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
 $MESOS_BUILD_LOGS_DIR = Join-Path $MESOS_BUILD_OUT_DIR "logs"
 $MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "binaries"
 $ZOOKEEPER_PORT = 2181
 
+# Spartan configurations
+$SPARTAN_DIR = Join-Path $env:SystemDrive "Spartan"
+$SPARTAN_GIT_REPO_DIR = Join-Path $SPARTAN_DIR "spartan"
+$SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
+$SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
+$SPARTAN_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/spartan-build"
+
 # Installers URLs
-$SERVICE_WRAPPER_URL = "$MESOS_LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
+$SERVICE_WRAPPER_URL = "$LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
 $VS2017_URL = "https://download.visualstudio.microsoft.com/download/pr/10930949/045b56eb413191d03850ecc425172a7d/vs_Community.exe"
 $CMAKE_URL = "https://cmake.org/files/v3.9/cmake-3.9.0-win64-x64.msi"
 $GNU_WIN32_URL = "https://10gbps-io.dl.sourceforge.net/project/gnuwin32/patch/2.5.9-7/patch-2.5.9-7-setup.exe"
-$GIT_URL = "$MESOS_LOG_SERVER_BASE_URL/downloads/Git-2.14.1-64-bit.exe"
+$GIT_URL = "$LOG_SERVER_BASE_URL/downloads/Git-2.14.1-64-bit.exe"
 $PYTHON_URL = "https://www.python.org/ftp/python/2.7.13/python-2.7.13.msi"
 $PUTTY_URL = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
 $7ZIP_URL = "http://d.7-zip.org/a/7z1700-x64.msi"
@@ -38,9 +52,4 @@ $7ZIP_DIR = Join-Path $env:ProgramFiles "7-Zip"
 
 # Git repositories URLs
 $MESOS_GIT_URL = "https://github.com/apache/mesos"
-
-# Remote log server
-$REMOTE_LOG_SERVER = "10.3.1.6"
-$REMOTE_USER = "logs"
-$REMOTE_KEY = Join-Path $env:SystemDrive "jenkins\workspace\key\logs_id_rsa.ppk"
-$REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
+$SPARTAN_GIT_URL = "https://github.com/dcos/spartan"
