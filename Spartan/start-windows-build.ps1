@@ -121,6 +121,7 @@ function Start-SpartanBuild {
     Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\prod\rel\spartan" $spartanBuildDir
     $archivePath = Join-Path $SPARTAN_BUILD_OUT_DIR "spartan-build.zip"
     Start-ExternalCommand { & 7z.exe a -tzip $archivePath "$spartanBuildDir\*" -sdel } -ErrorMessage "Failed to compress the Spartan build directory"
+    Remove-Item $spartanBuildDir
 }
 
 function Copy-FilesToRemoteServer {

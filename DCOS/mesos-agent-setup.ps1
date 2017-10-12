@@ -39,7 +39,7 @@ function Install-MesosBinaries {
     $binariesPath = Join-Path $BOOTSTRAP_TEMP_DIR "mesos-binaries.zip"
     Write-Output "Downloading Mesos binaries"
     Invoke-WebRequest -Uri $MesosWindowsBinariesURL -OutFile $binariesPath
-    Write-Output "Extracting binaries archive in: $BOOTSTRAP_TEMP_DIR"
+    Write-Output "Extracting binaries archive in: $MESOS_BIN_DIR"
     Expand-Archive -LiteralPath $binariesPath -DestinationPath $MESOS_BIN_DIR
 }
 
@@ -152,7 +152,6 @@ try {
     Start-PollingMesosServiceStatus
     Open-MesosFirewallRule
     Open-ZookeeperFirewallRule # It's needed on the private DCOS agents
-    Set-NetFirewallRule -Name 'FPS-SMB-In-TCP' -Enabled True # The SMB firewall rule is needed when collecting logs
 } catch {
     Write-Output $_.ToString()
     exit 1

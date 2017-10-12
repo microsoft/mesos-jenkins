@@ -104,7 +104,7 @@ function Start-JenkinsCIScriptsGitClone {
 }
 
 function Start-MesosAgentSetup {
-    [string[]]$masterAddress = ConvertFrom-Json $MasterIP # We might have a JSON encoded list of master IPs
+    [string[]]$masterAddress = ConvertFrom-Json $MasterIP # We have a JSON encoded list of master IPs
     & "$MESOS_JENKINS_DIR\DCOS\mesos-agent-setup.ps1" -MasterAddress $masterAddress -MesosWindowsBinariesURL $MESOS_BINARIES_URL `
                                                       -AgentPrivateIP $AgentPrivateIP -Public:$isPublic -CustomAttributes $customAttrs
     if($LASTEXITCODE) {
@@ -117,6 +117,7 @@ try {
     Install-Prerequisites
     Start-JenkinsCIScriptsGitClone
     Start-MesosAgentSetup
+    Set-NetFirewallRule -Name 'FPS-SMB-In-TCP' -Enabled True # The SMB firewall rule is needed when collecting logs
 } catch {
     Write-Output $_.ToString()
     exit 1
