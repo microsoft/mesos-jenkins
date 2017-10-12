@@ -46,6 +46,9 @@ function Install-MesosBinaries {
 function Get-MesosAgentAttributes {
     # TODO: Decide what to do with the custom attributes passed from the ACS Engine
     $attributes = "os:windows"
+    if($Public) {
+        $attributes += ";public_ip:yes"
+    }
     return $attributes
 }
 
@@ -70,6 +73,9 @@ function New-MesosWindowsAgent {
                            " --isolation=`"windows/cpu,filesystem/windows`"" + `
                            " --containerizers=`"docker,mesos`"" + `
                            " --attributes=`"${mesosAttributes}`"")
+    if($Public) {
+        $mesosAgentArguments += " --default_role='slave_public'"
+    }
     $windowsServiceTemplate = @"
 <configuration>
   <id>$MESOS_SERVICE_NAME</id>
