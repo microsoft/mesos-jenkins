@@ -47,7 +47,6 @@ function Add-ToSystemPath {
     if($LASTEXITCODE) {
         Throw "Failed to set the new system path"
     }
-
 }
 
 function Install-Prerequisites {
@@ -94,7 +93,7 @@ function Install-Prerequisites {
     }
 }
 
-function Start-MesosJenkinsClone {
+function Start-JenkinsCIScriptsGitClone {
     if(Test-Path $MESOS_JENKINS_DIR) {
         Remove-Item -Recurse -Force -Path $MESOS_JENKINS_DIR
     }
@@ -104,15 +103,20 @@ function Start-MesosJenkinsClone {
     }
 }
 
-try {
-    Install-Prerequisites
-    Start-MesosJenkinsClone
+function Start-MesosAgentSetup {
     [string[]]$masterAddress = ConvertFrom-Json $MasterIP # We might have a JSON encoded list of master IPs
-    & "$MESOS_JENKINS_DIR\DCOS\windows-agent-setup.ps1" -MasterAddress $masterAddress -MesosWindowsBinariesURL $MESOS_BINARIES_URL `
-                                                        -AgentPrivateIP $AgentPrivateIP -Public:$isPublic -CustomAttributes $customAttrs
+    & "$MESOS_JENKINS_DIR\DCOS\mesos-agent-setup.ps1" -MasterAddress $masterAddress -MesosWindowsBinariesURL $MESOS_BINARIES_URL `
+                                                      -AgentPrivateIP $AgentPrivateIP -Public:$isPublic -CustomAttributes $customAttrs
     if($LASTEXITCODE) {
         Throw "Failed to setup the Mesos Windows agent"
     }
+}
+
+
+try {
+    Install-Prerequisites
+    Start-JenkinsCIScriptsGitClone
+    Start-MesosAgentSetup
 } catch {
     Write-Output $_.ToString()
     exit 1
