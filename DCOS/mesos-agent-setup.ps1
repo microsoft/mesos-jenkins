@@ -74,7 +74,7 @@ function New-MesosWindowsAgent {
                            " --containerizers=`"docker,mesos`"" + `
                            " --attributes=`"${mesosAttributes}`"")
     if($Public) {
-        $mesosAgentArguments += " --default_role='slave_public'"
+        $mesosAgentArguments += " --default_role=`"slave_public`""
     }
     $windowsServiceTemplate = @"
 <configuration>
