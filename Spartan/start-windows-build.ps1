@@ -111,17 +111,21 @@ function Start-SpartanBuild {
     Push-Location $SPARTAN_GIT_REPO_DIR
     Write-Output "Starting the Spartan build"
     try {
-        Start-SpartanCIProcess -ProcessPath "make.exe" -StdoutFileName "spartan-build-make-stdout.log" -StderrFileName "spartan-build-make-stderr.log" `
-                               -ArgumentList @("rel") -BuildErrorMessage "Spartan failed to build."
+        Start-SpartanCIProcess -ProcessPath "${env:ProgramFiles}\erl8.3\bin\escript.exe" `
+                               -StdoutFileName "spartan-build-make-stdout.log" -StderrFileName "spartan-build-make-stderr.log" `
+                               -ArgumentList @(".\rebar3", "release") -BuildErrorMessage "Spartan failed to build."
     } finally {
         Pop-Location
     }
     Write-Output "Successfully built Spartan"
-    $spartanBuildDir = Join-Path $SPARTAN_BUILD_OUT_DIR "spartan-build"
-    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\prod\rel\spartan" $spartanBuildDir
-    $archivePath = Join-Path $SPARTAN_BUILD_OUT_DIR "spartan-build.zip"
-    Start-ExternalCommand { & 7z.exe a -tzip $archivePath "$spartanBuildDir\*" -sdel } -ErrorMessage "Failed to compress the Spartan build directory"
-    Remove-Item $spartanBuildDir
+    $spartanReleaseDir = Join-Path $SPARTAN_BUILD_OUT_DIR "release"
+    New-Directory $spartanReleaseDir
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\rel\spartan" "${spartanReleaseDir}\"
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\lib" "${spartanReleaseDir}\"
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\plugins" "${spartanReleaseDir}\"
+    $archivePath = Join-Path $SPARTAN_BUILD_OUT_DIR "release.zip"
+    Start-ExternalCommand { & 7z.exe a -tzip $archivePath "$spartanReleaseDir\*" -sdel } -ErrorMessage "Failed to compress the Spartan build directory"
+    Remove-Item $spartanReleaseDir
 }
 
 function Copy-FilesToRemoteServer {
