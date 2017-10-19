@@ -8,7 +8,6 @@ Param(
     [string]$CustomAttributes
 )
 
-
 $ErrorActionPreference = "Stop"
 
 $ciUtils = (Resolve-Path "$PSScriptRoot\..\Modules\CIUtils").Path
@@ -16,6 +15,9 @@ $globalVariables = (Resolve-Path "$PSScriptRoot\..\global-variables.ps1").Path
 
 Import-Module $ciUtils
 . $globalVariables
+
+
+$TEMPLATES_DIR = Join-Path $PSScriptRoot "templates"
 
 
 function New-MesosEnvironment {
@@ -28,27 +30,27 @@ function New-MesosEnvironment {
         }
         Write-Output "Deleted existing $MESOS_SERVICE_NAME service"
     }
-    New-Directory -RemoveExisting $BOOTSTRAP_TEMP_DIR
     New-Directory -RemoveExisting $MESOS_DIR
-    New-Directory -RemoveExisting $MESOS_BIN_DIR
-    New-Directory -RemoveExisting $MESOS_WORK_DIR
-    New-Directory -RemoveExisting $MESOS_SERVICE_DIR
+    New-Directory $MESOS_BIN_DIR
+    New-Directory $MESOS_WORK_DIR
+    New-Directory $MESOS_SERVICE_DIR
 }
 
 function Install-MesosBinaries {
-    $binariesPath = Join-Path $BOOTSTRAP_TEMP_DIR "mesos-binaries.zip"
+    $binariesPath = Join-Path $env:TEMP "mesos-binaries.zip"
     Write-Output "Downloading Mesos binaries"
     Invoke-WebRequest -Uri $MesosWindowsBinariesURL -OutFile $binariesPath
     Write-Output "Extracting binaries archive in: $MESOS_BIN_DIR"
     Expand-Archive -LiteralPath $binariesPath -DestinationPath $MESOS_BIN_DIR
+    Remove-item $binariesPath
 }
 
 function Get-MesosAgentAttributes {
-    # TODO: Decide what to do with the custom attributes passed from the ACS Engine
     $attributes = "os:windows"
     if($Public) {
         $attributes += ";public_ip:yes"
     }
+    # TODO: Decide what to do with the custom attributes passed from the ACS Engine
     return $attributes
 }
 
@@ -64,7 +66,8 @@ function New-MesosWindowsAgent {
     $mesosBinary = Join-Path $MESOS_BIN_DIR "mesos-agent.exe"
     $agentAddress = Get-MesosAgentPrivateIP
     $mesosAttributes = Get-MesosAgentAttributes
-    $mesosAgentArguments = ("--master=`"zk://$($MasterAddress -join ',')/mesos`"" + `
+    $masterZkAddress = "zk://" + ($MasterAddress -join ":2181,") + ":2181/mesos"
+    $mesosAgentArguments = ("--master=`"${masterZkAddress}`"" + `
                            " --work_dir=`"${MESOS_WORK_DIR}`"" + `
                            " --runtime_dir=`"${MESOS_WORK_DIR}`"" + `
                            " --launcher_dir=`"${MESOS_BIN_DIR}`"" + `
@@ -76,85 +79,34 @@ function New-MesosWindowsAgent {
     if($Public) {
         $mesosAgentArguments += " --default_role=`"slave_public`""
     }
-    $windowsServiceTemplate = @"
-<configuration>
-  <id>$MESOS_SERVICE_NAME</id>
-  <name>Mesos Windows Agent</name>
-  <description>Service for Windows Mesos Agent</description>
-  <executable>${mesosBinary}</executable>
-  <arguments>${mesosAgentArguments}</arguments>
-  <logpath>${MESOS_LOG_DIR}</logpath>
-  <priority>Normal</priority>
-  <stoptimeout>20 sec</stoptimeout>
-  <stopparentprocessfirst>false</stopparentprocessfirst>
-  <startmode>Automatic</startmode>
-  <waithint>15 sec</waithint>
-  <sleeptime>1 sec</sleeptime>
-  <log mode="roll">
-    <sizeThreshold>10240</sizeThreshold>
-    <keepFiles>8</keepFiles>
-  </log>
-</configuration>
-"@
-    Write-Output $windowsServiceTemplate
-    $templateFile = Join-Path $MESOS_SERVICE_DIR "mesos-service.xml"
-    Set-Content -Path $templateFile -Value $windowsServiceTemplate
+    $context = @{
+        "service_name" = $MESOS_SERVICE_NAME
+        "service_display_name" = "DCOS Mesos Windows Slave"
+        "service_description" = "Windows Service for the DCOS Mesos Slave"
+        "service_binary" = $mesosBinary
+        "service_arguments" = $mesosAgentArguments
+        "log_dir" = $MESOS_LOG_DIR
+    }
+    Start-RenderTemplate -TemplateFile "$TEMPLATES_DIR\windows-service.xml" -Context $context -OutFile "$MESOS_SERVICE_DIR\mesos-service.xml"
     $serviceWapper = Join-Path $MESOS_SERVICE_DIR "mesos-service.exe"
     Invoke-WebRequest -UseBasicParsing -Uri $SERVICE_WRAPPER_URL -OutFile $serviceWapper
     $p = Start-Process -FilePath $serviceWapper -ArgumentList @("install") -NoNewWindow -PassThru -Wait
     if($p.ExitCode -ne 0) {
-        Throw "Failed to set up the Mesos Windows service. Exit code: $($p.ExitCode)"
+        Throw "Failed to set up the DCOS Mesos Slave Windows service. Exit code: $($p.ExitCode)"
     }
-}
-
-function Start-PollingMesosServiceStatus {
-    $timeout = 2
-    $count = 0
-    $maxCount = 10
-    while ($count -lt $maxCount) {
-        Start-Sleep -Seconds $timeout
-        Write-Output "Checking $MESOS_SERVICE_NAME service status"
-        $status = (Get-Service -Name $MESOS_SERVICE_NAME).Status
-        if($status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
-            Throw "Service $MESOS_SERVICE_NAME is not running"
-        }
-        $count++
-    }
-}
-
-function Open-MesosFirewallRule {
-    Write-Output "Opening Mesos TCP port: $MESOS_AGENT_PORT"
-    $name = "Allow inbound TCP Port $MESOS_AGENT_PORT for Mesos"
-    $firewallRule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
-    if($firewallRule) {
-        Write-Output "Firewall rule already exist"
-        return
-    }
-    return (New-NetFirewallRule -DisplayName $name -Direction Inbound -LocalPort $MESOS_AGENT_PORT -Protocol TCP -Action Allow)
-}
-
-function Open-ZookeeperFirewallRule {
-    Write-Output "Opening Zookeeper TCP port: $ZOOKEEPER_PORT"
-    $name = "Allow inbound TCP Port $ZOOKEEPER_PORT for Zookeeper"
-    $firewallRule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
-    if($firewallRule) {
-        Write-Output "Firewall rule already exist"
-        return
-    }
-    return (New-NetFirewallRule -DisplayName $name -Direction Inbound -LocalPort $ZOOKEEPER_PORT -Protocol TCP -Action Allow)
+    Start-Service $MESOS_SERVICE_NAME
+    Start-PollingServiceStatus -Name $MESOS_SERVICE_NAME
 }
 
 try {
     New-MesosEnvironment
     Install-MesosBinaries
     New-MesosWindowsAgent
-    Start-Service $MESOS_SERVICE_NAME
-    Start-PollingMesosServiceStatus
-    Open-MesosFirewallRule
-    Open-ZookeeperFirewallRule # It's needed on the private DCOS agents
+    Open-WindowsFirewallRule -Name "Allow inbound TCP Port $MESOS_AGENT_PORT for Mesos Slave" -Direction "Inbound" -LocalPort $MESOS_AGENT_PORT -Protocol "TCP"
+    Open-WindowsFirewallRule -Name "Allow inbound TCP Port $ZOOKEEPER_PORT for Zookeeper" -Direction "Inbound" -LocalPort $ZOOKEEPER_PORT -Protocol "TCP" # It's needed on the private DCOS agents
 } catch {
     Write-Output $_.ToString()
     exit 1
 }
-
 Write-Output "Successfully finished setting up the Windows Mesos Agent"
+exit 0
