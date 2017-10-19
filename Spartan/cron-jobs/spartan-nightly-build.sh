@@ -17,6 +17,6 @@ LOG_FILE=$(realpath "$LOGS_DIR/cron-spartan-nightly-build.log") || (echo "ERROR:
 JOB_NAME="spartan-nightly-build"
 ps aux | grep -v " grep " | grep "$PYTHON_SCRIPT" | grep -q "$JOB_NAME" && echo -e "$(date +%m-%d-%y-%T) - The script $PYTHON_SCRIPT for $JOB_NAME is already running\n" >> $LOG_FILE && exit 0
 
-python $PYTHON_SCRIPT -s "$GEARMAN_SERVERS_LIST" -j "$JOB_NAME" --params '{"BRANCH": "master"}' 2>&1 >> $LOG_FILE
+python $PYTHON_SCRIPT -s "$GEARMAN_SERVERS_LIST" -j "$JOB_NAME" --params '{"BRANCH": "master", "MESOS_JENKINS_BRANCH": "master"}' 2>&1 >> $LOG_FILE
 
 echo -e "\n" >> $LOG_FILE
