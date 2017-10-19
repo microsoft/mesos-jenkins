@@ -211,10 +211,6 @@ function New-Environment {
     New-Directory $MESOS_BINARIES_DIR
     New-Directory $MESOS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $MESOS_BUILD_LOGS_DIR
-    if(Test-Path $ParametersFile) {
-        Remove-Item -Force $ParametersFile
-    }
-    New-Item -ItemType File -Path $ParametersFile
     Add-Content -Path $ParametersFile -Value "BRANCH=$Branch"
     # Clone Mesos repository
     Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
@@ -223,8 +219,8 @@ function New-Environment {
         # Pull the patch and all the dependent ones, if a review ID was given
         Add-ReviewBoardPatch
     }
-    Start-ExternalCommand { git.exe config --global user.email "ibalutoiu@cloudbasesolutions.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ionutbalutoiu" } -ErrorMessage "Failed to set git user name"
+    Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
+    Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
     # Set Visual Studio variables based on tested branch
     if ($branch -eq "master") {
         Set-VCVariables "15.0"
@@ -409,7 +405,10 @@ function Start-LogServerFilesUpload {
         [Parameter(Mandatory=$false)]
         [switch]$NewLatest
     )
-    Copy-Item -Force "${env:WORKSPACE}\mesos-build-$Branch-${env:BUILD_NUMBER}.log" "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    $consoleLog = Join-Path $env:WORKSPACE "mesos-build-$Branch-${env:BUILD_NUMBER}.log"
+    if(Test-Path $consoleLog) {
+        Copy-Item -Force $consoleLog "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    }
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath
@@ -427,8 +426,7 @@ function Start-EnvironmentCleanup {
     $processes = @('python', 'git', 'cl', 'cmake',
                    'stdout-tests', 'libprocess-tests', 'mesos-tests')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
-    & "$GIT_DIR\usr\bin\rm.exe" -rf $MESOS_DIR 2>&1 | Out-Null
-    $LASTEXITCODE = $null # The above 'rm.exe -rf' command should be non-fatal. Thus, we unset any resulted exit code.
+    cmd.exe /C "rmdir /s /q $MESOS_DIR > nul 2>&1"
 }
 
 function Get-SuccessBuildMessage {
@@ -440,6 +438,11 @@ function Get-SuccessBuildMessage {
 
 
 try {
+    # Recreate the parameters file at the beginning of the job
+    if(Test-Path $ParametersFile) {
+        Remove-Item -Force $ParametersFile
+    }
+    New-Item -ItemType File -Path $ParametersFile
     Install-Prerequisites
     New-Environment
     Start-MesosBuild
@@ -450,11 +453,12 @@ try {
     Start-MesosTestsBuild
     Start-MesosTestsRun
     New-MesosBinaries
+    $global:BUILD_STATUS = 'PASS'
     Add-Content $ParametersFile "STATUS=PASS"
     Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
-    Start-LogServerFilesUpload -NewLatest
-    Start-EnvironmentCleanup
 } catch {
+    $errMsg = $_.ToString()
+    Write-Output $errMsg
     if(!$global:BUILD_STATUS) {
         $global:BUILD_STATUS = 'FAIL'
     }
@@ -463,8 +467,14 @@ try {
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
-    Add-Content -Path $ParametersFile -Value "MESSAGE=$($_.ToString())"
-    Start-LogServerFilesUpload
+    Add-Content -Path $ParametersFile -Value "MESSAGE=${errMsg}"
+    exit 1
+} finally {
+    if($global:BUILD_STATUS -eq 'PASS') {
+        Start-LogServerFilesUpload -NewLatest
+    } else {
+        Start-LogServerFilesUpload
+    }
     Start-EnvironmentCleanup
-    Throw $_
 }
+exit 0
