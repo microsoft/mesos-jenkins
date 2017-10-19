@@ -1,3 +1,7 @@
+$templating = (Resolve-Path "$PSScriptRoot\..\Templating").Path
+Import-Module $templating
+
+
 function Start-SSHCommand {
     Param(
         [Parameter(Mandatory=$true)]
@@ -260,4 +264,62 @@ function New-Directory {
         }
     }
     return (New-Item -ItemType Directory -Path $Path)
+}
+
+function Start-RenderTemplate {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [HashTable]$Context,
+        [Parameter(Mandatory=$true)]
+        [string]$TemplateFile,
+        [Parameter(Mandatory=$false)]
+        [string]$OutFile
+    )
+    $content = Invoke-RenderTemplateFromFile -Context $Context -Template $TemplateFile
+    if($OutFile) {
+        [System.IO.File]::WriteAllText($OutFile, $content)
+    } else {
+        return $content
+    }
+}
+
+function Open-WindowsFirewallRule {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$Name,
+        [ValidateSet("Inbound", "Outbound")]
+        [string]$Direction,
+        [ValidateSet("TCP", "UDP")]
+        [string]$Protocol,
+        [Parameter(Mandatory=$false)]
+        [string]$LocalAddress="0.0.0.0",
+        [Parameter(Mandatory=$true)]
+        [int]$LocalPort
+    )
+    Write-Output "Open firewall rule: $Name"
+    $firewallRule = Get-NetFirewallRule -DisplayName $Name -ErrorAction SilentlyContinue
+    if($firewallRule) {
+        Write-Output "Firewall rule already exist"
+        return
+    }
+    New-NetFirewallRule -DisplayName $Name -Direction $Direction -LocalPort $LocalPort -Protocol $Protocol -Action Allow | Out-Null
+}
+
+function Start-PollingServiceStatus {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$Name
+    )
+    $timeout = 2
+    $count = 0
+    $maxCount = 10
+    while ($count -lt $maxCount) {
+        Start-Sleep -Seconds $timeout
+        Write-Output "Checking $Name service status"
+        $status = (Get-Service -Name $Name).Status
+        if($status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
+            Throw "Service $Name is not running"
+        }
+        $count++
+    }
 }
