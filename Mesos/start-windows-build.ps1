@@ -157,11 +157,14 @@ function Copy-CmakeBuildLogs {
 function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
-
     Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "get-review-ids-stdout.log" -StderrFileName "get-review-ids-stderr.log" `
                          -ArgumentList @("$PSScriptRoot\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
                          -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
+    if(!$reviewIDs) {
+        Write-Output "There aren't any reviews to be applied"
+        return
+    }
     Write-Output "Patches IDs that need to be applied: $reviewIDs"
     foreach($id in $reviewIDs) {
         Write-Output "Applying patch ID: $id"
