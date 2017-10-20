@@ -58,11 +58,12 @@ class ReviewBoardHandler(object):
             exit(1)
 
     def get_review_ids(self, review_request):
-        """Returns the review id(s) for the current review request and
-           any potential dependent review requests. Their order is ascending
-           with respect to how they should be applied. This function raises
-           an ReviewError exception if a cyclic dependency is found"""
-        review_ids = [review_request['id']]
+        """Returns the review requests (together with any potential dependent
+           review requests) that need to be applied for the current review
+           request. Their order is ascending with respect to how they should
+           be applied. This function raises a ReviewError exception if a
+           cyclic dependency is found."""
+        review_ids = []
         for review in review_request["depends_on"]:
             review_url = review["href"]
             print "Dependent review: %s " % review_url
@@ -72,6 +73,18 @@ class ReviewBoardHandler(object):
                                   "review %s. Please fix the "
                                   "'depends_on' field." % review_request["id"])
             review_ids += self.get_review_ids(dependent_review)
+            # Append to the list of review ids to be applied only if it's
+            # not already submitted
+            if review_request["status"] != "submitted":
+                review_ids += [dependent_review["id"]]
+            else:
+                print ("The dependent review %s is already "
+                       "submitted" % (dependent_review["id"]))
+        if review_request["status"] != "submitted":
+            review_ids = [review_request["id"]] + review_ids
+        else:
+            print ("The current review %s is already "
+                   "submitted" % (review_request["id"]))
         return review_ids
 
     def post_review(self, review_request, message, text_type='markdown'):
