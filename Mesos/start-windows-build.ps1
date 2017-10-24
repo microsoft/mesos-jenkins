@@ -313,7 +313,7 @@ function Start-MesosTestsBuild {
 
 function Start-MesosTestsRun {
     Write-Output "Started Mesos tests run"
-    Start-MesosCIProcess -ProcessPath "$MESOS_DIR\src\mesos-tests.exe" -ArgumentList @('--verbose', "--gtest_filter=`"-ContentType/MasterAPITest.EventAuthorizationFiltering/1`"") `
+    Start-MesosCIProcess -ProcessPath "$MESOS_DIR\src\mesos-tests.exe" -ArgumentList @('--verbose') `
                          -StdoutFileName "mesos-tests-stdout.log" -StderrFileName "mesos-tests-stderr.log" `
                          -BuildErrorMessage "Some Mesos tests failed."
     Write-Output "mesos-tests PASSED"
