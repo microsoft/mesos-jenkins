@@ -10,7 +10,7 @@ Before running the script, some environment variables must be set. These are use
 ```
 export AZURE_USER="<azure_user>"
 export AZURE_USER_PASSWORD="<azure_password_value>"
-export AZURE_REGION="West US"
+export AZURE_REGION="westus"
 export AZURE_RESOURCE_GROUP="dcos_mesos_rg"
 
 export LINUX_MASTER_SIZE="Standard_D2_v2"
@@ -22,7 +22,7 @@ export LINUX_AGENT_PRIVATE_POOL="iblinprivate"
 export LINUX_ADMIN="azureuser"
 export LINUX_PUBLIC_SSH_KEY="<public_key_content>"
 
-export WIN_AGENT_VM_SIZE="Standard_D2_v2"
+export WIN_AGENT_SIZE="Standard_D2_v2"
 export WIN_AGENT_PUBLIC_POOL="ibwinpublic"
 export WIN_AGENT_DNS_PREFIX="ib-winagent"
 export WIN_AGENT_PRIVATE_POOL="ibwinprivate"

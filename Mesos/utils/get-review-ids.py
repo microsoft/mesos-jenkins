@@ -43,7 +43,7 @@ def main():
     review_request = handler.api(review_request_url)["review_request"]
     review_ids = handler.get_review_ids(review_request)
     with open(parameters.out_file, 'w') as f:
-        for r_id in list(reversed(review_ids)):
+        for r_id in review_ids:
             f.write("%s\n" % (str(r_id)))
 
 
