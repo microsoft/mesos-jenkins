@@ -341,6 +341,9 @@ collect_logs() {
     rm -rf $LOGS_DIR
 }
 
+# Install latest stable ACS Engine tool
+$DIR/../utils/install-latest-stable-acs-engine.sh
+
 # Deploy DCOS master + slave nodes
 $DIR/../acs-engine-dcos-deploy.sh || handle_command_error "ERROR: Failed to deploy DCOS on Azure" "False"
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
