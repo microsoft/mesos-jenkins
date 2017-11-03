@@ -49,7 +49,7 @@ DIR=$(dirname $0)
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
-IIS_HEALTH_CHECK_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/iis-health-checks.json"
+IIS_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/iis-marathon-template.json"
 LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
@@ -123,15 +123,14 @@ open_dcos_port() {
     check_open_port "$MASTER_PUBLIC_ADDRESS" "80"
 }
 
-deploy_iis_with_health_checks() {
+deploy_iis() {
     #
     # - Deploys an IIS app via marathon
     # - Checks if marathon successfully launched a Mesos task
-    # - Waits for the health checks successful report
     # - Checks if the IIS exposed public port 80 is open
     #
     echo "Deploying the IIS marathon template on DCOS"
-    dcos marathon app add $IIS_HEALTH_CHECK_TEMPLATE_URL
+    dcos marathon app add $IIS_TEMPLATE_URL
     TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
     COUNT=0
     while [[ -z $TASK_ID ]]; do
@@ -157,24 +156,6 @@ deploy_iis_with_health_checks() {
         TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
         STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])")
     done
-    COUNT=0
-    HAS_HEALTHCHECKS=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(('healthCheckResults' in data.keys()))")
-    while [[ "$HAS_HEALTHCHECKS" != "True" ]]; do
-        if [[ $COUNT -eq 10 ]]; then
-            echo "ERROR: Couldn't read IIS task health checks within a $(($COUNT * 6)) seconds"
-            return 1
-        fi
-        echo "Trying to get IIS task health check results"
-        sleep 6
-        COUNT=$(($COUNT + 1))
-        HAS_HEALTHCHECKS=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(('healthCheckResults' in data.keys()))")
-    done
-    COUNT=0
-    IS_ALIVE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['healthCheckResults'][0]['alive'])")
-    if [[ "$IS_ALIVE" != "True" ]]; then
-        echo "ERROR: IIS task health checks didn't report successfully"
-        return 1
-    fi
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80"
     echo "IIS successfully deployed on DCOS"
 }
@@ -182,10 +163,10 @@ deploy_iis_with_health_checks() {
 run_functional_tests() {
     #
     # Run the following DCOS functional tests:
-    #  - Deploy an IIS with health checks
+    #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #
     dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80"
-    deploy_iis_with_health_checks
+    deploy_iis
 }
 
 get_private_addresses_for_linux_public_agents() {
