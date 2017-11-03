@@ -107,6 +107,18 @@ function New-Environment {
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
 }
 
+function Start-SpartanUnitTests {
+    Push-Location $SPARTAN_GIT_REPO_DIR
+    Write-Output "Starting the Spartan unit tests"
+    try {
+        Start-SpartanCIProcess -ProcessPath "make.exe" -ArgumentList @("eunit") -BuildErrorMessage "Spartan eunit tests run was not successful" `
+                               -StdoutFileName "spartan-eunit-tests-stdout.log" -StderrFileName "spartan-eunit-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished Spartan eunit tests run"
+}
+
 function Start-SpartanBuild {
     Push-Location $SPARTAN_GIT_REPO_DIR
     Write-Output "Starting the Spartan build"
@@ -190,6 +202,7 @@ function Start-EnvironmentCleanup {
 
 try {
     New-Environment
+    Start-SpartanUnitTests
     Start-SpartanBuild
     $global:BUILD_STATUS = 'PASS'
 } catch {
