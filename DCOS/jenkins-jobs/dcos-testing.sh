@@ -53,6 +53,7 @@ IIS_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/iis-marathon-template.json"
 LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
+LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
 UTILS_FILE="$DIR/../utils/utils.sh"
 
 . $UTILS_FILE
@@ -319,6 +320,7 @@ collect_logs() {
 
     # Upload the logs to log server
     upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $LOGS_DIR
+    echo "All the logs available at: $LOGS_BASE_URL/$BUILD_ID"
     rm -rf $LOGS_DIR
 }
 
