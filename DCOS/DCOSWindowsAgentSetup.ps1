@@ -22,7 +22,7 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
-$SCRIPTS_REPO_URL = "https://github.com/ionutbalutoiu/mesos-jenkins" # TODO: Change this to the official repo URL
+$SCRIPTS_REPO_URL = "https://github.com/Microsoft/mesos-jenkins"
 $SCRIPTS_DIR = Join-Path $env:TEMP "mesos-jenkins"
 $MESOS_BINARIES_URL = "$BootstrapUrl/mesos.zip"
 
