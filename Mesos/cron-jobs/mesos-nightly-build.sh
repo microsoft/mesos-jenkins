@@ -17,6 +17,6 @@ LOG_FILE=$(realpath "$LOGS_DIR/cron-mesos-nightly-build.log") || (echo "ERROR: F
 JOB_NAME="mesos-nightly-build"
 ps aux | grep -v " grep " | grep "$PYTHON_SCRIPT" | grep -q "$JOB_NAME" && echo -e "$(date +%m-%d-%y-%T) - The script $PYTHON_SCRIPT for $JOB_NAME is already running\n" >> $LOG_FILE && exit 0
 
-python $PYTHON_SCRIPT -s "$GEARMAN_SERVERS_LIST" -j 'mesos-nightly-build' --params '{"BRANCH": "master", "MESOS_JENKINS_BRANCH": "master"}' 2>&1 >> $LOG_FILE
+python $PYTHON_SCRIPT -s "$GEARMAN_SERVERS_LIST" -j 'mesos-nightly-build' --params '{"BRANCH": "master", "MESOS_JENKINS_BRANCH": "master", "MESOS_JENKINS_REPO_URL": "https://github.com/Microsoft/mesos-jenkins"}' 2>&1 >> $LOG_FILE
 
 echo -e "\n" >> $LOG_FILE

@@ -19,6 +19,6 @@ LOG_FILE=$(realpath "$LOGS_DIR/cron-mesos-verify-review-requests.log") || (echo 
 ps aux | grep -v " grep " | grep -q "$PYTHON_SCRIPT" && echo -e "$(date +%m-%d-%y-%T) - The script $PYTHON_SCRIPT is already running\n" >> $LOG_FILE && exit 0
 
 python $PYTHON_SCRIPT -u "$REVIEWBOARD_USER" -p "$REVIEWBOARD_USER_PASSWORD" \
-                      gearman -s "$GEARMAN_SERVERS_LIST" -j 'mesos-build' --params '{"BRANCH": "master", "MESOS_JENKINS_BRANCH": "master"}' 2>&1 >> $LOG_FILE
+                      gearman -s "$GEARMAN_SERVERS_LIST" -j 'mesos-build' --params '{"BRANCH": "master", "MESOS_JENKINS_BRANCH": "master", "MESOS_JENKINS_REPO_URL": "https://github.com/Microsoft/mesos-jenkins"}' 2>&1 >> $LOG_FILE
 
 echo -e "\n" >> $LOG_FILE
