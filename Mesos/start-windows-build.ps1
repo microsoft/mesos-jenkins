@@ -244,13 +244,21 @@ function Start-MesosBuild {
             $generatorName = "Visual Studio 14 2015 Win64"
         }
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-build-cmake-stdout.log" -StderrFileName "mesos-build-cmake-stderr.log" `
-                             -ArgumentList @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=1", "-DHAS_AUTHENTICATION=0") `
+                             -ArgumentList @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=ON", "-DHAS_AUTHENTICATION=ON", "-DENABLE_JAVA=ON", "-DENABLE_SSL=ON") `
                              -BuildErrorMessage "Mesos failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'mesos-build'
         Pop-Location
     }
     Write-Output "Mesos was successfully built"
+    Push-Location $MESOS_DIR
+    try {
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-java-build-cmake-stdout.log" -StderrFileName "mesos-java-build-cmake-stderr.log" `
+                             -ArgumentList @("--build", ".", "--target", "mesos-java") -BuildErrorMessage "mesos-java failed to build."
+    } finally {
+        Copy-CmakeBuildLogs -BuildName 'mesos-java-build'
+        Pop-Location
+    }
 }
 
 function Start-StdoutTestsBuild {
