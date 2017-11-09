@@ -132,11 +132,17 @@ function New-SpartanWindowsAgent {
         "service_binary" = $erlBinary
         "service_arguments" = $spartanArguments
         "log_dir" = $SPARTAN_LOG_DIR
+        "env_vars" = @(
+            @{
+                'name' = 'MASTER_SOURCE'
+                'value' = 'exhibitor'
+            },
+            @{
+                'name' = 'EXHIBITOR_ADDRESS'
+                'value' = $MasterAddress[0]
+            }
+        )
     }
-    $env:MASTER_SOURCE = "exhibitor"
-    Start-ExternalCommand { setx.exe /M MASTER_SOURCE "exhibitor" } -ErrorMessage "Failed to set the Spartan MASTER_SOURCE system environment variable"
-    $env:EXHIBITOR_ADDRESS = $MasterAddress[0]
-    Start-ExternalCommand { setx.exe /M EXHIBITOR_ADDRESS $MasterAddress[0] } -ErrorMessage "Failed to set the Spartan EXHIBITOR_ADDRESS system environment variable"
     Start-RenderTemplate -TemplateFile "$TEMPLATES_DIR\windows-service.xml" -Context $context -OutFile "$SPARTAN_SERVICE_DIR\spartan-service.xml"
     $serviceWapper = Join-Path $SPARTAN_SERVICE_DIR "spartan-service.exe"
     Invoke-WebRequest -UseBasicParsing -Uri $SERVICE_WRAPPER_URL -OutFile $serviceWapper
