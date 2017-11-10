@@ -154,8 +154,9 @@ function New-SpartanWindowsAgent {
     # TODO(ibalutoiu): Permanently disable the Docker embedded DNS and remove this workaround
     Stop-Service "Docker"
 
+    Start-ExternalCommand { sc.exe failure $SPARTAN_SERVICE_NAME reset=5 actions=restart/1000 }
+    Start-ExternalCommand { sc.exe failureflag $SPARTAN_SERVICE_NAME 1 }
     Start-Service $SPARTAN_SERVICE_NAME
-    Start-PollingServiceStatus -Name $SPARTAN_SERVICE_NAME
     # Point the DNS from the host to the Spartan local DNS
     Set-DnsClientServerAddress -InterfaceAlias * -ServerAddresses @('192.51.100.1', '192.51.100.2', '192.51.100.3')
 

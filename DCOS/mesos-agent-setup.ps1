@@ -94,8 +94,9 @@ function New-MesosWindowsAgent {
     if($p.ExitCode -ne 0) {
         Throw "Failed to set up the DCOS Mesos Slave Windows service. Exit code: $($p.ExitCode)"
     }
+    Start-ExternalCommand { sc.exe failure $MESOS_SERVICE_NAME reset=5 actions=restart/1000 }
+    Start-ExternalCommand { sc.exe failureflag $MESOS_SERVICE_NAME 1 }
     Start-Service $MESOS_SERVICE_NAME
-    Start-PollingServiceStatus -Name $MESOS_SERVICE_NAME
 }
 
 try {
