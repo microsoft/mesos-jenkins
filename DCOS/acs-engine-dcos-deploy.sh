@@ -106,9 +106,17 @@ acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf ./translations # Left-over after running 'acs-engine generate'
 rm $ACS_RENDERED_TEMPLATE
 
+
 # Deploy the DCOS with Mesos environment
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
+
+# TODO(ibalutoiu): Remove these sed calls once the Windows version can be directly 
+#                  specified in the ACS template. This is temporary workaround
+#                  to enable RS3 deployments.
+sed -i 's|    "agentWindowsOffer": "WindowsServer",|    "agentWindowsOffer": "WindowsServerSemiAnnual",|g' $DEPLOY_TEMPLATE_FILE
+sed -i 's|    "agentWindowsSku": "2016-Datacenter-with-Containers",|    "agentWindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk",|g' $DEPLOY_TEMPLATE_FILE
+
 azure_cli_login
 az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
 echo "Started the DCOS deployment"

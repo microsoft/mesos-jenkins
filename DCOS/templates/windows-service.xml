@@ -15,4 +15,7 @@
     <sizeThreshold>10240</sizeThreshold>
     <keepFiles>8</keepFiles>
   </log>
+{% for var in env_vars -%}
+  <env name="{{ var.name }}" value="{{ var.value }}"/>
+{% endfor -%}
 </configuration>

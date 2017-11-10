@@ -6,7 +6,9 @@ Param(
     [Parameter(Mandatory=$false)]
     [string]$CommitID,
     [Parameter(Mandatory=$false)]
-    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.txt"
+    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.txt",
+    [Parameter(Mandatory=$false)]
+    [switch]$EnableSSL
 )
 
 $ErrorActionPreference = "Stop"
@@ -243,9 +245,12 @@ function Start-MesosBuild {
         } else {
             $generatorName = "Visual Studio 14 2015 Win64"
         }
+        $parameters = @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=ON", "-DHAS_AUTHENTICATION=ON", "-DENABLE_JAVA=ON")
+        if($EnableSSL) {
+            $parameters += "-DENABLE_SSL=ON"
+        }
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-build-cmake-stdout.log" -StderrFileName "mesos-build-cmake-stderr.log" `
-                             -ArgumentList @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=ON", "-DHAS_AUTHENTICATION=ON", "-DENABLE_JAVA=ON", "-DENABLE_SSL=ON") `
-                             -BuildErrorMessage "Mesos failed to build."
+                             -ArgumentList $parameters -BuildErrorMessage "Mesos failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'mesos-build'
         Pop-Location
