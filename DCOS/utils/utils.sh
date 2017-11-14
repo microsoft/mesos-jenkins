@@ -8,7 +8,7 @@ run_ssh_command() {
     local ADDRESS="$2"
     local PORT="$3"
     local CMD="$4"
-    ssh -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -p "$PORT" $USER@$ADDRESS "$CMD"
+    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -p "$PORT" $USER@$ADDRESS "$CMD"
 }
 
 upload_files_via_scp() {
@@ -20,7 +20,7 @@ upload_files_via_scp() {
     local PORT="$3"
     local REMOTE_PATH="$4"
     local LOCAL_PATH="$5"
-    scp -r -P "$PORT" -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $LOCAL_PATH $USER@$ADDRESS:$REMOTE_PATH
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $LOCAL_PATH $USER@$ADDRESS:$REMOTE_PATH
 }
 
 download_files_via_scp() {
@@ -35,7 +35,7 @@ download_files_via_scp() {
     if [[ -z $USER ]]; then
         USER="azureuser"
     fi
-    scp -r -P "$PORT" -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $USER@$ADDRESS:$REMOTE_PATH $LOCAL_PATH
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $USER@$ADDRESS:$REMOTE_PATH $LOCAL_PATH
 }
 
 mount_smb_share() {

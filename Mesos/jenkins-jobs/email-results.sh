@@ -3,8 +3,7 @@ set -e
 
 if [[ -z $STATUS ]]; then echo "ERROR: No STATUS received from the upstream job"; exit 1; fi
 if [[ -z $MESSAGE ]]; then echo "ERROR: No MESSAGE received from the upstream job"; exit 1; fi
-if [[ -z $BRANCH ]]; then echo "ERROR: No BRANCH received from the upstream job"; exit 1; fi
-if [[ -z $BUILD_OUTPUTS_URL ]]; then echo "ERROR: No BUILD_OUTPUTS_URL received from the upstream job"; exit 1; fi
+if [[ -z $EMAIL_TITLE ]]; then echo "ERROR: No EMAIL_TITLE received from the upstream job"; exit 1; fi
 if [[ -z $PARAMETERS_FILE_PATH ]]; then echo "ERROR: Environment variable PARAMETERS_FILE_PATH was not set"; exit 1; fi
 
 LOG_TAIL_LIMIT=30
@@ -34,17 +33,18 @@ if [[ ! -z $LOGS_URLS ]]; then
     done
 fi
 
-HTML_CONTENT="Nightly build status: $STATUS<br/><br/>$MESSAGE<br/><br/>"
+HTML_CONTENT="$MESSAGE<br/><br/>"
 if [[ "$FAILED_COMMAND" != "" ]]; then
     FAILED_COMMAND=$(echo -n "$FAILED_COMMAND" | sed 's|\\|\\\\|g') # Escape any single black-slashes
-    HTML_CONTENT="${HTML_CONTENT}Failed command: <code>$FAILED_COMMAND</code><br/><br/>"
+    HTML_CONTENT+="Failed command: <code>$FAILED_COMMAND</code><br/><br/>"
 fi
-HTML_CONTENT="${HTML_CONTENT}All the Jenkins build artifacts available at: <a href=\"$BUILD_OUTPUTS_URL\">$BUILD_OUTPUTS_URL</a><br/><br/>"
+if [[ "$BUILD_OUTPUTS_URL" != "" ]]; then
+    HTML_CONTENT+="All the Jenkins build artifacts available at: <a href=\"$BUILD_OUTPUTS_URL\">$BUILD_OUTPUTS_URL</a><br/><br/>"
+fi
 if [[ "$(cat $HTML_LOGS)" != "" ]]; then
-    HTML_CONTENT="${HTML_CONTENT}Relevant logs:<br/><ul>$(cat $HTML_LOGS)</ul>"
+    HTML_CONTENT+="Relevant logs:<br/><ul>$(cat $HTML_LOGS)</ul>"
 fi
 
 rm -rf $TEMP_DIR
 
 echo "EMAIL_HTML_CONTENT=$HTML_CONTENT" > $PARAMETERS_FILE_PATH
-echo "EMAIL_TITLE=[mesos-nightly-build] ${STATUS}: mesos ${BRANCH} branch" >> $PARAMETERS_FILE_PATH
