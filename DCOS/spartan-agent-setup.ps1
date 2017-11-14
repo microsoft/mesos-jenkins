@@ -79,6 +79,10 @@ function Set-SpartanDevice {
     }
     Disable-NetAdapter $SPARTAN_DEVICE_NAME -Confirm:$false
     Enable-NetAdapter $SPARTAN_DEVICE_NAME -Confirm:$false
+    $spartanIPs = @("192.51.100.1", "192.51.100.2", "192.51.100.3")
+    foreach($ip in $spartanIPs) {
+        ping.exe -n 10 $ip
+    }
 }
 
 function Get-UpstreamDNSResolvers {
