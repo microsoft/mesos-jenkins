@@ -55,6 +55,11 @@ LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
 UTILS_FILE="$DIR/../utils/utils.sh"
+BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
+PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
+TEMP_LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE
+rm -rf $TEMP_LOGS_DIR && mkdir $TEMP_LOGS_DIR
 
 . $UTILS_FILE
 
@@ -68,19 +73,31 @@ job_cleanup() {
     echo "Finished the environment cleanup"
 }
 
-handle_command_error() {
+upload_logs() {
     #
-    # - Prints the error message given as the first parameter
-    # - If the second parameter is "True", it does a collect logs for whole deployment
-    # - Does the job cleanup
+    # Uploads the logs to the log server
     #
-    local ERROR_MESSAGE="$1"
-    local COLLECT_LOGS="$2"
-    echo $ERROR_MESSAGE
-    if [[ "$COLLECT_LOGS" = "True" ]]; then
-        collect_logs || echo "ERROR: Failed to collect logs"
-    fi
+    # Copy the Jenkins console as well
+    cp $JENKINS_HOME/jobs/dcos-testing/builds/$BUILD_NUMBER/log $TEMP_LOGS_DIR/jenkins-console.log
+    echo "Uploading logs to the log server"
+    upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR
+    echo "All the logs available at: $BUILD_OUTPUTS_URL"
+    echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
+    rm -rf $TEMP_LOGS_DIR
+}
+
+exit_with_failure() {
+    #
+    # - Does the Azure resources cleanup, sets the parameter for the downstream job
+    #   and exits the job with exit code 1
+    #
     job_cleanup
+    echo "STATUS=FAIL" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[dcos-testing] FAIL" >> $PARAMETERS_FILE
+    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
+    MSG+="Windows agent(s) and the latest Mesos, Spartan builds."
+    echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
+    echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
     exit 1
 }
 
@@ -145,7 +162,7 @@ deploy_iis() {
         COUNT=$(($COUNT + 1))
     done
     COUNT=0
-    STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])")
+    STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])" 2>/dev/null)
     while [[ "$STATE" != "TASK_RUNNING" ]]; do
         if [[ $COUNT -eq 30 ]]; then
             echo "ERROR: IIS task didn't reach RUNNING state within a $(($COUNT * 60)) seconds timeout"
@@ -155,7 +172,7 @@ deploy_iis() {
         sleep 60
         COUNT=$(($COUNT + 1))
         TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
-        STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])")
+        STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])" 2>/dev/null)
     done
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80"
     echo "IIS successfully deployed on DCOS"
@@ -266,18 +283,15 @@ collect_windows_agents_logs() {
     done
 }
 
-collect_logs() {
+collect_dcos_nodes_logs() {
     #
     # Collect logs from all the deployment nodes and upload them to the log server
     #
     echo "Collecting logs from all the DCOS nodes"
-    LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
-    rm -rf $LOGS_DIR
-    mkdir -p $LOGS_DIR
 
     # Collect logs from all the Linux master node(s)
     echo "Collecting Linux master logs"
-    MASTERS_LOGS_DIR="$LOGS_DIR/linux_masters"
+    MASTERS_LOGS_DIR="$TEMP_LOGS_DIR/linux_masters"
     mkdir -p $MASTERS_LOGS_DIR
     collect_linux_masters_logs "$MASTERS_LOGS_DIR"
 
@@ -289,57 +303,80 @@ collect_logs() {
     dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80"
 
     # Collect logs from all the public Windows nodes(s)
-    WIN_PUBLIC_LOGS_DIR="$LOGS_DIR/windows_public_agents"
+    echo "Collecting Windows public agents logs"
+    WIN_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/windows_public_agents"
     mkdir -p $WIN_PUBLIC_LOGS_DIR
     IPS=$(get_private_addresses_for_windows_public_agents)
     collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS"
 
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
+        echo "Collecting Windows private agents logs"
         # Collect logs from all the private Windows nodes(s)
-        WIN_PRIVATE_LOGS_DIR="$LOGS_DIR/windows_private_agents"
+        WIN_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/windows_private_agents"
         mkdir -p $WIN_PRIVATE_LOGS_DIR
         IPS=$(get_private_addresses_for_windows_private_agents)
         collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS"
     fi
 
     if [[ $LINUX_PUBLIC_AGENT_COUNT -gt 0 ]]; then
+        echo "Collecting Linux public agents logs"
         # Collect logs from all the public Linux node(s)
-        LINUX_PUBLIC_LOGS_DIR="$LOGS_DIR/linux_public_agents"
+        LINUX_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/linux_public_agents"
         mkdir -p $LINUX_PUBLIC_LOGS_DIR
         IPS=$(get_private_addresses_for_linux_public_agents)
         collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS"
     fi
 
     if [[ $LINUX_PRIVATE_AGENT_COUNT -gt 0 ]]; then
+        echo "Collecting Linux private agents logs"
         # Collect logs from all the private Linux node(s)
-        LINUX_PRIVATE_LOGS_DIR="$LOGS_DIR/linux_private_agents"
+        LINUX_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/linux_private_agents"
         mkdir -p $LINUX_PRIVATE_LOGS_DIR
         IPS=$(get_private_addresses_for_linux_private_agents)
         collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS"
     fi
-
-    # Upload the logs to log server
-    upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $LOGS_DIR
-    echo "All the logs available at: $LOGS_BASE_URL/$BUILD_ID"
-    rm -rf $LOGS_DIR
 }
 
 # Install latest stable ACS Engine tool
 $DIR/../utils/install-latest-stable-acs-engine.sh
 
 # Deploy DCOS master + slave nodes
-$DIR/../acs-engine-dcos-deploy.sh || handle_command_error "ERROR: Failed to deploy DCOS on Azure" "False"
+$DIR/../acs-engine-dcos-deploy.sh || EXIT_CODE=1
+if [[ $EXIT_CODE -eq 1 ]]; then
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    echo "ERROR: Failed to deploy DCOS on Azure"
+    exit_with_failure
+fi
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
 echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 
 # Open DCOS API & GUI port
-open_dcos_port || handle_command_error "ERROR: Failed to open the DCOS port" "True"
+open_dcos_port || EXIT_CODE=1
+if [[ $EXIT_CODE -eq 1 ]]; then
+    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    echo "ERROR: Failed to open the DCOS port"
+    exit_with_failure
+fi
 
 # Run the functional tests
-run_functional_tests || handle_command_error "ERROR: Failed to run functional tests" "True"
+run_functional_tests || EXIT_CODE=1
+if [[ $EXIT_CODE -eq 1 ]]; then
+    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    echo "ERROR: Failed to run functional tests"
+    exit_with_failure
+fi
 
 # Collect all the logs in the DCOS deployments
-collect_logs || handle_command_error "ERROR: Failed to collect logs" "False"
+collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+upload_logs || echo "ERROR: Failed to upload logs to log server"
+
+echo "STATUS=PASS" >> $PARAMETERS_FILE
+echo "EMAIL_TITLE=[dcos-testing] PASS" >> $PARAMETERS_FILE
+MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
+MSG+="Windows agent(s) and the latest Mesos, Spartan builds"
+echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 
 # Do the final cleanup
 job_cleanup
