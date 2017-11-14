@@ -491,6 +491,11 @@ try {
     } else {
         Start-LogServerFilesUpload
     }
+    if(!$ReviewID) {
+        # This means that it's a nightly build and we need
+        # to set the EMAIL_TITLE parameter.
+        Add-Content -Path $ParametersFile -Value "EMAIL_TITLE=[mesos-nightly-build] ${global:BUILD_STATUS}: Mesos ${Branch} branch"
+    }
     Start-EnvironmentCleanup
 }
 exit 0
