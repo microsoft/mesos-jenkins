@@ -345,6 +345,12 @@ function New-MesosBinaries {
     Write-Output "Mesos binaries were successfully built"
     New-Directory $MESOS_BUILD_BINARIES_DIR
     Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\"
+    [array]$items = Get-ChildItem $MESOS_DIR -Recurse | Where-Object { $_.Name -eq "curl.exe" }
+    if($items.Count -eq 0) {
+        Throw "Failed to find curl.exe after Mesos binaries are generated"
+    }
+    $curlPath = $items[0].FullName
+    Copy-Item $curlPath $MESOS_BUILD_BINARIES_DIR
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.exe" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-binaries.zip"
     Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.pdb" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-pdb.zip"
