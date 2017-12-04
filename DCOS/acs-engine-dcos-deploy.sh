@@ -18,6 +18,14 @@ validate_simple_deployment_params() {
     if [[ -z $WIN_AGENT_ADMIN ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN is not set"; exit 1; fi
     if [[ -z $WIN_AGENT_ADMIN_PASSWORD ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN_PASSWORD is not set"; exit 1; fi
 
+    if [[ -z $DCOS_VERSION ]]; then
+        # Set latest stable DCOS version 1.10.0 as the default one
+        export DCOS_VERSION="1.10.0"
+    fi
+    if [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
+        echo "ERROR: Supported DCOS_VERSION are: 1.8.8, 1.9.0 or 1.10.0"
+        exit 1
+    fi
     if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then echo "ERROR: Parameter DCOS_WINDOWS_BOOTSTRAP_URL is not set"; exit 1; fi
 }
 
