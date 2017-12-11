@@ -10,7 +10,7 @@ $LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $ERLANG_URL = "$LOG_SERVER_BASE_URL/downloads/erl8.3.zip"
 $ZOOKEEPER_PORT = 2181
 $EXHIBITOR_PORT = 8181
-$DCOS_DIR = Join-Path $env:SystemDrive "DCOS"
+$DCOS_DIR = Join-Path "D:" "DCOS"
 $ERLANG_DIR = Join-Path $DCOS_DIR "erl8.3"
 $ERTS_DIR = Join-Path $ERLANG_DIR "erts-8.3"
 
