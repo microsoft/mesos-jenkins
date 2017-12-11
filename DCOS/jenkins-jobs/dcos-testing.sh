@@ -27,7 +27,13 @@ fi
 if [[ $(echo "$AZURE_REGION" | grep "\s") ]]; then
     echo "ERROR: The AZURE_REGION parameter must not contain any spaces"
 fi
-
+if [[ -z $DCOS_VERSION ]]; then
+    export DCOS_VERSION="1.10.0"
+fi
+if [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
+    echo "ERROR: Supported DCOS_VERSION are: 1.8.8, 1.9.0 or 1.10.0"
+    exit 1
+fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
     export LINUX_MASTER_COUNT="1"
     export LINUX_PUBLIC_AGENT_COUNT="0"
@@ -337,6 +343,23 @@ collect_dcos_nodes_logs() {
     fi
 }
 
+install_dcos_cli() {
+    DCOS_CLI_BASE_URL="https://downloads.dcos.io/binaries/cli/linux/x86-64"
+    if [[ "$DCOS_VERSION" = "1.8.8" ]]; then
+        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.8/dcos"
+    elif [[ "$DCOS_VERSION" = "1.9.0" ]]; then
+        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.9/dcos"
+    elif [[ "$DCOS_VERSION" = "1.10.0" ]]; then
+        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.10/dcos"
+    else
+        echo "ERROR: Cannot find the DCOS cli url for the version: $DCOS_VERSION"
+        return 1
+    fi
+    DCOS_BINARY_FILE="/usr/local/bin/dcos"
+    sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE
+    sudo chmod +x $DCOS_BINARY_FILE
+}
+
 # Install latest stable ACS Engine tool
 $DIR/../utils/install-latest-stable-acs-engine.sh
 
@@ -356,6 +379,15 @@ if [[ $EXIT_CODE -eq 1 ]]; then
     collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
     upload_logs || echo "ERROR: Failed to upload logs to log server"
     echo "ERROR: Failed to open the DCOS port"
+    exit_with_failure
+fi
+
+# Install the proper DCOS cli version
+install_dcos_cli || EXIT_CODE=1
+if [[ $EXIT_CODE -eq 1 ]]; then
+    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    echo "ERROR: Failed to install the CLI for the DCOS version: $DCOS_VERSION"
     exit_with_failure
 fi
 
