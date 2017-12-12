@@ -23,7 +23,7 @@ import urllib2
 
 sys.path.append(os.getcwd())
 
-from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL # noqa
+from common import ReviewBoardHandler, REVIEWBOARD_URL # noqa
 
 LOG_TAIL_LIMIT = 30
 
@@ -86,21 +86,17 @@ def main():
                                                          parameters.review_id)
     handler = ReviewBoardHandler(parameters.user, parameters.password)
     review_request = handler.api(review_request_url)["review_request"]
-    try:
-        logs_urls = []
-        if parameters.logs_urls:
-            logs_urls = parameters.logs_urls.split('|')
-        applied_reviews = []
-        if parameters.applied_reviews:
-            applied_reviews = parameters.applied_reviews.split('|')
-        message = get_build_message(message=parameters.message,
-                                    logs_urls=logs_urls,
-                                    applied_reviews=applied_reviews,
-                                    outputs_url=parameters.outputs_url,
-                                    failed_command=parameters.failed_command)
-    except ReviewError as err:
-        message = ("Bad review!\n\n"
-                   "Error:\n%s" % (err.args[0]))
+    logs_urls = []
+    if parameters.logs_urls:
+        logs_urls = parameters.logs_urls.split('|')
+    applied_reviews = []
+    if parameters.applied_reviews:
+        applied_reviews = parameters.applied_reviews.split('|')
+    message = get_build_message(message=parameters.message,
+                                logs_urls=logs_urls,
+                                applied_reviews=applied_reviews,
+                                outputs_url=parameters.outputs_url,
+                                failed_command=parameters.failed_command)
     handler.post_review(review_request, message)
 
 
