@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-export BUILD_ID=$(date +%m%d%y%T | sed 's|\:||g')
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
@@ -66,6 +65,7 @@ PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
 rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE
 rm -rf $TEMP_LOGS_DIR && mkdir $TEMP_LOGS_DIR
+rm -rf $HOME/.dcos
 
 . $UTILS_FILE
 
@@ -184,53 +184,26 @@ deploy_iis() {
     echo "IIS successfully deployed on DCOS"
 }
 
+check_custom_attributes() {
+    #
+    # Check if the custom attributes are set for the slaves
+    #
+    if [[ "$($DIR/../utils/check-custom-attributes.py)" = "True" ]]; then
+        echo "The custom attributes are correctly set"
+        return 0
+    fi
+    echo "ERROR: The custom attributes are not correctly set"
+    return 1
+}
+
 run_functional_tests() {
     #
     # Run the following DCOS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
+    #  - Check if the custom attributes are set
     #
-    dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80"
+    check_custom_attributes
     deploy_iis
-}
-
-get_private_addresses_for_linux_public_agents() {
-    #
-    # Returns the private addresses for the Linux Public Mesos agents
-    #
-    NODE_IDS=$(dcos node --json | python -c "import json, sys ; d = json.load(sys.stdin) ; v = [s['id'] for s in d if s['attributes']['os'] == 'linux' and 'public_ip' in s['attributes'].keys() and  s['attributes']['public_ip'] == 'yes'] ; print('\n'.join(v))")
-    for ID in $NODE_IDS; do
-        dcos node | grep $ID | awk '{print $2}'
-    done
-}
-
-get_private_addresses_for_linux_private_agents() {
-    #
-    # Returns the private addresses for the Linux Private Mesos agents
-    #
-    NODE_IDS=$(dcos node --json | python -c "import json, sys ; d = json.load(sys.stdin) ; v = [s['id'] for s in d if s['attributes']['os'] == 'linux' and 'public_ip' not in s['attributes'].keys()] ; print('\n'.join(v))")
-    for ID in $NODE_IDS; do
-        dcos node | grep $ID | awk '{print $2}'
-    done
-}
-
-get_private_addresses_for_windows_public_agents() {
-    #
-    # Returns the private addresses for the Windows Public Mesos agents
-    #
-    NODE_IDS=$(dcos node --json | python -c "import json, sys ; d = json.load(sys.stdin) ; v = [s['id'] for s in d if s['attributes']['os'] == 'windows' and 'public_ip' in s['attributes'].keys() and  s['attributes']['public_ip'] == 'yes'] ; print('\n'.join(v))")
-    for ID in $NODE_IDS; do
-        dcos node | grep $ID | awk '{print $2}'
-    done
-}
-
-get_private_addresses_for_windows_private_agents() {
-    #
-    # Returns the private addresses for the Windows Private Mesos agents
-    #
-    NODE_IDS=$(dcos node --json | python -c "import json, sys ; d = json.load(sys.stdin) ; v = [s['id'] for s in d if s['attributes']['os'] == 'windows' and 'public_ip' not in s['attributes'].keys()] ; print('\n'.join(v))")
-    for ID in $NODE_IDS; do
-        dcos node | grep $ID | awk '{print $2}'
-    done
 }
 
 collect_linux_masters_logs() {
@@ -258,14 +231,14 @@ collect_linux_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "/tmp/collect-logs.sh" "$DIR/../utils/collect-linux-machine-logs.sh"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/../utils/collect-linux-machine-logs.sh"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
     for IP in $AGENTS_IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh"
         AGENT_LOGS_DIR="/tmp/agent_$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '/tmp/collect-logs.sh $AGENT_LOGS_DIR'"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp $IP 22 $AGENT_LOGS_DIR $AGENT_LOGS_DIR"
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS 22 $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '/tmp/collect-logs.sh $AGENT_LOGS_DIR'"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp $IP 22 $AGENT_LOGS_DIR $AGENT_LOGS_DIR"
+        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
     done
 }
 
@@ -278,14 +251,14 @@ collect_windows_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
     for IP in $AGENTS_IPS; do
         AGENT_LOGS_DIR="/tmp/agent_$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs"
         for SERVICE in "epmd" "mesos" "spartan"; do
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" "cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/logs/$SERVICE"
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/logs/$SERVICE"
         done
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS 22 $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
+        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
     done
 }
 
@@ -303,16 +276,14 @@ collect_dcos_nodes_logs() {
 
     # From now on, use the first Linux master as a proxy node to collect logs
     # from all the other Linux machines.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh'
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "22" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa"
-
-    dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh'
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa"
 
     # Collect logs from all the public Windows nodes(s)
     echo "Collecting Windows public agents logs"
     WIN_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/windows_public_agents"
     mkdir -p $WIN_PUBLIC_LOGS_DIR
-    IPS=$(get_private_addresses_for_windows_public_agents)
+    IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public')
     collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS"
 
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
@@ -320,7 +291,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the private Windows nodes(s)
         WIN_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/windows_private_agents"
         mkdir -p $WIN_PRIVATE_LOGS_DIR
-        IPS=$(get_private_addresses_for_windows_private_agents)
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'private')
         collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS"
     fi
 
@@ -329,7 +300,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the public Linux node(s)
         LINUX_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/linux_public_agents"
         mkdir -p $LINUX_PUBLIC_LOGS_DIR
-        IPS=$(get_private_addresses_for_linux_public_agents)
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'public')
         collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS"
     fi
 
@@ -338,7 +309,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the private Linux node(s)
         LINUX_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/linux_private_agents"
         mkdir -p $LINUX_PRIVATE_LOGS_DIR
-        IPS=$(get_private_addresses_for_linux_private_agents)
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'private')
         collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS"
     fi
 }
@@ -358,6 +329,7 @@ install_dcos_cli() {
     DCOS_BINARY_FILE="/usr/local/bin/dcos"
     sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE
     sudo chmod +x $DCOS_BINARY_FILE
+    dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80"
 }
 
 # Install latest stable ACS Engine tool

@@ -20,6 +20,9 @@
         "vmSize": "${WIN_AGENT_SIZE}",
         "osType": "Windows",
         "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        },
         "ports": [
           80,
           443,
