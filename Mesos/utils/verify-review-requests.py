@@ -127,11 +127,6 @@ def main():
         if ((parameters.reviews == -1 or num_reviews < parameters.reviews) and
            handler.needs_verification(review_request)):
             try:
-                # If there are no reviewers specified throw an error.
-                if not review_request["target_people"]:
-                    raise ReviewError("No reviewers specified. Please find "
-                                      "a reviewer by asking on JIRA or the "
-                                      "mailing list.")
                 # An exception is raised if cyclic dependencies are found
                 handler.get_review_ids(review_request)
             except ReviewError as err:
