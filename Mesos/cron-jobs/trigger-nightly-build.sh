@@ -23,27 +23,7 @@ fi
 mkdir -p $JENKINS_EXECUTOR_TEMP_DIR
 
 DIR=$(dirname $0)
-PYTHON_SCRIPT=$(realpath "$DIR/../utils/verify-review-requests.py") || (echo "ERROR: Failed to get the absolute path for verify-review-requests.py" && exit 1)
-
 source $DIR/../utils/jenkins-executor-common.sh 2>&1 >> $LOG_FILE
-
-set_review_ids() {
-    #
-    # Set the global variable REVIEW_IDS
-    # This is a list of the ReviewBoard review requests' IDs that need testing.
-    #
-    REVIEW_IDS_FILE=$(mktemp)
-    python $PYTHON_SCRIPT -u "$REVIEWBOARD_USER" -p "$REVIEWBOARD_USER_PASSWORD" file -o $REVIEW_IDS_FILE 2>&1
-    REVIEW_IDS=()
-    for ID in $(cat $REVIEW_IDS_FILE); do
-        REVIEW_IDS=("${REVIEW_IDS[@]}" $ID)
-    done
-    rm $REVIEW_IDS_FILE
-    if [[ ${#REVIEW_IDS[@]} -eq 0 ]]; then
-        rm -rf $JENKINS_EXECUTOR_TEMP_DIR
-        exit 0
-    fi
-}
 
 start_workers() {
     if [[ -z $JENKINS_AVAILABLE_SERVERS ]]; then
@@ -51,25 +31,15 @@ start_workers() {
         rm -rf $JENKINS_EXECUTOR_TEMP_DIR
         exit 1
     fi
-    if [[ -z $REVIEW_IDS ]]; then
-        echo "ERROR: The REVIEW_IDS environment variable is not set"
-        rm -rf $JENKINS_EXECUTOR_TEMP_DIR
-        exit 1
-    fi
-    echo "Review IDs to be tested by the CI: ${REVIEW_IDS[*]}"
+    echo "Starting $JENKINS_JOB_NAME"
     echo "Jenkins servers used: ${JENKINS_AVAILABLE_SERVERS[*]}"
-    while [[ ${#REVIEW_IDS[@]} -gt 0 ]]; do
-        ID=${REVIEW_IDS[0]}
-        start_worker "REVIEW_ID=$ID"
-        REVIEW_IDS=("${REVIEW_IDS[@]:1}")
-    done
+    start_worker
     wait_running_workers
     rm -rf $JENKINS_EXECUTOR_TEMP_DIR
     echo "All the workers finished executing their jobs"
 }
 
 set_available_jenkins_servers >> $LOG_FILE
-set_review_ids >> $LOG_FILE
 start_workers >> $LOG_FILE
 
 echo -e "\n" >> $LOG_FILE
