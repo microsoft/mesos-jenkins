@@ -31,7 +31,7 @@ start_workers() {
         rm -rf $JENKINS_EXECUTOR_TEMP_DIR
         exit 1
     fi
-    echo "Starting $JENKINS_JOB_NAME"
+    echo "$(date +%m-%d-%y-%T) - Starting $JENKINS_JOB_NAME"
     echo "Jenkins servers used: ${JENKINS_AVAILABLE_SERVERS[*]}"
     start_worker
     wait_running_workers
