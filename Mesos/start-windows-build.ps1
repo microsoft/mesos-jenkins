@@ -266,26 +266,26 @@ function Start-MesosBuild {
     }
 }
 
-function Start-StdoutTestsBuild {
-    Write-Output "Started Mesos stdout-tests build"
+function Start-StoutTestsBuild {
+    Write-Output "Started Mesos stout-tests build"
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-build-cmake-stdout.log" -StderrFileName "stout-tests-build-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug") `
-                             -BuildErrorMessage "Mesos stdout-tests failed to build."
+                             -BuildErrorMessage "Mesos stout-tests failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'stdout-tests'
+        Copy-CmakeBuildLogs -BuildName 'stout-tests'
         Pop-Location
     }
-    Write-Output "stdout-tests were successfully built"
+    Write-Output "stout-tests were successfully built"
 }
 
 function Start-StdoutTestsRun {
-    Write-Output "Started Mesos stdout-tests run"
+    Write-Output "Started Mesos stout-tests run"
     Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\stout\tests\Debug\stout-tests.exe" `
-                         -StdoutFileName "stdout-tests-stdout.log" -StderrFileName "stdout-tests-stderr.log" `
-                         -BuildErrorMessage "Some Mesos stdout-tests tests failed."
-    Write-Output "stdout-tests PASSED"
+                         -StdoutFileName "stout-tests-stdout.log" -StderrFileName "stout-tests-stderr.log" `
+                         -BuildErrorMessage "Some Mesos stout-tests tests failed."
+    Write-Output "stout-tests PASSED"
 }
 
 function Start-LibprocessTestsBuild {
@@ -440,7 +440,7 @@ function Start-LogServerFilesUpload {
 function Start-EnvironmentCleanup {
     # Stop any potential hanging process
     $processes = @('python', 'git', 'cl', 'cmake',
-                   'stdout-tests', 'libprocess-tests', 'mesos-tests')
+                   'stout-tests', 'libprocess-tests', 'mesos-tests')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
     cmd.exe /C "rmdir /s /q $MESOS_DIR > nul 2>&1"
 }
@@ -462,7 +462,7 @@ try {
     Install-Prerequisites
     New-Environment
     Start-MesosBuild
-    Start-StdoutTestsBuild
+    Start-StoutTestsBuild
     Start-StdoutTestsRun
     Start-LibprocessTestsBuild
     Start-LibprocessTestsRun
