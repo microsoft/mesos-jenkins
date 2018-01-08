@@ -64,7 +64,7 @@ BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
 rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE
-rm -rf $TEMP_LOGS_DIR && mkdir $TEMP_LOGS_DIR
+rm -rf $TEMP_LOGS_DIR && mkdir -p $TEMP_LOGS_DIR
 rm -rf $HOME/.dcos
 
 . $UTILS_FILE
