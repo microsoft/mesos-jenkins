@@ -348,7 +348,6 @@ echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 # Open DCOS API & GUI port
 open_dcos_port || EXIT_CODE=1
 if [[ $EXIT_CODE -eq 1 ]]; then
-    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
     upload_logs || echo "ERROR: Failed to upload logs to log server"
     echo "ERROR: Failed to open the DCOS port"
     exit_with_failure
