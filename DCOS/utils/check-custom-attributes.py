@@ -15,12 +15,14 @@ def main():
     slaves = dcos_slaves()
     for slave in slaves:
         if "infrastructure" not in slave["attributes"].keys():
-            print("False")
-            return
+            print("Slave %s doesn't have the 'infrastructure' custom "
+                  "attribute set" % (slave['id']))
+            sys.exit(1)
         if slave["attributes"]["infrastructure"] != "ci":
-            print("False")
-            return
-    print("True")
+            print("Slave %s doesn't have the 'ci' custom attribute set" % (
+                slave['id']))
+            sys.exit(1)
+    print("All the slaves have the custom attributes correctly set")
 
 
 if __name__ == '__main__':
