@@ -45,8 +45,7 @@ mount_smb_share() {
     local HOST=$1
     local USER=$2
     local PASS=$3
-    sudo mkdir -p /mnt/$HOST
-    sudo mount -t cifs //$HOST/C$ /mnt/$HOST -o username=$USER,password=$PASS,vers=3.0
+    sudo mkdir -p /mnt/$HOST && sudo mount -t cifs //$HOST/C$ /mnt/$HOST -o username=$USER,password=$PASS,vers=3.0
 }
 
 umount_smb_share(){
@@ -54,6 +53,5 @@ umount_smb_share(){
     # Unmount an SMB share
     #
     local HOST=$1
-    sudo umount /mnt/$HOST
-    sudo rmdir /mnt/$HOST
+    sudo umount /mnt/$HOST && sudo rmdir /mnt/$HOST
 }
