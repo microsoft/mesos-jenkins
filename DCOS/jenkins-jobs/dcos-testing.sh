@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 export BUILD_ID=$(date +%m%d%y%T | sed 's|\:||g')
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
@@ -64,11 +63,9 @@ UTILS_FILE="$DIR/../utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
-rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE
-rm -rf $TEMP_LOGS_DIR && mkdir -p $TEMP_LOGS_DIR
-rm -rf $HOME/.dcos
-
-. $UTILS_FILE
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && \
+rm -rf $TEMP_LOGS_DIR && mkdir -p $TEMP_LOGS_DIR && \
+rm -rf $HOME/.dcos && source $UTILS_FILE || exit 1
 
 
 job_cleanup() {
@@ -76,7 +73,10 @@ job_cleanup() {
     # Deletes the Azure resource group used for the deployment
     #
     echo "Cleanup in progress for the current Azure DCOS deployment"
-    az group delete --yes --name $AZURE_RESOURCE_GROUP --output table
+    az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
+        echo "ERROR: Failed to delete the resource group"
+        return 1
+    }
     echo "Finished the environment cleanup"
 }
 
@@ -85,67 +85,63 @@ upload_logs() {
     # Uploads the logs to the log server
     #
     # Copy the Jenkins console as well
-    cp $JENKINS_HOME/jobs/dcos-testing/builds/$BUILD_NUMBER/log $TEMP_LOGS_DIR/jenkins-console.log
+    cp $JENKINS_HOME/jobs/dcos-testing/builds/$BUILD_NUMBER/log $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
-    upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR
+    upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
     echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
-    rm -rf $TEMP_LOGS_DIR
-}
-
-exit_with_failure() {
-    #
-    # - Does the Azure resources cleanup, sets the parameter for the downstream job
-    #   and exits the job with exit code 1
-    #
-    job_cleanup
-    echo "STATUS=FAIL" >> $PARAMETERS_FILE
-    echo "EMAIL_TITLE=[dcos-testing] FAIL" >> $PARAMETERS_FILE
-    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
-    MSG+="Windows agent(s) and the latest Mesos, Spartan builds."
-    echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
-    echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
-    exit 1
+    rm -rf $TEMP_LOGS_DIR || return 1
 }
 
 check_open_port() {
     #
     # Checks with a timeout of 120 seconds if a particular port (TCP or UDP) is open (nc tool is used for this)
     #
-    set +e
-    which nc > /dev/null
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: nc tool is not installed"
-        return 1
-    fi
     local ADDRESS="$1"
     local PORT="$2"
     local TIMEOUT=120
     echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
-    nc -z "$ADDRESS" "$PORT" -w $TIMEOUT
-    if [[ $? -ne 0 ]]; then
+    nc -z "$ADDRESS" "$PORT" -w $TIMEOUT || {
         echo "ERROR: Port $PORT is not open at the address: $ADDRESS"
         return 1
-    fi
-    set -e
+    }
 }
 
 open_dcos_port() {
     #
     # This function opens the GUI endpoint on the first master unit
     #
-    echo "Opening DCOS port: 80"
-    MASTER_LB_NAME=$(az network lb list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}')
-    MASTER_NIC_NAME=$(az network nic list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $3}' | head -1) # NOTE: Take the fist master NIC
+    echo "Opening DCOS port: 80" 
+    MASTER_LB_NAME=$(az network lb list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
+        echo "ERROR: Failed to get the master load balancer name"
+        return 1
+    }
+    # NOTE: We take the fist master NIC
+    MASTER_NIC_NAME=$(az network nic list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $3}' | head -1) || {
+        echo "ERROR: Failed to get the master NIC name"
+        return 1
+    }
     NAT_RULE_NAME="DCOS_Port_80"
     az network lb inbound-nat-rule create --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME \
-                                          --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table
+                                          --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table || {
+        echo "ERROR: Failed to create load balancer inbound NAT rule"
+        return 1
+    }
     az network nic ip-config inbound-nat-rule add --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME --nic-name $MASTER_NIC_NAME \
-                                                  --inbound-nat-rule $NAT_RULE_NAME --ip-config-name ipConfigNode --output table
-    MASTER_SG_NAME=$(az network nsg list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}')
+                                                  --inbound-nat-rule $NAT_RULE_NAME --ip-config-name ipConfigNode --output table || {
+        echo "ERROR: Failed to ip-config inbound-nat-rule"
+        return 1
+    }
+    MASTER_SG_NAME=$(az network nsg list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
+        echo "ERROR: Failed to get the master security name"
+        return 1
+    }
     az network nsg rule create --resource-group $AZURE_RESOURCE_GROUP --nsg-name $MASTER_SG_NAME --name $NAT_RULE_NAME \
-                               --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table
-    check_open_port "$MASTER_PUBLIC_ADDRESS" "80"
+                               --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table || {
+        echo "ERROR: Failed to create the DCOS port security group rule for the master node"
+        return 1
+    }
+    check_open_port "$MASTER_PUBLIC_ADDRESS" "80" || return 1
 }
 
 deploy_iis() {
@@ -155,33 +151,12 @@ deploy_iis() {
     # - Checks if the IIS exposed public port 80 is open
     #
     echo "Deploying the IIS marathon template on DCOS"
-    dcos marathon app add $IIS_TEMPLATE_URL
-    TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
-    COUNT=0
-    while [[ -z $TASK_ID ]]; do
-        if [[ $COUNT -eq 5 ]]; then
-            echo "ERROR: IIS was deployed, but there wasn't any task launched by marathon within a $(($COUNT * 3)) seconds timeout"
-            return 1
-        fi
-        echo "Trying to get the IIS task ID"
-        sleep 3
-        TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
-        COUNT=$(($COUNT + 1))
-    done
-    COUNT=0
-    STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])" 2>/dev/null)
-    while [[ "$STATE" != "TASK_RUNNING" ]]; do
-        if [[ $COUNT -eq 30 ]]; then
-            echo "ERROR: IIS task didn't reach RUNNING state within a $(($COUNT * 60)) seconds timeout"
-            return 1
-        fi
-        echo "Waiting for IIS task to be RUNNING"
-        sleep 60
-        COUNT=$(($COUNT + 1))
-        TASK_ID=$(dcos marathon task list | grep 'dcos-iis' | awk '{print $5}')
-        STATE=$(dcos marathon task show $TASK_ID | python -c "import sys, json; data = json.load(sys.stdin); print(data['state'])" 2>/dev/null)
-    done
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80"
+    dcos marathon app add $IIS_TEMPLATE_URL || {
+        echo "ERROR: Failed to deploy the IIS marathon app"
+        return 1
+    }
+    $DIR/../utils/check-marathon-app-health.py --name "dcos-iis" || return 1
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || return 1
     echo "IIS successfully deployed on DCOS"
 }
 
@@ -189,12 +164,8 @@ check_custom_attributes() {
     #
     # Check if the custom attributes are set for the slaves
     #
-    if [[ "$($DIR/../utils/check-custom-attributes.py)" = "True" ]]; then
-        echo "The custom attributes are correctly set"
-        return 0
-    fi
-    echo "ERROR: The custom attributes are not correctly set"
-    return 1
+    $DIR/../utils/check-custom-attributes.py || return 1
+    echo "The custom attributes are correctly set"
 }
 
 run_functional_tests() {
@@ -203,8 +174,8 @@ run_functional_tests() {
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
     #
-    check_custom_attributes
-    deploy_iis
+    check_custom_attributes || return 1
+    deploy_iis || return 1
 }
 
 collect_linux_masters_logs() {
@@ -213,13 +184,13 @@ collect_linux_masters_logs() {
     # local location LOCAL_LOGS_DIR, passed as first parameter to the function.
     #
     local LOCAL_LOGS_DIR="$1"
-    COLLECT_LINUX_LOGS_SCRIPT="$DIR/../utils/collect-linux-machine-logs.sh"
+    local COLLECT_LINUX_LOGS_SCRIPT="$DIR/../utils/collect-linux-machine-logs.sh"
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         TMP_LOGS_DIR="/tmp/master_$i"
         MASTER_SSH_PORT="220$i"
-        upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh" $COLLECT_LINUX_LOGS_SCRIPT
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh $TMP_LOGS_DIR"
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT $TMP_LOGS_DIR "${LOCAL_LOGS_DIR}/"
+        upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh" $COLLECT_LINUX_LOGS_SCRIPT || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh $TMP_LOGS_DIR" || return 1
+        download_files_via_scp $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT $TMP_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -232,14 +203,14 @@ collect_linux_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/../utils/collect-linux-machine-logs.sh"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/../utils/collect-linux-machine-logs.sh" || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh" || return 1
         AGENT_LOGS_DIR="/tmp/agent_$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '/tmp/collect-logs.sh $AGENT_LOGS_DIR'"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp $IP 22 $AGENT_LOGS_DIR $AGENT_LOGS_DIR"
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '/tmp/collect-logs.sh $AGENT_LOGS_DIR'" || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp $IP 22 $AGENT_LOGS_DIR $AGENT_LOGS_DIR" || return 1
+        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -252,14 +223,14 @@ collect_windows_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
         AGENT_LOGS_DIR="/tmp/agent_$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs" || return 1
         for SERVICE in "epmd" "mesos" "spartan"; do
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/logs/$SERVICE ; fi"
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/logs/$SERVICE ; fi" || return 1
         done
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/"
+        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -272,46 +243,46 @@ collect_dcos_nodes_logs() {
     # Collect logs from all the Linux master node(s)
     echo "Collecting Linux master logs"
     MASTERS_LOGS_DIR="$TEMP_LOGS_DIR/linux_masters"
-    mkdir -p $MASTERS_LOGS_DIR
-    collect_linux_masters_logs "$MASTERS_LOGS_DIR"
+    mkdir -p $MASTERS_LOGS_DIR || return 1
+    collect_linux_masters_logs "$MASTERS_LOGS_DIR" || return 1
 
     # From now on, use the first Linux master as a proxy node to collect logs
     # from all the other Linux machines.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh'
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
 
     # Collect logs from all the public Windows nodes(s)
     echo "Collecting Windows public agents logs"
     WIN_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/windows_public_agents"
-    mkdir -p $WIN_PUBLIC_LOGS_DIR
-    IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public')
-    collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS"
+    mkdir -p $WIN_PUBLIC_LOGS_DIR || return 1
+    IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS" || return 1
 
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
         echo "Collecting Windows private agents logs"
         # Collect logs from all the private Windows nodes(s)
         WIN_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/windows_private_agents"
-        mkdir -p $WIN_PRIVATE_LOGS_DIR
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'private')
-        collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS"
+        mkdir -p $WIN_PRIVATE_LOGS_DIR  || return 1
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+        collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS" || return 1
     fi
 
     if [[ $LINUX_PUBLIC_AGENT_COUNT -gt 0 ]]; then
         echo "Collecting Linux public agents logs"
         # Collect logs from all the public Linux node(s)
         LINUX_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/linux_public_agents"
-        mkdir -p $LINUX_PUBLIC_LOGS_DIR
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'public')
-        collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS"
+        mkdir -p $LINUX_PUBLIC_LOGS_DIR || return 1
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'public') || return 1
+        collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS" || return 1
     fi
 
     if [[ $LINUX_PRIVATE_AGENT_COUNT -gt 0 ]]; then
         echo "Collecting Linux private agents logs"
         # Collect logs from all the private Linux node(s)
         LINUX_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/linux_private_agents"
-        mkdir -p $LINUX_PRIVATE_LOGS_DIR
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'private')
-        collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS"
+        mkdir -p $LINUX_PRIVATE_LOGS_DIR || return 1
+        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'private') || return 1
+        collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS" || return 1
     fi
 }
 
@@ -328,58 +299,59 @@ install_dcos_cli() {
         return 1
     fi
     DCOS_BINARY_FILE="/usr/local/bin/dcos"
-    sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE
-    sudo chmod +x $DCOS_BINARY_FILE
-    dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80"
+    sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE && \
+    sudo chmod +x $DCOS_BINARY_FILE && \
+    dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
+}
+
+check_exit_code() {
+    if [[ $? -eq 0 ]]; then
+        return 0
+    fi
+    local COLLECT_LOGS=$1
+    if [[ "$COLLECT_LOGS" = true ]]; then
+        collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+    fi
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
+    MSG+="Windows agent(s) and the latest Mesos, Spartan builds."
+    echo "STATUS=FAIL" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[dcos-testing] FAIL" >> $PARAMETERS_FILE
+    echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
+    echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
+    job_cleanup
+    exit 1
 }
 
 # Install latest stable ACS Engine tool
 $DIR/../utils/install-latest-stable-acs-engine.sh
+check_exit_code false
 
 # Deploy DCOS master + slave nodes
-$DIR/../acs-engine-dcos-deploy.sh || EXIT_CODE=1
-if [[ $EXIT_CODE -eq 1 ]]; then
-    upload_logs || echo "ERROR: Failed to upload logs to log server"
-    echo "ERROR: Failed to deploy DCOS on Azure"
-    exit_with_failure
-fi
+$DIR/../acs-engine-dcos-deploy.sh
+check_exit_code false
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
 echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 
 # Open DCOS API & GUI port
-open_dcos_port || EXIT_CODE=1
-if [[ $EXIT_CODE -eq 1 ]]; then
-    upload_logs || echo "ERROR: Failed to upload logs to log server"
-    echo "ERROR: Failed to open the DCOS port"
-    exit_with_failure
-fi
+open_dcos_port
+check_exit_code false
 
 # Install the proper DCOS cli version
-install_dcos_cli || EXIT_CODE=1
-if [[ $EXIT_CODE -eq 1 ]]; then
-    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
-    upload_logs || echo "ERROR: Failed to upload logs to log server"
-    echo "ERROR: Failed to install the CLI for the DCOS version: $DCOS_VERSION"
-    exit_with_failure
-fi
+install_dcos_cli
+check_exit_code false
 
 # Run the functional tests
-run_functional_tests || EXIT_CODE=1
-if [[ $EXIT_CODE -eq 1 ]]; then
-    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
-    upload_logs || echo "ERROR: Failed to upload logs to log server"
-    echo "ERROR: Failed to run functional tests"
-    exit_with_failure
-fi
+run_functional_tests
+check_exit_code true
 
 # Collect all the logs in the DCOS deployments
 collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
 upload_logs || echo "ERROR: Failed to upload logs to log server"
-
-echo "STATUS=PASS" >> $PARAMETERS_FILE
-echo "EMAIL_TITLE=[dcos-testing] PASS" >> $PARAMETERS_FILE
 MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
 MSG+="Windows agent(s) and the latest Mesos, Spartan builds"
+echo "STATUS=PASS" >> $PARAMETERS_FILE
+echo "EMAIL_TITLE=[dcos-testing] PASS" >> $PARAMETERS_FILE
 echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 
 # Do the final cleanup
