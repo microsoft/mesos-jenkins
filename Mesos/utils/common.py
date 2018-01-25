@@ -68,6 +68,10 @@ class ReviewBoardHandler(object):
             review_url = review["href"]
             print "Dependent review: %s " % review_url
             dependent_review = self.api(review_url)["review_request"]
+            if dependent_review["id"] == review_request["id"]:
+                raise ReviewError("Circular dependency detected for "
+                                  "review %s. Please fix the "
+                                  "'depends_on' field." % review_request["id"])
             review_ids += self.get_review_ids(dependent_review)
         if review_request["id"] in review_ids:
             raise ReviewError("Circular dependency detected for "
