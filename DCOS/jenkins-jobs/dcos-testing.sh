@@ -59,6 +59,7 @@ LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
+JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
 UTILS_FILE="$DIR/../utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
@@ -85,7 +86,7 @@ upload_logs() {
     # Uploads the logs to the log server
     #
     # Copy the Jenkins console as well
-    cp $JENKINS_HOME/jobs/dcos-testing/builds/$BUILD_NUMBER/log $TEMP_LOGS_DIR/jenkins-console.log || return 1
+    wget --no-check-certificate "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -O $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
     upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
