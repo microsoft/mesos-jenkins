@@ -259,7 +259,7 @@ function Start-MesosBuild {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-java-build-cmake-stdout.log" -StderrFileName "mesos-java-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--target", "mesos-java") -BuildErrorMessage "mesos-java failed to build."
+                             -ArgumentList @("--build", ".", "--target", "mesos-java", "-- /maxcpucount") -BuildErrorMessage "mesos-java failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'mesos-java-build'
         Pop-Location
@@ -271,7 +271,7 @@ function Start-StoutTestsBuild {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-build-cmake-stdout.log" -StderrFileName "stout-tests-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug") `
+                             -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos stout-tests failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'stout-tests'
@@ -293,7 +293,7 @@ function Start-LibprocessTestsBuild {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "libprocess-tests-build-cmake-stdout.log" -StderrFileName "libprocess-tests-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug") `
+                             -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos libprocess-tests failed to build"
     } finally {
         Copy-CmakeBuildLogs -BuildName 'libprocess-tests'
@@ -315,7 +315,7 @@ function Start-MesosTestsBuild {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-tests-build-cmake-stdout.log" -StderrFileName "mesos-tests-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug") `
+                             -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos tests failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'mesos-tests'
@@ -337,7 +337,7 @@ function New-MesosBinaries {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-build-cmake-stdout.log" -StderrFileName "mesos-binaries-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".") -BuildErrorMessage "Mesos binaries failed to build."
+                             -ArgumentList @("--build", ".", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
         Copy-CmakeBuildLogs -BuildName 'mesos-binaries'
         Pop-Location
