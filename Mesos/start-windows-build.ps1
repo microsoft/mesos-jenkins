@@ -244,13 +244,6 @@ function Start-MesosBuild {
         Pop-Location
     }
     Write-Output "Mesos was successfully built"
-    Push-Location $MESOS_DIR
-    try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-java-build-cmake-stdout.log" -StderrFileName "mesos-java-build-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--target", "mesos-java", "-- /maxcpucount") -BuildErrorMessage "mesos-java failed to build."
-    } finally {
-        Pop-Location
-    }
 }
 
 function Start-StoutTestsBuild {
