@@ -486,7 +486,7 @@ try {
         $strLogsUrls = $global:LOGS_URLS -join '|'
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
     }
-    if$($global:FAILED_COMMAND) {
+    if($global:FAILED_COMMAND) {
         Add-Content -Path $ParametersFile -Value "FAILED_COMMAND=${global:FAILED_COMMAND}"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
