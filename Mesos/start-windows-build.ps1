@@ -452,8 +452,15 @@ function Get-SuccessBuildMessage {
     return "Mesos nightly build and testing was successful."
 }
 
+function Start-TempDirCleanup {
+    Get-ChildItem $env:TEMP | Where-Object {
+        $_.Name -notmatch "^jna\-[0-9]*$|^hsperfdata.*_mesos$"
+    } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 
 try {
+    Start-TempDirCleanup
     # Recreate the parameters file at the beginning of the job
     if(Test-Path $ParametersFile) {
         Remove-Item -Force $ParametersFile
