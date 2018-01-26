@@ -21,6 +21,7 @@ Import-Module $ciUtils
 
 $global:BUILD_STATUS = $null
 $global:LOGS_URLS = @()
+$global:FAILED_COMMAND = $null
 
 
 function Install-Prerequisites {
@@ -133,8 +134,8 @@ function Start-MesosCIProcess {
         $msg = "Failed command: $command"
         $global:BUILD_STATUS = 'FAIL'
         $global:LOGS_URLS += $($stdoutUrl, $stderrUrl)
+        $global:FAILED_COMMAND = $command
         Write-Output "Exception: $($_.ToString())"
-        Add-Content -Path $ParametersFile -Value "FAILED_COMMAND=$command"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
@@ -208,6 +209,7 @@ function New-Environment {
     Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
     Set-LatestMesosCommit
     if($ReviewID) {
+        Write-Output "Started testing review: https://reviews.apache.org/r/${ReviewID}"
         # Pull the patch and all the dependent ones, if a review ID was given
         Add-ReviewBoardPatch
     }
@@ -439,6 +441,33 @@ function Start-TempDirCleanup {
     } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+function Start-MesosCITesting {
+    try {
+        Start-StoutTestsBuild
+        Start-StdoutTestsRun
+    } catch {
+        Write-Output "stdout-tests failed"
+    }
+    try {
+        Start-LibprocessTestsBuild
+        Start-LibprocessTestsRun
+    } catch {
+        Write-Output "libprocess-tests failed"
+    }
+    try {
+        Start-MesosTestsBuild
+        Start-MesosTestsRun
+    } catch {
+        Write-Output "mesos-tests failed"
+    }
+    if($global:BUILD_STATUS -eq 'FAIL') {
+        $errMsg = "Some of the unit tests failed. Please check the relevant logs."
+        $global:FAILED_COMMAND = 'Start-MesosCITesting'
+        Throw $errMsg
+    }
+}
+
+
 try {
     Start-TempDirCleanup
     # Recreate the parameters file at the beginning of the job
@@ -449,12 +478,7 @@ try {
     Install-Prerequisites
     New-Environment
     Start-MesosBuild
-    Start-StoutTestsBuild
-    Start-StdoutTestsRun
-    Start-LibprocessTestsBuild
-    Start-LibprocessTestsRun
-    Start-MesosTestsBuild
-    Start-MesosTestsRun
+    Start-MesosCITesting
     New-MesosBinaries
     $global:BUILD_STATUS = 'PASS'
     Add-Content $ParametersFile "STATUS=PASS"
@@ -468,6 +492,9 @@ try {
     if($global:LOGS_URLS) {
         $strLogsUrls = $global:LOGS_URLS -join '|'
         Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
+    }
+    if$($global:FAILED_COMMAND) {
+        Add-Content -Path $ParametersFile -Value "FAILED_COMMAND=${global:FAILED_COMMAND}"
     }
     Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
     Add-Content -Path $ParametersFile -Value "MESSAGE=${errMsg}"
