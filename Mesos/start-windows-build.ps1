@@ -143,19 +143,6 @@ function Start-MesosCIProcess {
     }
 }
 
-function Copy-CmakeBuildLogs {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$BuildName
-    )
-    Copy-Item "$MESOS_DIR\CMakeFiles\CMakeOutput.log" "$MESOS_BUILD_LOGS_DIR\$BuildName-CMakeOutput.log"
-    Copy-Item "$MESOS_DIR\CMakeFiles\CMakeError.log" "$MESOS_BUILD_LOGS_DIR\$BuildName-CMakeError.log"
-    if($global:BUILD_STATUS -eq 'FAIL') {
-        $logsUrl = Get-BuildLogsUrl
-        $global:LOGS_URLS += $("$logsUrl/$BuildName-CMakeOutput.log", "$logsUrl/$BuildName-CMakeError.log")
-    }
-}
-
 function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
@@ -252,7 +239,6 @@ function Start-MesosBuild {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-build-cmake-stdout.log" -StderrFileName "mesos-build-cmake-stderr.log" `
                              -ArgumentList $parameters -BuildErrorMessage "Mesos failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'mesos-build'
         Pop-Location
     }
     Write-Output "Mesos was successfully built"
@@ -261,7 +247,6 @@ function Start-MesosBuild {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-java-build-cmake-stdout.log" -StderrFileName "mesos-java-build-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "--target", "mesos-java", "-- /maxcpucount") -BuildErrorMessage "mesos-java failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'mesos-java-build'
         Pop-Location
     }
 }
@@ -274,7 +259,6 @@ function Start-StoutTestsBuild {
                              -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos stout-tests failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'stout-tests'
         Pop-Location
     }
     Write-Output "stout-tests were successfully built"
@@ -296,7 +280,6 @@ function Start-LibprocessTestsBuild {
                              -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos libprocess-tests failed to build"
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'libprocess-tests'
         Pop-Location
     }
     Write-Output "libprocess-tests were successfully built"
@@ -318,7 +301,6 @@ function Start-MesosTestsBuild {
                              -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos tests failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'mesos-tests'
         Pop-Location
     }
     Write-Output "Mesos tests were successfully built"
@@ -339,7 +321,6 @@ function New-MesosBinaries {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-build-cmake-stdout.log" -StderrFileName "mesos-binaries-build-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
-        Copy-CmakeBuildLogs -BuildName 'mesos-binaries'
         Pop-Location
     }
     Write-Output "Mesos binaries were successfully built"
@@ -457,7 +438,6 @@ function Start-TempDirCleanup {
         $_.Name -notmatch "^jna\-[0-9]*$|^hsperfdata.*_mesos$"
     } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
-
 
 try {
     Start-TempDirCleanup
