@@ -238,7 +238,7 @@ function Start-MesosBuild {
         if($EnableSSL) {
             $parameters += "-DENABLE_SSL=ON"
         }
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-build-cmake-stdout.log" -StderrFileName "mesos-build-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-cmake-stdout.log" -StderrFileName "mesos-cmake-stderr.log" `
                              -ArgumentList $parameters -BuildErrorMessage "Mesos failed to build."
     } finally {
         Pop-Location
@@ -250,7 +250,7 @@ function Start-StoutTestsBuild {
     Write-Output "Started Mesos stout-tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-build-cmake-stdout.log" -StderrFileName "stout-tests-build-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-cmake-stdout.log" -StderrFileName "stout-tests-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos stout-tests failed to build."
     } finally {
@@ -271,7 +271,7 @@ function Start-LibprocessTestsBuild {
     Write-Output "Started Mesos libprocess-tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "libprocess-tests-build-cmake-stdout.log" -StderrFileName "libprocess-tests-build-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "libprocess-tests-cmake-stdout.log" -StderrFileName "libprocess-tests-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos libprocess-tests failed to build"
     } finally {
@@ -292,7 +292,7 @@ function Start-MesosTestsBuild {
     Write-Output "Started Mesos tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-tests-build-cmake-stdout.log" -StderrFileName "mesos-tests-build-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-tests-cmake-stdout.log" -StderrFileName "mesos-tests-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos tests failed to build."
     } finally {
@@ -313,7 +313,7 @@ function New-MesosBinaries {
     Write-Output "Started building Mesos binaries"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-build-cmake-stdout.log" -StderrFileName "mesos-binaries-build-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-cmake-stdout.log" -StderrFileName "mesos-binaries-cmake-stderr.log" `
                              -ArgumentList @("--build", ".", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
         Pop-Location
