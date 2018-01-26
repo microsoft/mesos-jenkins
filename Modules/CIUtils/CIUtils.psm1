@@ -38,7 +38,6 @@ function Start-SCPCommand {
     if($LASTEXITCODE) {
         Throw "Failed to excute the SCP command"
     }
-
 }
 
 function Start-ExternalCommand {
@@ -121,7 +120,6 @@ function Set-VCVariables {
         Pop-Location
     }
 }
-
 
 function Start-ExecuteWithRetry {
     <#
