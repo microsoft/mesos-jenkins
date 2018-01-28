@@ -6,7 +6,7 @@ Param(
     [Parameter(Mandatory=$false)]
     [string]$CommitID,
     [Parameter(Mandatory=$false)]
-    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.txt",
+    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.json",
     [Parameter(Mandatory=$false)]
     [switch]$EnableSSL
 )
@@ -19,9 +19,12 @@ $ciUtils = (Resolve-Path "$PSScriptRoot\..\Modules\CIUtils").Path
 Import-Module $ciUtils
 . $globalVariables
 
-$global:BUILD_STATUS = $null
-$global:LOGS_URLS = @()
-$global:FAILED_COMMAND = $null
+$global:PARAMETERS = @{
+    "BUILD_STATUS" = $null
+    "LOGS_URLS" = @()
+    "FAILED_COMMAND" = $null
+}
+$global:JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
 
 
 function Install-Prerequisites {
@@ -132,9 +135,9 @@ function Start-MesosCIProcess {
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
-        $global:BUILD_STATUS = 'FAIL'
-        $global:LOGS_URLS += $($stdoutUrl, $stderrUrl)
-        $global:FAILED_COMMAND = $command
+        $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
+        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["FAILED_COMMAND"] = $command
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
@@ -171,7 +174,7 @@ function Add-ReviewBoardPatch {
             Pop-Location
         }
     }
-    Add-Content -Path $ParametersFile -Value "APPLIED_REVIEWS=$($reviewIDs -join '|')"
+    $global:PARAMETERS["APPLIED_REVIEWS"] = $reviewIDs -join '|'
     Write-Output "Finished applying Reviewboard patch(es)"
 }
 
@@ -204,7 +207,7 @@ function New-Environment {
     New-Directory $MESOS_BINARIES_DIR
     New-Directory $MESOS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $MESOS_BUILD_LOGS_DIR
-    Add-Content -Path $ParametersFile -Value "BRANCH=$Branch"
+    $global:PARAMETERS["BRANCH"] = $Branch
     # Clone Mesos repository
     Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
     Set-LatestMesosCommit
@@ -392,22 +395,30 @@ function Get-BuildBinariesUrl {
     return "$buildOutUrl/binaries"
 }
 
-function Start-LogServerFilesUpload {
+function Get-JenkinsConsole {
     Param(
+        [Parameter(Mandatory=$true)]
+        [string]$Destination,
         [Parameter(Mandatory=$false)]
-        [switch]$NewLatest
+        [switch]$Force
     )
-    $consoleLog = Join-Path $env:WORKSPACE "mesos-build-$Branch-${env:BUILD_NUMBER}.log"
-    if(Test-Path $consoleLog) {
-        Copy-Item -Force $consoleLog "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    $consoleUrl = "${global:JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    if($Force) {
+        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
     }
+    $webclient = New-Object System.Net.WebClient
+    $webclient.DownloadFile($consoleUrl, $Destination)
+}
+
+function Start-LogServerFilesUpload {
+    Get-JenkinsConsole -Force -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath
     $buildOutputsUrl = Get-BuildOutputsUrl
-    Add-Content -Path $ParametersFile -Value "BUILD_OUTPUTS_URL=$buildOutputsUrl"
+    $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
-    if($NewLatest) {
+    if($global:PARAMETERS["BUILD_STATUS"] -eq "PASS") {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
     }
@@ -453,56 +464,56 @@ function Start-MesosCITesting {
     } catch {
         Write-Output "mesos-tests failed"
     }
-    if($global:BUILD_STATUS -eq 'FAIL') {
+    if($global:PARAMETERS["BUILD_STATUS"] -eq 'FAIL') {
         $errMsg = "Some of the unit tests failed. Please check the relevant logs."
-        $global:FAILED_COMMAND = 'Start-MesosCITesting'
+        $global:PARAMETERS["FAILED_COMMAND"] = 'Start-MesosCITesting'
         Throw $errMsg
     }
+}
+
+function New-ParametersFile {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath
+    )
+    if(Test-Path $FilePath) {
+        Remove-Item -Force $FilePath
+    }
+    New-Item -ItemType File -Path $FilePath | Out-Null
+}
+
+function Write-ParametersFile {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath
+    )
+    if($global:PARAMETERS["LOGS_URLS"]) {
+        $global:PARAMETERS["LOGS_URLS"] = $global:PARAMETERS["LOGS_URLS"] -join '|'
+    }
+    $json = ConvertTo-Json -InputObject $global:PARAMETERS
+    Set-Content -Path $FilePath -Value $json
 }
 
 
 try {
     Start-TempDirCleanup
-    # Recreate the parameters file at the beginning of the job
-    if(Test-Path $ParametersFile) {
-        Remove-Item -Force $ParametersFile
-    }
-    New-Item -ItemType File -Path $ParametersFile
+    New-ParametersFile -FilePath $ParametersFile
     Install-Prerequisites
     New-Environment
     Start-MesosBuild
     Start-MesosCITesting
     New-MesosBinaries
-    $global:BUILD_STATUS = 'PASS'
-    Add-Content $ParametersFile "STATUS=PASS"
-    Add-Content $ParametersFile "MESSAGE=$(Get-SuccessBuildMessage)"
+    $global:PARAMETERS["BUILD_STATUS"] = "PASS"
+    $global:PARAMETERS["MESSAGE"] = Get-SuccessBuildMessage
 } catch {
-    $errMsg = $_.ToString()
-    Write-Output $errMsg
-    if(!$global:BUILD_STATUS) {
-        $global:BUILD_STATUS = 'FAIL'
-    }
-    if($global:LOGS_URLS) {
-        $strLogsUrls = $global:LOGS_URLS -join '|'
-        Add-Content -Path $ParametersFile -Value "LOGS_URLS=$strLogsUrls"
-    }
-    if($global:FAILED_COMMAND) {
-        Add-Content -Path $ParametersFile -Value "FAILED_COMMAND=${global:FAILED_COMMAND}"
-    }
-    Add-Content -Path $ParametersFile -Value "STATUS=${global:BUILD_STATUS}"
-    Add-Content -Path $ParametersFile -Value "MESSAGE=${errMsg}"
+    Write-Output $_.ToString()
+    Write-Output $_.ScriptStackTrace
+    $global:PARAMETERS["BUILD_STATUS"] = "FAIL"
+    $global:PARAMETERS["MESSAGE"] = $_.ToString()
     exit 1
 } finally {
-    if($global:BUILD_STATUS -eq 'PASS') {
-        Start-LogServerFilesUpload -NewLatest
-    } else {
-        Start-LogServerFilesUpload
-    }
-    if(!$ReviewID) {
-        # This means that it's a nightly build and we need
-        # to set the EMAIL_TITLE parameter.
-        Add-Content -Path $ParametersFile -Value "EMAIL_TITLE=[mesos-nightly-build] ${global:BUILD_STATUS}: Mesos ${Branch} branch"
-    }
+    Start-LogServerFilesUpload
+    Write-ParametersFile -FilePath $ParametersFile
     Start-EnvironmentCleanup
 }
 exit 0
