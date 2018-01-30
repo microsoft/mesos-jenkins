@@ -52,10 +52,8 @@ class ReviewBoardHandler(object):
             print "Error handling URL %s: %s (%s)" % (url,
                                                       err.reason,
                                                       err.read())
-            exit(1)
         except urllib2.URLError as err:
             print "Error handling URL %s: %s" % (url, err.reason)
-            exit(1)
 
     def get_review_ids(self, review_request):
         """Returns the review requests' ids (together with any potential

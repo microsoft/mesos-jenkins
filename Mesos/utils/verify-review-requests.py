@@ -124,8 +124,15 @@ def main():
     review_ids = []
     review_requests = handler.api(review_requests_url)
     for review_request in reversed(review_requests["review_requests"]):
-        if ((parameters.reviews == -1 or num_reviews < parameters.reviews) and
-           handler.needs_verification(review_request)):
+        if (parameters.reviews == -1 or num_reviews < parameters.reviews):
+            try:
+                needs_verification = handler.needs_verification(review_request)
+            except Exception:
+                needs_verification = False
+                print("WARNING: Cannot find if review %s needs "
+                      "verification" % (review_request["id"]))
+            if not needs_verification:
+                continue
             try:
                 # An exception is raised if cyclic dependencies are found
                 handler.get_review_ids(review_request)
