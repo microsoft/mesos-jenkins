@@ -45,7 +45,12 @@ mount_smb_share() {
     local HOST=$1
     local USER=$2
     local PASS=$3
-    sudo mkdir -p /mnt/$HOST && sudo mount -t cifs //$HOST/C$ /mnt/$HOST -o username=$USER,password=$PASS,vers=3.0
+    MOUNTED=$(df -h | grep -E "\/\/$HOST\/C\\$\s*")
+    if [[ "$MOUNTED" != "" ]]; then
+        return 0
+    fi
+    sudo mkdir -p /mnt/$HOST || return 1
+    sudo mount -t cifs //$HOST/C$ /mnt/$HOST -o username=$USER,password=$PASS,vers=3.0 || return 1
 }
 
 umount_smb_share(){

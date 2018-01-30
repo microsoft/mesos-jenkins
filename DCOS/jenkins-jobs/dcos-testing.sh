@@ -55,6 +55,10 @@ MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 IIS_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/iis-marathon-template.json"
+FETCHER_HTTP_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/fetcher-http-marathon-template.json"
+FETCHER_LOCAL_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/fetcher-local-marathon-template.json"
+FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/fetcher-test.zip"
+FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
@@ -156,9 +160,11 @@ deploy_iis() {
         echo "ERROR: Failed to deploy the IIS marathon app"
         return 1
     }
-    $DIR/../utils/check-marathon-app-health.py --name "dcos-iis" || return 1
+    APP_NAME="dcos-iis"
+    $DIR/../utils/check-marathon-app-health.py --name $APP_NAME || return 1
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || return 1
     echo "IIS successfully deployed on DCOS"
+    remove_dcos_marathon_app $APP_NAME || return 1
 }
 
 check_custom_attributes() {
@@ -169,14 +175,90 @@ check_custom_attributes() {
     echo "The custom attributes are correctly set"
 }
 
+test_mesos_fetcher() {
+    local APPLICATION_NAME="$1"
+    $DIR/../utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
+    DOCKER_CONTAINER_ID=$($DIR/../utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker ps -q" | head -1) || {
+        echo "ERROR: Failed to get Docker container ID for the $APPLICATION_NAME task"
+        return 1
+    }
+    MD5_CHECKSUM=$($DIR/../utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash") || {
+        echo "ERROR: Failed to get the fetcher file MD5 checksum"
+        return 1
+    }
+    if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
+        echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
+        return 1
+    fi
+    echo "The MD5 checksum for the fetcher file was successfully checked"
+}
+
+remove_dcos_marathon_app() {
+    local APPLICATION_NAME="$1"
+    dcos marathon app remove $APPLICATION_NAME || return 1
+    while [[ "$(dcos marathon app list | grep $APPLICATION_NAME)" != "" ]]; do
+        echo "Waiting for application $APPLICATION_NAME to be removed"
+        sleep 5
+    done
+}
+
+test_mesos_fetcher_local() {
+    #
+    # Test Mesos fetcher with local resource
+    #
+    echo "Testing Mesos fetcher using local resource"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || {
+        echo "ERROR: Failed to scp utils.sh"
+        return 1
+    }
+    WIN_PUBLIC_IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
+        echo "ERROR: Failed to get the DCOS Windows public agents addresses"
+        return 1
+    }
+    # Download the fetcher test file locally to all the targeted nodes
+    for IP in $WIN_PUBLIC_IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$IP/fetcher-test.zip" || {
+            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
+            return 1
+        }
+    done
+    dcos marathon app add $FETCHER_LOCAL_TEMPLATE_URL || return 1
+    APP_NAME="test-fetcher-local"
+    test_mesos_fetcher $APP_NAME || {
+        echo "ERROR: Failed to test Mesos fetcher using local resource"
+        return 1
+    }
+    echo "Successfully tested Mesos fetcher using local resource"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
+test_mesos_fetcher_remote_http() {
+    #
+    # Test Mesos fetcher with remote resource (http)
+    #
+    echo "Testing Mesos fetcher using remote http resource"
+    dcos marathon app add $FETCHER_HTTP_TEMPLATE_URL || return 1
+    APP_NAME="test-fetcher-http"
+    test_mesos_fetcher $APP_NAME || {
+        echo "ERROR: Failed to test Mesos fetcher using remote http resource"
+        return 1
+    }
+    echo "Successfully tested Mesos fetcher using remote http resource"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
 run_functional_tests() {
     #
     # Run the following DCOS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
+    #  - Test Mesos fetcher with local resource
+    #  - Test Mesos fetcher with remote http resource
     #
     check_custom_attributes || return 1
     deploy_iis || return 1
+    test_mesos_fetcher_local || return 1
+    test_mesos_fetcher_remote_http || return 1
 }
 
 collect_linux_masters_logs() {
@@ -240,6 +322,7 @@ collect_dcos_nodes_logs() {
     # Collect logs from all the deployment nodes and upload them to the log server
     #
     echo "Collecting logs from all the DCOS nodes"
+    dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
 
     # Collect logs from all the Linux master node(s)
     echo "Collecting Linux master logs"
@@ -317,7 +400,7 @@ check_exit_code() {
     MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
     MSG+="Windows agent(s) and the latest Mesos, Spartan builds."
     echo "STATUS=FAIL" >> $PARAMETERS_FILE
-    echo "EMAIL_TITLE=[dcos-testing] FAIL" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] FAIL" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
     job_cleanup
@@ -352,7 +435,7 @@ upload_logs || echo "ERROR: Failed to upload logs to log server"
 MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
 MSG+="Windows agent(s) and the latest Mesos, Spartan builds"
 echo "STATUS=PASS" >> $PARAMETERS_FILE
-echo "EMAIL_TITLE=[dcos-testing] PASS" >> $PARAMETERS_FILE
+echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
 echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 
 # Do the final cleanup
