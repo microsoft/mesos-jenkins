@@ -100,11 +100,11 @@ upload_logs() {
 
 check_open_port() {
     #
-    # Checks with a timeout of 120 seconds if a particular port (TCP or UDP) is open (nc tool is used for this)
+    # Checks with a timeout of 300 seconds if a particular port (TCP or UDP) is open (nc tool is used for this)
     #
     local ADDRESS="$1"
     local PORT="$2"
-    local TIMEOUT=120
+    local TIMEOUT=300
     echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
     nc -z "$ADDRESS" "$PORT" -w $TIMEOUT || {
         echo "ERROR: Port $PORT is not open at the address: $ADDRESS"
