@@ -107,9 +107,9 @@ function New-Environment {
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
 }
 
-function Start-SpartanUnitTests {
+function Start-EUnitTests {
     Push-Location $SPARTAN_GIT_REPO_DIR
-    Write-Output "Starting the Spartan unit tests"
+    Write-Output "Starting the Spartan eunit tests"
     try {
         Start-SpartanCIProcess -ProcessPath "make.exe" -ArgumentList @("eunit") -BuildErrorMessage "Spartan eunit tests run was not successful" `
                                -StdoutFileName "spartan-eunit-tests-stdout.log" -StderrFileName "spartan-eunit-tests-stderr.log"
@@ -124,7 +124,7 @@ function Start-SpartanBuild {
     Write-Output "Starting the Spartan build"
     try {
         Start-SpartanCIProcess -ProcessPath "${env:ProgramFiles}\erl8.3\bin\escript.exe" `
-                               -StdoutFileName "spartan-build-make-stdout.log" -StderrFileName "spartan-build-make-stderr.log" `
+                               -StdoutFileName "spartan-make-stdout.log" -StderrFileName "spartan-make-stderr.log" `
                                -ArgumentList @(".\rebar3", "release") -BuildErrorMessage "Spartan failed to build."
     } finally {
         Pop-Location
@@ -173,10 +173,6 @@ function New-RemoteSymlink {
 }
 
 function Start-LogServerFilesUpload {
-    Param(
-        [Parameter(Mandatory=$false)]
-        [switch]$NewLatest
-    )
     $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
     Start-FileDownload -Force -URL $consoleUrl -Destination "$SPARTAN_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
@@ -184,7 +180,7 @@ function Start-LogServerFilesUpload {
     Copy-FilesToRemoteServer "$SPARTAN_BUILD_OUT_DIR\*" $remoteDirPath
     $buildOutputsUrl = Get-BuildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
-    if($NewLatest) {
+    if($global:BUILD_STATUS -eq 'PASS') {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
     }
@@ -200,19 +196,16 @@ function Start-EnvironmentCleanup {
 
 try {
     New-Environment
-    Start-SpartanUnitTests
+    Start-EUnitTests
     Start-SpartanBuild
     $global:BUILD_STATUS = 'PASS'
 } catch {
     Write-Output $_.ToString()
+    Write-Output $_.ScriptStackTrace
     $global:BUILD_STATUS = 'FAIL'
     exit 1
 } finally {
-    if($global:BUILD_STATUS -eq 'PASS') {
-        Start-LogServerFilesUpload -NewLatest
-    } else {
-        Start-LogServerFilesUpload
-    }
+    Start-LogServerFilesUpload
     Start-EnvironmentCleanup
 }
 exit 0
