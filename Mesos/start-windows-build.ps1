@@ -24,7 +24,6 @@ $global:PARAMETERS = @{
     "LOGS_URLS" = @()
     "FAILED_COMMAND" = $null
 }
-$global:JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
 
 
 function Install-Prerequisites {
@@ -402,7 +401,7 @@ function Get-JenkinsConsole {
         [Parameter(Mandatory=$false)]
         [switch]$Force
     )
-    $consoleUrl = "${global:JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
     if($Force) {
         [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
     }

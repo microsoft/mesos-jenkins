@@ -1,3 +1,5 @@
+$JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
+
 # Remote log server
 $REMOTE_LOG_SERVER = "10.3.1.6"
 $REMOTE_USER = "logs"
