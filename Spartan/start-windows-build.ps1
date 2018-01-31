@@ -177,10 +177,8 @@ function Start-LogServerFilesUpload {
         [Parameter(Mandatory=$false)]
         [switch]$NewLatest
     )
-    $consoleLog = Join-Path $env:WORKSPACE "spartan-build-$Branch-${env:BUILD_NUMBER}.log"
-    if(Test-Path $consoleLog) {
-        Copy-Item -Force $consoleLog "$SPARTAN_BUILD_LOGS_DIR\jenkins-console.log"
-    }
+    $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    Start-FileDownload -Force -URL $consoleUrl -Destination "$SPARTAN_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$SPARTAN_BUILD_OUT_DIR\*" $remoteDirPath
