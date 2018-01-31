@@ -161,9 +161,18 @@ deploy_iis() {
         return 1
     }
     APP_NAME="dcos-iis"
-    $DIR/../utils/check-marathon-app-health.py --name $APP_NAME || return 1
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || return 1
+    $DIR/../utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
+        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
     echo "IIS successfully deployed on DCOS"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
@@ -225,10 +234,12 @@ test_mesos_fetcher_local() {
     dcos marathon app add $FETCHER_LOCAL_TEMPLATE_URL || return 1
     APP_NAME="test-fetcher-local"
     test_mesos_fetcher $APP_NAME || {
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
         return 1
     }
     echo "Successfully tested Mesos fetcher using local resource"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
@@ -240,10 +251,12 @@ test_mesos_fetcher_remote_http() {
     dcos marathon app add $FETCHER_HTTP_TEMPLATE_URL || return 1
     APP_NAME="test-fetcher-http"
     test_mesos_fetcher $APP_NAME || {
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote http resource"
         return 1
     }
     echo "Successfully tested Mesos fetcher using remote http resource"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
