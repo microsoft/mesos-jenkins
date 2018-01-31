@@ -321,3 +321,19 @@ function Start-PollingServiceStatus {
         $count++
     }
 }
+
+function Start-FileDownload {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$URL,
+        [Parameter(Mandatory=$true)]
+        [string]$Destination,
+        [Parameter(Mandatory=$false)]
+        [switch]$Force
+    )
+    if($Force) {
+        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+    }
+    $webclient = New-Object System.Net.WebClient
+    $webclient.DownloadFile($URL, $Destination)
+}
