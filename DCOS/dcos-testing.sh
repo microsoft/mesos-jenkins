@@ -106,7 +106,7 @@ check_open_port() {
     local PORT="$2"
     local TIMEOUT=300
     echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
-    nc -z "$ADDRESS" "$PORT" -w $TIMEOUT || {
+    nc -v -z "$ADDRESS" "$PORT" -w $TIMEOUT || {
         echo "ERROR: Port $PORT is not open at the address: $ADDRESS"
         return 1
     }
