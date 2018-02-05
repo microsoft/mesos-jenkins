@@ -64,7 +64,7 @@ LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
 JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
-UTILS_FILE="$DIR/../utils/utils.sh"
+UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="/tmp/dcos-logs/$BUILD_ID"
@@ -161,7 +161,7 @@ deploy_iis() {
         return 1
     }
     APP_NAME="dcos-iis"
-    $DIR/../utils/check-marathon-app-health.py --name $APP_NAME || {
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
@@ -180,18 +180,18 @@ check_custom_attributes() {
     #
     # Check if the custom attributes are set for the slaves
     #
-    $DIR/../utils/check-custom-attributes.py || return 1
+    $DIR/utils/check-custom-attributes.py || return 1
     echo "The custom attributes are correctly set"
 }
 
 test_mesos_fetcher() {
     local APPLICATION_NAME="$1"
-    $DIR/../utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
-    DOCKER_CONTAINER_ID=$($DIR/../utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker ps -q" | head -1) || {
+    $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
+    DOCKER_CONTAINER_ID=$($DIR/utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker ps -q" | head -1) || {
         echo "ERROR: Failed to get Docker container ID for the $APPLICATION_NAME task"
         return 1
     }
-    MD5_CHECKSUM=$($DIR/../utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash") || {
+    MD5_CHECKSUM=$($DIR/utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
     }
@@ -216,11 +216,11 @@ test_mesos_fetcher_local() {
     # Test Mesos fetcher with local resource
     #
     echo "Testing Mesos fetcher using local resource"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || {
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
-    WIN_PUBLIC_IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
+    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
         echo "ERROR: Failed to get the DCOS Windows public agents addresses"
         return 1
     }
@@ -280,7 +280,7 @@ collect_linux_masters_logs() {
     # local location LOCAL_LOGS_DIR, passed as first parameter to the function.
     #
     local LOCAL_LOGS_DIR="$1"
-    local COLLECT_LINUX_LOGS_SCRIPT="$DIR/../utils/collect-linux-machine-logs.sh"
+    local COLLECT_LINUX_LOGS_SCRIPT="$DIR/utils/collect-linux-machine-logs.sh"
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         TMP_LOGS_DIR="/tmp/master_$i"
         MASTER_SSH_PORT="220$i"
@@ -299,8 +299,8 @@ collect_linux_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/../utils/collect-linux-machine-logs.sh" || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/utils/collect-linux-machine-logs.sh" || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh" || return 1
         AGENT_LOGS_DIR="/tmp/agent_$IP"
@@ -319,7 +319,7 @@ collect_windows_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/../utils/utils.sh" || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
         AGENT_LOGS_DIR="/tmp/agent_$IP"
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs" || return 1
@@ -352,7 +352,7 @@ collect_dcos_nodes_logs() {
     echo "Collecting Windows public agents logs"
     WIN_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/windows_public_agents"
     mkdir -p $WIN_PUBLIC_LOGS_DIR || return 1
-    IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
     collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS" || return 1
 
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
@@ -360,7 +360,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the private Windows nodes(s)
         WIN_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/windows_private_agents"
         mkdir -p $WIN_PRIVATE_LOGS_DIR  || return 1
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
         collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS" || return 1
     fi
 
@@ -369,7 +369,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the public Linux node(s)
         LINUX_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/linux_public_agents"
         mkdir -p $LINUX_PUBLIC_LOGS_DIR || return 1
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'public') || return 1
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'linux' --role 'public') || return 1
         collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS" || return 1
     fi
 
@@ -378,7 +378,7 @@ collect_dcos_nodes_logs() {
         # Collect logs from all the private Linux node(s)
         LINUX_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/linux_private_agents"
         mkdir -p $LINUX_PRIVATE_LOGS_DIR || return 1
-        IPS=$($DIR/../utils/dcos-node-addresses.py --operating-system 'linux' --role 'private') || return 1
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'linux' --role 'private') || return 1
         collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS" || return 1
     fi
 }
@@ -421,11 +421,11 @@ check_exit_code() {
 }
 
 # Install latest stable ACS Engine tool
-$DIR/../utils/install-latest-stable-acs-engine.sh
+$DIR/utils/install-latest-stable-acs-engine.sh
 check_exit_code false
 
 # Deploy DCOS master + slave nodes
-$DIR/../acs-engine-dcos-deploy.sh
+$DIR/acs-engine-dcos-deploy.sh
 check_exit_code false
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
 echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
