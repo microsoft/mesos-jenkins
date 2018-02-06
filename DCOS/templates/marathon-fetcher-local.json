@@ -1,0 +1,47 @@
+{
+  "id": "test-fetcher-local",
+  "cmd": null,
+  "disk": 0,
+  "instances": 1,
+  "cpus": 1,
+  "mem": 512,
+  "constraints": [
+    [
+      "os",
+      "LIKE",
+      "Windows"
+    ]
+  ],
+  "container": {
+    "type": "DOCKER",
+    "networks": [ { "mode": "container", "name": "nat_network" } ],
+    "docker": {
+      "image": "microsoft/iis:windowsservercore-1709",
+      "network": "BRIDGE",
+      "parameters": [
+        {
+          "key": "publish",
+          "value": "80:80"
+        }
+      ]
+    }
+  },
+  "uris": [
+    "file://C:/fetcher-test.zip"
+  ],
+  "healthChecks": [
+    {
+      "gracePeriodSeconds": 300,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 20,
+      "maxConsecutiveFailures": 3,
+      "port": 80,
+      "path": "/",
+      "protocol": "HTTP",
+      "ignoreHttp1xx": false
+    }
+  ],
+  "acceptedResourceRoles": [
+    "slave_public"
+  ]
+}
