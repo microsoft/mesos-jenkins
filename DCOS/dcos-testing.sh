@@ -54,9 +54,9 @@ DIR=$(dirname $0)
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
-IIS_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/iis-marathon-template.json"
-FETCHER_HTTP_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/fetcher-http-marathon-template.json"
-FETCHER_LOCAL_TEMPLATE_URL="${DCOS_WINDOWS_BOOTSTRAP_URL}/fetcher-local-marathon-template.json"
+IIS_TEMPLATE="$DIR/templates/marathon-iis.json"
+FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon-fetcher-http.json"
+FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon-fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="10.3.1.6"
@@ -156,11 +156,11 @@ deploy_iis() {
     # - Checks if the IIS exposed public port 80 is open
     #
     echo "Deploying the IIS marathon template on DCOS"
-    dcos marathon app add $IIS_TEMPLATE_URL || {
+    dcos marathon app add $IIS_TEMPLATE || {
         echo "ERROR: Failed to deploy the IIS marathon app"
         return 1
     }
-    APP_NAME="dcos-iis"
+    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
@@ -211,6 +211,11 @@ remove_dcos_marathon_app() {
     done
 }
 
+get_marathon_application_name() {
+    local TEMPLATE_PATH="$1"
+    cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['id'])"
+}
+
 test_mesos_fetcher_local() {
     #
     # Test Mesos fetcher with local resource
@@ -231,8 +236,8 @@ test_mesos_fetcher_local() {
             return 1
         }
     done
-    dcos marathon app add $FETCHER_LOCAL_TEMPLATE_URL || return 1
-    APP_NAME="test-fetcher-local"
+    dcos marathon app add $FETCHER_LOCAL_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
@@ -248,8 +253,8 @@ test_mesos_fetcher_remote_http() {
     # Test Mesos fetcher with remote resource (http)
     #
     echo "Testing Mesos fetcher using remote http resource"
-    dcos marathon app add $FETCHER_HTTP_TEMPLATE_URL || return 1
-    APP_NAME="test-fetcher-http"
+    dcos marathon app add $FETCHER_HTTP_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_HTTP_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote http resource"
