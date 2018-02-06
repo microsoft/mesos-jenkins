@@ -56,6 +56,7 @@ WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 IIS_TEMPLATE="$DIR/templates/marathon-iis.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon-fetcher-http.json"
+FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon-fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon-fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
@@ -265,6 +266,23 @@ test_mesos_fetcher_remote_http() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
+test_mesos_fetcher_remote_https() {
+    #
+    # Test Mesos fetcher with remote resource (https)
+    #
+    echo "Testing Mesos fetcher using remote https resource"
+    dcos marathon app add $FETCHER_HTTPS_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_TEMPLATE)
+    test_mesos_fetcher $APP_NAME || {
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        echo "ERROR: Failed to test Mesos fetcher using remote https resource"
+        return 1
+    }
+    echo "Successfully tested Mesos fetcher using remote https resource"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
 run_functional_tests() {
     #
     # Run the following DCOS functional tests:
@@ -272,11 +290,13 @@ run_functional_tests() {
     #  - Check if the custom attributes are set
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
+    #  - Test Mesos fetcher with remote https resource
     #
     check_custom_attributes || return 1
     deploy_iis || return 1
     test_mesos_fetcher_local || return 1
     test_mesos_fetcher_remote_http || return 1
+    test_mesos_fetcher_remote_https || return 1
 }
 
 collect_linux_masters_logs() {
