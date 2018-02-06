@@ -218,7 +218,7 @@ function New-Environment {
     Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
     # Set Visual Studio variables based on tested branch
-    if ($branch -eq "master") {
+    if($Branch -in @("master", "1.5.x")) {
         Set-VCVariables "15.0"
     } else {
         Set-VCVariables "14.0"
@@ -231,7 +231,7 @@ function Start-MesosBuild {
     Push-Location $MESOS_DIR
     $logsUrl = Get-BuildLogsUrl
     try {
-        if($Branch -eq "master") {
+        if($Branch -in @("master", "1.5.x")) {
             $generatorName = "Visual Studio 15 2017 Win64"
         } else {
             $generatorName = "Visual Studio 14 2015 Win64"
