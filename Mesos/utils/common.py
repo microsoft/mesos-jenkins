@@ -36,6 +36,23 @@ class ReviewBoardHandler(object):
         self.user = user
         self.password = password
 
+    def _review_ids(self, review_request, review_ids=[]):
+        """Helper function for the 'get_review_ids' method"""
+        for review in review_request["depends_on"]:
+            review_url = review["href"]
+            print "Dependent review: %s " % review_url
+            dependent_review = self.api(review_url)["review_request"]
+            if dependent_review["id"] in review_ids:
+                raise ReviewError("Circular dependency detected for "
+                                  "review %s. Please fix the 'depends_on' "
+                                  "field." % review_request["id"])
+            self._review_ids(dependent_review, review_ids)
+        if review_request["status"] != "submitted":
+            review_ids.append(review_request["id"])
+        else:
+            print ("The review request %s is already "
+                   "submitted" % (review_request["id"]))
+
     def api(self, url, data=None):
         """Call the ReviewBoard API."""
         try:
@@ -62,24 +79,7 @@ class ReviewBoardHandler(object):
            how they should be applied. This function raises a ReviewError
            exception if a cyclic dependency is found."""
         review_ids = []
-        for review in review_request["depends_on"]:
-            review_url = review["href"]
-            print "Dependent review: %s " % review_url
-            dependent_review = self.api(review_url)["review_request"]
-            if dependent_review["id"] == review_request["id"]:
-                raise ReviewError("Circular dependency detected for "
-                                  "review %s. Please fix the "
-                                  "'depends_on' field." % review_request["id"])
-            review_ids += self.get_review_ids(dependent_review)
-        if review_request["id"] in review_ids:
-            raise ReviewError("Circular dependency detected for "
-                              "review %s. Please fix the "
-                              "'depends_on' field." % review_request["id"])
-        if review_request["status"] != "submitted":
-            review_ids.append(review_request["id"])
-        else:
-            print ("The review request %s is already "
-                   "submitted" % (review_request["id"]))
+        self._review_ids(review_request, review_ids)
         return review_ids
 
     def post_review(self, review_request, message, text_type='markdown'):

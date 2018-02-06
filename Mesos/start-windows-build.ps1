@@ -24,7 +24,6 @@ $global:PARAMETERS = @{
     "LOGS_URLS" = @()
     "FAILED_COMMAND" = $null
 }
-$global:JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
 
 
 function Install-Prerequisites {
@@ -395,23 +394,9 @@ function Get-BuildBinariesUrl {
     return "$buildOutUrl/binaries"
 }
 
-function Get-JenkinsConsole {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$Destination,
-        [Parameter(Mandatory=$false)]
-        [switch]$Force
-    )
-    $consoleUrl = "${global:JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
-    if($Force) {
-        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-    }
-    $webclient = New-Object System.Net.WebClient
-    $webclient.DownloadFile($consoleUrl, $Destination)
-}
-
 function Start-LogServerFilesUpload {
-    Get-JenkinsConsole -Force -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
+    $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    Start-FileDownload -Force -URL $consoleUrl -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath

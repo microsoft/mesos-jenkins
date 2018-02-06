@@ -102,14 +102,34 @@ function New-Environment {
     New-Directory $SPARTAN_BUILD_OUT_DIR
     New-Directory $SPARTAN_BUILD_LOGS_DIR
     Start-GitClone -URL $SPARTAN_GIT_URL -Branch $Branch -Path $SPARTAN_GIT_REPO_DIR
+    #
+    # NOTE(ibalutoiu): Update the sys.config to use only a single process to
+    #                  spawn for the Spartan handler. Otherwise, during the
+    #                  common tests, Spartan will fail to start.
+    #
+    $configFile = Join-Path $SPARTAN_GIT_REPO_DIR "config\sys.config"
+    $newConfig = Get-Content $configFile | ForEach-Object { $_ -replace '{processes, 10}', '{processes, 1}' }
+    Set-Content -Path $configFile -Value $newConfig
     Set-LatestSpartanCommit
     Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
 }
 
-function Start-SpartanUnitTests {
+function Start-CommonTests {
     Push-Location $SPARTAN_GIT_REPO_DIR
-    Write-Output "Starting the Spartan unit tests"
+    Write-Output "Starting the Spartan common tests"
+    try {
+        Start-SpartanCIProcess -ProcessPath "make.exe" -ArgumentList @("ct") -BuildErrorMessage "Spartan common tests run was not successful" `
+                               -StdoutFileName "spartan-common-tests-stdout.log" -StderrFileName "spartan-common-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished Spartan common tests run"
+}
+
+function Start-EUnitTests {
+    Push-Location $SPARTAN_GIT_REPO_DIR
+    Write-Output "Starting the Spartan eunit tests"
     try {
         Start-SpartanCIProcess -ProcessPath "make.exe" -ArgumentList @("eunit") -BuildErrorMessage "Spartan eunit tests run was not successful" `
                                -StdoutFileName "spartan-eunit-tests-stdout.log" -StderrFileName "spartan-eunit-tests-stderr.log"
@@ -124,7 +144,7 @@ function Start-SpartanBuild {
     Write-Output "Starting the Spartan build"
     try {
         Start-SpartanCIProcess -ProcessPath "${env:ProgramFiles}\erl8.3\bin\escript.exe" `
-                               -StdoutFileName "spartan-build-make-stdout.log" -StderrFileName "spartan-build-make-stderr.log" `
+                               -StdoutFileName "spartan-make-stdout.log" -StderrFileName "spartan-make-stderr.log" `
                                -ArgumentList @(".\rebar3", "release") -BuildErrorMessage "Spartan failed to build."
     } finally {
         Pop-Location
@@ -173,20 +193,14 @@ function New-RemoteSymlink {
 }
 
 function Start-LogServerFilesUpload {
-    Param(
-        [Parameter(Mandatory=$false)]
-        [switch]$NewLatest
-    )
-    $consoleLog = Join-Path $env:WORKSPACE "spartan-build-$Branch-${env:BUILD_NUMBER}.log"
-    if(Test-Path $consoleLog) {
-        Copy-Item -Force $consoleLog "$SPARTAN_BUILD_LOGS_DIR\jenkins-console.log"
-    }
+    $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    Start-FileDownload -Force -URL $consoleUrl -Destination "$SPARTAN_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$SPARTAN_BUILD_OUT_DIR\*" $remoteDirPath
     $buildOutputsUrl = Get-BuildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
-    if($NewLatest) {
+    if($global:BUILD_STATUS -eq 'PASS') {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
     }
@@ -202,19 +216,17 @@ function Start-EnvironmentCleanup {
 
 try {
     New-Environment
-    Start-SpartanUnitTests
+    Start-CommonTests
+    Start-EUnitTests
     Start-SpartanBuild
     $global:BUILD_STATUS = 'PASS'
 } catch {
     Write-Output $_.ToString()
+    Write-Output $_.ScriptStackTrace
     $global:BUILD_STATUS = 'FAIL'
     exit 1
 } finally {
-    if($global:BUILD_STATUS -eq 'PASS') {
-        Start-LogServerFilesUpload -NewLatest
-    } else {
-        Start-LogServerFilesUpload
-    }
+    Start-LogServerFilesUpload
     Start-EnvironmentCleanup
 }
 exit 0
