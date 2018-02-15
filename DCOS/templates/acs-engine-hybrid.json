@@ -11,13 +11,21 @@
     "masterProfile": {
       "count": 3,
       "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
-      "vmSize": "${LINUX_MASTER_SIZE}"
+      "vmSize": "${LINUX_MASTER_SIZE}",
+      "preProvisionExtension": {
+        "name": "preprovision-master-linux",
+        "singleOrAll": "All"
+      }
     },
     "agentPoolProfiles": [
       {
         "name": "${WIN_AGENT_PUBLIC_POOL}",
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
+        },
         "osType": "Windows",
         "customNodeLabels": {
           "infrastructure": "ci"
@@ -35,6 +43,10 @@
         "name": "${WIN_AGENT_PRIVATE_POOL}",
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
+        },
         "osType": "Windows",
         "dnsPrefix": "",
         "customNodeLabels": {
@@ -45,6 +57,10 @@
         "name": "${LINUX_AGENT_PUBLIC_POOL}",
         "count": 1,
         "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-public",
+            "singleOrAll": "All"
+        },
         "osType": "linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
         "customNodeLabels": {
@@ -60,6 +76,10 @@
         "name": "${LINUX_AGENT_PRIVATE_POOL}",
         "count": 1,
         "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-private",
+            "singleOrAll": "All"
+        },
         "osType": "linux",
         "dnsPrefix": "",
         "customNodeLabels": {
@@ -80,6 +100,36 @@
           }
         ]
       }
-    }
+    },
+    "extensionProfiles": [
+      {
+        "name": "preprovision-agent-linux-public",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://13.68.86.214/preprovision/",
+        "script": "preprovision-agent-linux-public.sh"
+      },
+      {
+        "name": "preprovision-agent-linux-private",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://13.68.86.214/preprovision/",
+        "script": "preprovision-agent-linux-private.sh"
+      },
+      {
+        "name": "preprovision-master-linux",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://13.68.86.214/preprovision/",
+        "script": "preprovision-master-linux.sh"
+      },
+      {
+        "name": "preprovision-agent-windows",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://13.68.86.214/preprovision/",
+        "script": "preprovision-agent-windows.ps1"
+      }
+    ]
   }
 }
