@@ -74,4 +74,3 @@ $7ZIP_DIR = Join-Path $env:ProgramFiles "7-Zip"
 
 # Git repositories URLs
 $MESOS_GIT_URL = "https://github.com/apache/mesos"
-$SPARTAN_GIT_URL = "https://github.com/dcos/spartan"

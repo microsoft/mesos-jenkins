@@ -1,5 +1,7 @@
 Param(
     [Parameter(Mandatory=$false)]
+    [string]$GitURL="http://github.com/dcos/spartan",
+    [Parameter(Mandatory=$false)]
     [string]$Branch="master",
     [Parameter(Mandatory=$false)]
     [string]$CommitID
@@ -101,7 +103,7 @@ function New-Environment {
     New-Directory $SPARTAN_DIR
     New-Directory $SPARTAN_BUILD_OUT_DIR
     New-Directory $SPARTAN_BUILD_LOGS_DIR
-    Start-GitClone -URL $SPARTAN_GIT_URL -Branch $Branch -Path $SPARTAN_GIT_REPO_DIR
+    Start-GitClone -URL $GitURL -Branch $Branch -Path $SPARTAN_GIT_REPO_DIR
     #
     # NOTE(ibalutoiu): Update the sys.config to use only a single process to
     #                  spawn for the Spartan handler. Otherwise, during the
