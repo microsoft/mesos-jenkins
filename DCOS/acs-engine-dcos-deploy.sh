@@ -103,17 +103,14 @@ install_azure_cli_2
 
 # Generate the Azure ARM deploy files
 ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
-ACS_RENDERED_TEMPLATE="/tmp/dcos-acs-engine.json"
-DCOS_DEPLOY_DIR="/tmp/dcos-windows-deploy-dir"
+DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
+ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
 eval "cat << EOF
 $(cat $ACS_TEMPLATE)
 EOF
 " > $ACS_RENDERED_TEMPLATE
-rm -rf $DCOS_DEPLOY_DIR
 acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf ./translations # Left-over after running 'acs-engine generate'
-rm $ACS_RENDERED_TEMPLATE
-
 
 # Deploy the DCOS with Mesos environment
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
