@@ -108,10 +108,15 @@ check_open_port() {
     local PORT="$2"
     local TIMEOUT=300
     echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
-    nc -v -z "$ADDRESS" "$PORT" -w $TIMEOUT || {
-        echo "ERROR: Port $PORT is not open at the address: $ADDRESS"
-        return 1
-    }
+    SECONDS=0
+    while true; do
+        if [[ $SECONDS -gt $TIMEOUT ]]; then
+            echo "ERROR: Port $PORT didn't open at $ADDRESS within $TIMEOUT seconds"
+            return 1
+        fi
+        nc -v -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
+    done
+    echo "Success: Port $PORT is open at address $ADDRESS"
 }
 
 open_dcos_port() {
