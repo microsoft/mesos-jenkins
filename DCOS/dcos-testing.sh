@@ -67,11 +67,9 @@ LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
 JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
-WORK_DIR="/tmp/jenkins-${JOB_NAME}/${BUILD_ID}"
-PARAMETERS_FILE="$WORK_DIR/build-parameters.txt"
-TEMP_LOGS_DIR="$WORK_DIR/dcos-logs"
-rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && \
-rm -rf $TEMP_LOGS_DIR && mkdir -p $TEMP_LOGS_DIR && \
+PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
+TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && \
 rm -rf $HOME/.dcos && source $UTILS_FILE || exit 1
 
 
