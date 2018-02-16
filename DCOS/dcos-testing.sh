@@ -141,7 +141,7 @@ open_dcos_port() {
     }
     az network nic ip-config inbound-nat-rule add --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME --nic-name $MASTER_NIC_NAME \
                                                   --inbound-nat-rule $NAT_RULE_NAME --ip-config-name ipConfigNode --output table || {
-        echo "ERROR: Failed to ip-config inbound-nat-rule"
+        echo "ERROR: Failed to create ip-config inbound-nat-rule"
         return 1
     }
     MASTER_SG_NAME=$(az network nsg list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
