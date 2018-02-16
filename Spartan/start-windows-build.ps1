@@ -216,8 +216,8 @@ function Start-EnvironmentCleanup {
 
 try {
     New-Environment
-    Start-CommonTests
     Start-EUnitTests
+    Start-CommonTests
     Start-SpartanBuild
     $global:BUILD_STATUS = 'PASS'
 } catch {
