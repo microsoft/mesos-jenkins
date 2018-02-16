@@ -17,7 +17,7 @@ def parse_parameters():
 def get_running_tasks(client, app_id, instances):
     timeout = 30 * 60
     print("Trying to find %s running tasks within a timeout of %s "
-          "seconds timeout." % (instances, timeout))
+          "seconds." % (instances, timeout))
     i = 0
     running_tasks = []
     while len(running_tasks) < instances:
@@ -51,7 +51,7 @@ def get_health_check_results(client, task_id):
     timeout = 120
     print("There are no health check results for the task %s. Waiting "
           "maximum %s seconds to see if health check results will be "
-          "reported in the meantime." % (task_id, timeout))
+          "reported." % (task_id, timeout))
     i = 0
     while not results_reported:
         task = client.get_task(task_id)
@@ -76,18 +76,36 @@ def main():
         raise Exception("The application %s doesn't have health checks. "
                         "Cannot decide whether it's "
                         "healthy or not." % params.name)
-    running_tasks = get_running_tasks(client, app["id"], app["instances"])
-    for task in running_tasks:
-        print("Checking app health checks for task: %s" % task["id"])
-        health_check_results = get_health_check_results(client, task["id"])
-        for result in health_check_results:
-            if result["alive"]:
+    healthy_tasks = []
+    timeout = 40 * 60 * 1.0  # 40 minutes timeout
+    start_time = time.time()
+    while len(healthy_tasks) < app["instances"]:
+        running_tasks = get_running_tasks(client, app["id"], app["instances"])
+        for task in running_tasks:
+            if task["id"] in healthy_tasks:
                 continue
-            if not health_check_results["alive"]:
-                raise Exception("Health checks for task %s didn't report "
-                                "successfully." % (task["id"]))
-        print("The health checks for task %s reported "
-              "successfully." % task["id"])
+            print("Checking app health checks for task: %s" % task["id"])
+            try:
+                health_check_results = get_health_check_results(client,
+                                                                task["id"])
+            except Exception:
+                print("Couldn't get health check results for "
+                      "task %s" % (task["id"]))
+                continue
+            for result in health_check_results:
+                if not result["alive"]:
+                    raise Exception("Health checks for task %s didn't report "
+                                    "successfully." % (task["id"]))
+            healthy_tasks.append(task["id"])
+            print("The health checks for task %s reported "
+                  "successfully." % task["id"])
+        current_time = time.time()
+        if (current_time - start_time) > timeout:
+            raise Exception("Couldn't get all the %s healthy tasks for "
+                            "application %s within a %s seconds "
+                            "timeout." % (app["instances"],
+                                          app["id"],
+                                          timeout))
     print("All the health checks for the application %s reported "
           "successfully." % (app["id"]))
 
