@@ -422,8 +422,15 @@ install_dcos_cli() {
     fi
     DCOS_BINARY_FILE="/usr/local/bin/dcos"
     sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE && \
-    sudo chmod +x $DCOS_BINARY_FILE && \
-    dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
+    sudo chmod +x $DCOS_BINARY_FILE || {
+        echo "ERROR: Failed to install the DCOS CLI"
+        return 1
+    }
+    if [[ "$DCOS_VERSION" = "1.8.8" ]] || [[ "$DCOS_VERSION" = "1.9.0" ]]; then
+        dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
+    else
+        dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
+    fi
 }
 
 check_exit_code() {
