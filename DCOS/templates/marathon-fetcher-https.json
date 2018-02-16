@@ -12,11 +12,11 @@
       "Windows"
     ]
   ],
-  "networks": [ { "mode": "container", "name": "customnat" } ],
   "container": {
     "type": "DOCKER",
     "docker": {
       "image": "microsoft/iis:windowsservercore-1709",
+      "network": "BRIDGE",
       "parameters": [
         {
           "key": "publish",
