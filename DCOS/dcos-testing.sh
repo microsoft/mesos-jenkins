@@ -287,17 +287,63 @@ test_mesos_fetcher_remote_https() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
+
+test_windows_agent_dcos_dns() {
+    #
+    # Executes on the AGENT_IP via WinRM, an 'nslookup.exe' command to resolve
+    # 'master.mesos' and 'leader.mesos'. This script assumes that PyWinRM is
+    # already installed on the first master node that is used as a proxy.
+    #
+    local AGENT_IP="$1"
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || return 1
+    for DNS_RECORD in leader.mesos master.mesos; do
+        echo -e "\n\nTrying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD'" || return 1
+    done
+    echo -e "\n\nSuccessfully resolved DCOS Mesos DNS records on Windows slave: ${AGENT_IP}\n"
+}
+
+test_dcos_dns() {
+    #
+    # Tries to resolve 'leader.mesos' and 'master.masos' from all the Windows
+    # slaves. A remote PowerShell command is executed via WinRM. This ensures
+    # that the DCOS dns component on Windows (Spartan or dcos-net) is correctly
+    # set up
+    #
+    echo "Testing DSCOS DNS on the Windows slaves"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
+        echo "ERROR: Failed to install dependencies on the first master used as a proxy"
+        return 1
+    }
+    if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+        for IP in $IPS; do
+            echo "Checking DCOS DNS for Windows private agent: $IP"
+            test_windows_agent_dcos_dns "$IP" || return 1
+        done
+    fi
+    if [[ $WIN_PUBLIC_AGENT_COUNT -gt 0 ]]; then
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+        for IP in $IPS; do
+            echo "Checking DCOS DNS for Windows public agent: $IP"
+            test_windows_agent_dcos_dns "$IP" || return 1
+        done
+    fi
+}
+
 run_functional_tests() {
     #
     # Run the following DCOS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
+    #  - Check DCOS DNS functionality from the Windows node
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
     #
     check_custom_attributes || return 1
     deploy_iis || return 1
+    test_dcos_dns || return 1
     test_mesos_fetcher_local || return 1
     test_mesos_fetcher_remote_http || return 1
     test_mesos_fetcher_remote_https || return 1
