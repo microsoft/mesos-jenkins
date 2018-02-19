@@ -4,7 +4,9 @@ Param(
     [Parameter(Mandatory=$false)]
     [string]$Branch="master",
     [Parameter(Mandatory=$false)]
-    [string]$CommitID
+    [string]$CommitID,
+    [Parameter(Mandatory=$false)]
+    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +17,11 @@ $ciUtils = (Resolve-Path "$PSScriptRoot\..\Modules\CIUtils").Path
 Import-Module $ciUtils
 . $globalVariables
 
-$global:BUILD_STATUS = $null
+$global:PARAMETERS = @{
+    "BUILD_STATUS" = $null
+    "LOGS_URLS" = @()
+    "FAILED_COMMAND" = $null
+}
 
 
 function Start-SpartanCIProcess {
@@ -48,7 +54,10 @@ function Start-SpartanCIProcess {
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
-        $global:BUILD_STATUS = 'FAIL'
+        $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
+        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["FAILED_COMMAND"] = $command
+
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
@@ -104,6 +113,7 @@ function New-Environment {
     New-Directory $SPARTAN_BUILD_OUT_DIR
     New-Directory $SPARTAN_BUILD_LOGS_DIR
     Start-GitClone -URL $GitURL -Branch $Branch -Path $SPARTAN_GIT_REPO_DIR
+    $global:PARAMETERS["BRANCH"] = $Branch
     #
     # NOTE(ibalutoiu): Update the sys.config to use only a single process to
     #                  spawn for the Spartan handler. Otherwise, during the
@@ -201,8 +211,9 @@ function Start-LogServerFilesUpload {
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
     Copy-FilesToRemoteServer "$SPARTAN_BUILD_OUT_DIR\*" $remoteDirPath
     $buildOutputsUrl = Get-BuildOutputsUrl
+    $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
-    if($global:BUILD_STATUS -eq 'PASS') {
+    if($global:PARAMETERS["BUILD_STATUS"] -eq 'PASS') {
         $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
         New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
     }
@@ -215,20 +226,47 @@ function Start-EnvironmentCleanup {
     cmd.exe /C "rmdir /s /q $SPARTAN_DIR > nul 2>&1"
 }
 
+function New-ParametersFile {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath
+    )
+    if(Test-Path $FilePath) {
+        Remove-Item -Force $FilePath
+    }
+    New-Item -ItemType File -Path $FilePath | Out-Null
+}
+
+function Write-ParametersFile {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath
+    )
+    if($global:PARAMETERS["LOGS_URLS"]) {
+        $global:PARAMETERS["LOGS_URLS"] = $global:PARAMETERS["LOGS_URLS"] -join '|'
+    }
+    $json = ConvertTo-Json -InputObject $global:PARAMETERS
+    Set-Content -Path $FilePath -Value $json
+}
+
 
 try {
+    New-ParametersFile -FilePath $ParametersFile
     New-Environment
     Start-EUnitTests
     Start-CommonTests
     Start-SpartanBuild
-    $global:BUILD_STATUS = 'PASS'
+    $global:PARAMETERS["BUILD_STATUS"] = 'PASS'
+    $global:PARAMETERS["MESSAGE"] = "Spartan nightly build and testing was successful."
 } catch {
     Write-Output $_.ToString()
     Write-Output $_.ScriptStackTrace
-    $global:BUILD_STATUS = 'FAIL'
+    $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
+    $global:PARAMETERS["MESSAGE"] = $_.ToString()
     exit 1
 } finally {
     Start-LogServerFilesUpload
+    Write-ParametersFile -FilePath $ParametersFile
     Start-EnvironmentCleanup
 }
 exit 0
