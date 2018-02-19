@@ -194,11 +194,24 @@ check_custom_attributes() {
 test_mesos_fetcher() {
     local APPLICATION_NAME="$1"
     $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
-    DOCKER_CONTAINER_ID=$($DIR/utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker ps -q" | head -1) || {
-        echo "ERROR: Failed to get Docker container ID for the $APPLICATION_NAME task"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
+        echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
     }
-    MD5_CHECKSUM=$($DIR/utils/wsmancmd.py -H $WIN_AGENT_PUBLIC_ADDRESS -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD "docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash") || {
+    sudo apt-get update -y >/dev/null && sudo apt-get install jq -y >/dev/null || {
+        echo "ERROR: Failed to install jq dependency"
+        return 1
+    }
+    TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
+        echo "ERROR: Failed to copy wsmancmd.py to the proxy master node"
+        return 1
+    }
+    DOCKER_CONTAINER_ID=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker ps -q'") || {
+        echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
+        return 1
+    }
+    MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash'") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
     }
