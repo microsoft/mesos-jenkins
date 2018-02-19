@@ -121,7 +121,7 @@ open_dcos_port() {
     #
     # This function opens the GUI endpoint on the first master unit
     #
-    echo "Opening DCOS port: 80" 
+    echo "Open DCOS port 80"
     MASTER_LB_NAME=$(az network lb list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
         echo "ERROR: Failed to get the master load balancer name"
         return 1
@@ -132,6 +132,7 @@ open_dcos_port() {
         return 1
     }
     NAT_RULE_NAME="DCOS_Port_80"
+    echo "Create inbound NAT rule for DCOS port 80"
     az network lb inbound-nat-rule create --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME \
                                           --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table || {
         echo "ERROR: Failed to create load balancer inbound NAT rule"
@@ -142,6 +143,7 @@ open_dcos_port() {
         echo "ERROR: Failed to create ip-config inbound-nat-rule"
         return 1
     }
+    echo "Add security group rule for DCOS port 80"
     MASTER_SG_NAME=$(az network nsg list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
         echo "ERROR: Failed to get the master security name"
         return 1
