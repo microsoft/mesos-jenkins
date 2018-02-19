@@ -427,7 +427,14 @@ function Get-SuccessBuildMessage {
 function Start-TempDirCleanup {
     Get-ChildItem $env:TEMP | Where-Object {
         $_.Name -notmatch "^jna\-[0-9]*$|^hsperfdata.*_mesos$"
-    } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    } | ForEach-Object {
+        $fullPath = $_.FullName
+        if($_.FullName -is [System.IO.DirectoryInfo]) {
+            cmd.exe /C "rmdir /s /q ${fullPath} > nul 2>&1"
+        } else {
+            cmd.exe /C "del /Q /S /F ${fullPath} > nul 2>&1"
+        }
+    }
 }
 
 function Start-MesosCITesting {
