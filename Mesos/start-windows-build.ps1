@@ -354,27 +354,23 @@ function New-RemoteSymlink {
     Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $REMOTE_KEY -Command $remoteCMD
 }
 
-function Get-RemoteBuildDirectoryPath {
+function Get-MesosBuildRelativePath {
     if($ReviewID) {
-        return "$REMOTE_MESOS_BUILD_DIR/review/$ReviewID"
+        return "review/$ReviewID"
     }
+    $repositoryOwner = $GitURL.Split("/")[-2]
     $mesosCommitID = Get-LatestCommitID
-    return "$REMOTE_MESOS_BUILD_DIR/$Branch/$mesosCommitID"
+    return "$repositoryOwner/$Branch/$mesosCommitID"
 }
 
-function Get-RemoteLatestSymlinkPath {
-    if($ReviewID) {
-        return "$REMOTE_MESOS_BUILD_DIR/review/latest"
-    }
-    return "$REMOTE_MESOS_BUILD_DIR/$Branch/latest"
+function Get-RemoteBuildDirectoryPath {
+    $relativePath = Get-MesosBuildRelativePath
+    return "$REMOTE_MESOS_BUILD_DIR/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
-    if($ReviewID) {
-        return "$MESOS_BUILD_BASE_URL/review/$ReviewID"
-    }
-    $mesosCommitID = Get-LatestCommitID
-    return "$MESOS_BUILD_BASE_URL/$Branch/$mesosCommitID"
+    $relativePath = Get-MesosBuildRelativePath
+    return "$MESOS_BUILD_BASE_URL/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -387,6 +383,19 @@ function Get-BuildBinariesUrl {
     return "$buildOutUrl/binaries"
 }
 
+function New-RemoteLatestSymlinks {
+    $remoteDirPath = Get-RemoteBuildDirectoryPath
+    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
+    if($ReviewID) {
+        # We only need to update a single symlink if this is testing a
+        # ReviewBoard Mesos patch.
+        return
+    }
+    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+}
+
 function Start-LogServerFilesUpload {
     $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
     Start-FileDownload -Force -URL $consoleUrl -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
@@ -397,8 +406,7 @@ function Start-LogServerFilesUpload {
     $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
     if($global:PARAMETERS["BUILD_STATUS"] -eq "PASS") {
-        $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
-        New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
+        New-RemoteLatestSymlinks
     }
 }
 
