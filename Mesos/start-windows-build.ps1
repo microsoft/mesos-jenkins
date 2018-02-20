@@ -1,5 +1,7 @@
 Param(
     [Parameter(Mandatory=$false)]
+    [string]$GitURL="https://github.com/apache/mesos",
+    [Parameter(Mandatory=$false)]
     [string]$ReviewID,
     [Parameter(Mandatory=$false)]
     [string]$Branch="master",
@@ -208,7 +210,7 @@ function New-Environment {
     New-Directory $MESOS_BUILD_LOGS_DIR
     $global:PARAMETERS["BRANCH"] = $Branch
     # Clone Mesos repository
-    Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
+    Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMesosCommit
     if($ReviewID) {
         Write-Output "Started testing review: https://reviews.apache.org/r/${ReviewID}"
@@ -421,7 +423,7 @@ function Get-SuccessBuildMessage {
     if($ReviewID) {
         return "Mesos patch $ReviewID was successfully built and tested."
     }
-    return "Mesos nightly build and testing was successful."
+    return "Successful Mesos nightly build and testing for repository $GitURL on branch $Branch"
 }
 
 function Start-TempDirCleanup {
