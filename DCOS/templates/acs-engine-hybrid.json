@@ -106,28 +106,28 @@
         "name": "preprovision-agent-linux-public",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/preprovision/",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
         "script": "preprovision-agent-linux-public.sh"
       },
       {
         "name": "preprovision-agent-linux-private",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/preprovision/",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
         "script": "preprovision-agent-linux-private.sh"
       },
       {
         "name": "preprovision-master-linux",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/preprovision/",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
         "script": "preprovision-master-linux.sh"
       },
       {
         "name": "preprovision-agent-windows",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows-ci/preprovision/",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
         "script": "preprovision-agent-windows.ps1"
       }
     ]
