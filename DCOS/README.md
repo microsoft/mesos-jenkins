@@ -29,6 +29,7 @@ export WIN_AGENT_PRIVATE_POOL="ibwinprivate"
 export WIN_AGENT_ADMIN="azureuser"
 export WIN_AGENT_ADMIN_PASSWORD="<admin_password_value>"
 
+export DCOS_VERSION="1.10.0"
 export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/"
 export DCOS_DEPLOYMENT_TYPE="hybrid"
 ```
