@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+CI_WEB_ROOT="http://dcos-win.westus.cloudapp.azure.com"
+
+
 validate_simple_deployment_params() {
     if [[ -z $AZURE_USER ]]; then echo "ERROR: Parameter AZURE_USER is not set"; exit 1; fi
     if [[ -z $AZURE_USER_PASSWORD ]]; then echo "ERROR: Parameter AZURE_USER_PASSWORD is not set"; exit 1; fi
@@ -22,7 +25,18 @@ validate_simple_deployment_params() {
         echo "ERROR: Supported DCOS_VERSION are: 1.8.8, 1.9.0 or 1.10.0"
         exit 1
     fi
-    if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then echo "ERROR: Parameter DCOS_WINDOWS_BOOTSTRAP_URL is not set"; exit 1; fi
+    if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then
+        export DCOS_WINDOWS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos-windows/mesosphere"
+    fi
+    if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
+        export DCOS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos/bootstrap/latest.bootstrap.tar.xz"
+    fi
+    if [[ -z $DCOS_REPOSITORY_URL ]]; then
+        export DCOS_REPOSITORY_URL="$CI_WEB_ROOT/dcos"
+    fi
+    if [[ -z $DCOS_CLUSTER_PACKAGE_LIST_ID ]]; then
+        export DCOS_CLUSTER_PACKAGE_LIST_ID=$(curl $CI_WEB_ROOT/dcos/cluster-package-list.latest)
+    fi
 }
 
 validate_extra_hybrid_deployment_params() {

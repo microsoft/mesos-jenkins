@@ -1,0 +1,137 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS",
+      "dcosConfig": {
+          "dcosRepositoryURL": "${DCOS_REPOSITORY_URL}",
+          "dcosClusterPackageListID": "${DCOS_CLUSTER_PACKAGE_LIST_ID}",
+          "dcosBootstrapURL": "${DCOS_BOOTSTRAP_URL}",
+          "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
+      }
+    },
+    "masterProfile": {
+      "count": 3,
+      "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
+      "vmSize": "${LINUX_MASTER_SIZE}",
+      "preProvisionExtension": {
+        "name": "preprovision-master-linux",
+        "singleOrAll": "All"
+      }
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "${WIN_AGENT_PUBLIC_POOL}",
+        "count": 1,
+        "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
+        },
+        "osType": "Windows",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        },
+        "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
+        "ports": [
+             80,
+             443,
+             8080,
+             3389,
+             5986
+          ]
+      },
+      {
+        "name": "${WIN_AGENT_PRIVATE_POOL}",
+        "count": 1,
+        "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
+        },
+        "osType": "Windows",
+        "dnsPrefix": "",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        }
+      },
+      {
+        "name": "${LINUX_AGENT_PUBLIC_POOL}",
+        "count": 1,
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-public",
+            "singleOrAll": "All"
+        },
+        "osType": "linux",
+        "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        },
+        "ports": [
+             80,
+             443,
+             22
+          ]
+      },
+      {
+        "name": "${LINUX_AGENT_PRIVATE_POOL}",
+        "count": 1,
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-private",
+            "singleOrAll": "All"
+        },
+        "osType": "linux",
+        "dnsPrefix": "",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        }
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "${WIN_AGENT_ADMIN}",
+      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}"
+    },
+    "linuxProfile": {
+      "adminUsername": "${LINUX_ADMIN}",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "${LINUX_PUBLIC_SSH_KEY}"
+          }
+        ]
+      }
+    },
+    "extensionProfiles": [
+      {
+        "name": "preprovision-agent-linux-public",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
+        "script": "preprovision-agent-linux-public.sh"
+      },
+      {
+        "name": "preprovision-agent-linux-private",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
+        "script": "preprovision-agent-linux-private.sh"
+      },
+      {
+        "name": "preprovision-master-linux",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
+        "script": "preprovision-master-linux.sh"
+      },
+      {
+        "name": "preprovision-agent-windows",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
+        "script": "preprovision-agent-windows.ps1"
+      }
+    ]
+  }
+}
