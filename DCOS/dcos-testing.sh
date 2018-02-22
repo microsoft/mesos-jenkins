@@ -30,7 +30,7 @@ if [[ -z $DCOS_VERSION ]]; then
     export DCOS_VERSION="1.10.0"
 fi
 if [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
-    echo "ERROR: Supported DCOS_VERSION are: 1.8.8, 1.9.0 or 1.10.0"
+    echo "ERROR: Supported DCOS_VERSION values are: 1.8.8, 1.9.0 or 1.10.0"
     exit 1
 fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
@@ -77,7 +77,7 @@ job_cleanup() {
     #
     # Deletes the Azure resource group used for the deployment
     #
-    echo "Cleanup in progress for the current Azure DCOS deployment"
+    echo "Cleanup in progress for the current Azure DC/OS deployment"
     az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
         echo "ERROR: Failed to delete the resource group"
         return 1
@@ -121,7 +121,7 @@ open_dcos_port() {
     #
     # This function opens the GUI endpoint on the first master unit
     #
-    echo "Open DCOS port 80"
+    echo "Open DC/OS port 80"
     MASTER_LB_NAME=$(az network lb list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
         echo "ERROR: Failed to get the master load balancer name"
         return 1
@@ -132,7 +132,7 @@ open_dcos_port() {
         return 1
     }
     NAT_RULE_NAME="DCOS_Port_80"
-    echo "Create inbound NAT rule for DCOS port 80"
+    echo "Create inbound NAT rule for DC/OS port 80"
     az network lb inbound-nat-rule create --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME \
                                           --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table || {
         echo "ERROR: Failed to create load balancer inbound NAT rule"
@@ -143,14 +143,14 @@ open_dcos_port() {
         echo "ERROR: Failed to create ip-config inbound-nat-rule"
         return 1
     }
-    echo "Add security group rule for DCOS port 80"
+    echo "Add security group rule for DC/OS port 80"
     MASTER_SG_NAME=$(az network nsg list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $2}') || {
         echo "ERROR: Failed to get the master security name"
         return 1
     }
     az network nsg rule create --resource-group $AZURE_RESOURCE_GROUP --nsg-name $MASTER_SG_NAME --name $NAT_RULE_NAME \
                                --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table || {
-        echo "ERROR: Failed to create the DCOS port security group rule for the master node"
+        echo "ERROR: Failed to create the DC/OS port security group rule for the master node"
         return 1
     }
     check_open_port "$MASTER_PUBLIC_ADDRESS" "80" || return 1
@@ -162,7 +162,7 @@ deploy_iis() {
     # - Checks if marathon successfully launched a Mesos task
     # - Checks if the IIS exposed public port 80 is open
     #
-    echo "Deploying the IIS marathon template on DCOS"
+    echo "Deploying the IIS marathon template on DC/OS"
     dcos marathon app add $IIS_TEMPLATE || {
         echo "ERROR: Failed to deploy the IIS marathon app"
         return 1
@@ -246,7 +246,7 @@ test_mesos_fetcher_local() {
         return 1
     }
     WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
-        echo "ERROR: Failed to get the DCOS Windows public agents addresses"
+        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
         return 1
     }
     # Download the fetcher test file locally to all the targeted nodes
@@ -312,20 +312,21 @@ test_windows_agent_dcos_dns() {
     local AGENT_IP="$1"
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || return 1
     for DNS_RECORD in leader.mesos master.mesos; do
-        echo -e "\n\nTrying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
+        echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD'" || return 1
+        echo -e "\n"
     done
-    echo -e "\n\nSuccessfully resolved DCOS Mesos DNS records on Windows slave: ${AGENT_IP}\n"
+    echo -e "Successfully resolved DC/OS Mesos DNS records on Windows slave: ${AGENT_IP}"
 }
 
 test_dcos_dns() {
     #
     # Tries to resolve 'leader.mesos' and 'master.masos' from all the Windows
     # slaves. A remote PowerShell command is executed via WinRM. This ensures
-    # that the DCOS dns component on Windows (Spartan or dcos-net) is correctly
+    # that the DC/OS dns component on Windows (Spartan or dcos-net) is correctly
     # set up
     #
-    echo "Testing DSCOS DNS on the Windows slaves"
+    echo "Testing DC/OS DNS on the Windows slaves"
     run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
         echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
@@ -333,14 +334,14 @@ test_dcos_dns() {
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
         IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
         for IP in $IPS; do
-            echo "Checking DCOS DNS for Windows private agent: $IP"
+            echo "Checking DNS for Windows private agent: $IP"
             test_windows_agent_dcos_dns "$IP" || return 1
         done
     fi
     if [[ $WIN_PUBLIC_AGENT_COUNT -gt 0 ]]; then
         IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
         for IP in $IPS; do
-            echo "Checking DCOS DNS for Windows public agent: $IP"
+            echo "Checking DNS for Windows public agent: $IP"
             test_windows_agent_dcos_dns "$IP" || return 1
         done
     fi
@@ -348,10 +349,10 @@ test_dcos_dns() {
 
 run_functional_tests() {
     #
-    # Run the following DCOS functional tests:
+    # Run the following DC/OS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
-    #  - Check DCOS DNS functionality from the Windows node
+    #  - Check DC/OS DNS functionality from the Windows node
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
@@ -424,7 +425,7 @@ collect_dcos_nodes_logs() {
     #
     # Collect logs from all the deployment nodes and upload them to the log server
     #
-    echo "Collecting logs from all the DCOS nodes"
+    echo "Collecting logs from all the DC/OS nodes"
     dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
 
     # Collect logs from all the Linux master node(s)
@@ -482,13 +483,13 @@ install_dcos_cli() {
     elif [[ "$DCOS_VERSION" = "1.10.0" ]]; then
         DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.10/dcos"
     else
-        echo "ERROR: Cannot find the DCOS cli url for the version: $DCOS_VERSION"
+        echo "ERROR: Cannot find the DC/OS cli url for the version: $DCOS_VERSION"
         return 1
     fi
     DCOS_BINARY_FILE="/usr/local/bin/dcos"
     sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE && \
     sudo chmod +x $DCOS_BINARY_FILE || {
-        echo "ERROR: Failed to install the DCOS CLI"
+        echo "ERROR: Failed to install the DC/OS CLI"
         return 1
     }
     if [[ "$DCOS_VERSION" = "1.8.8" ]] || [[ "$DCOS_VERSION" = "1.9.0" ]]; then
@@ -504,11 +505,11 @@ check_exit_code() {
     fi
     local COLLECT_LOGS=$1
     if [[ "$COLLECT_LOGS" = true ]]; then
-        collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+        collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
     fi
     upload_logs || echo "ERROR: Failed to upload logs to log server"
-    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
-    MSG+="Windows agent(s) and the latest Mesos, Spartan builds."
+    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+    MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
     echo "STATUS=FAIL" >> $PARAMETERS_FILE
     echo "EMAIL_TITLE=[${JOB_NAME}] FAIL" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
@@ -521,17 +522,17 @@ check_exit_code() {
 $DIR/utils/install-latest-stable-acs-engine.sh
 check_exit_code false
 
-# Deploy DCOS master + slave nodes
+# Deploy DC/OS master + slave nodes
 $DIR/acs-engine-dcos-deploy.sh
 check_exit_code false
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
 echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 
-# Open DCOS API & GUI port
+# Open DC/OS API & GUI port
 open_dcos_port
 check_exit_code false
 
-# Install the proper DCOS cli version
+# Install the proper DC/OS cli version
 install_dcos_cli
 check_exit_code false
 
@@ -539,11 +540,12 @@ check_exit_code false
 run_functional_tests
 check_exit_code true
 
-# Collect all the logs in the DCOS deployments
-collect_dcos_nodes_logs || echo "ERROR: Failed to collect DCOS nodes logs"
+# Collect all the logs in the DC/OS deployments
+collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
 upload_logs || echo "ERROR: Failed to upload logs to log server"
-MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DCOS deployment with "
-MSG+="Windows agent(s) and the latest Mesos, Spartan builds"
+
+MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
 echo "STATUS=PASS" >> $PARAMETERS_FILE
 echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
 echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
@@ -551,4 +553,4 @@ echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 # Do the final cleanup
 job_cleanup
 
-echo "Successfully tested an Azure DCOS deployment with the latest Mesos binaries"
+echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"

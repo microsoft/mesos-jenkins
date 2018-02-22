@@ -126,7 +126,7 @@ EOF
 acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf ./translations # Left-over after running 'acs-engine generate'
 
-# Deploy the DCOS with Mesos environment
+# Deploy the DC/OS with Mesos environment
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
 
@@ -138,6 +138,6 @@ sed -i 's|    "agentWindowsSku": "2016-Datacenter-with-Containers",|    "agentWi
 
 azure_cli_login
 az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
-echo "Started the DCOS deployment"
+echo "Started the DC/OS deployment"
 az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
 rm -rf $DCOS_DEPLOY_DIR
