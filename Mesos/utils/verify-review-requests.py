@@ -127,19 +127,20 @@ def main():
         if (parameters.reviews == -1 or num_reviews < parameters.reviews):
             try:
                 needs_verification = handler.needs_verification(review_request)
-            except Exception:
-                needs_verification = False
-                print("WARNING: Cannot find if review %s needs "
-                      "verification" % (review_request["id"]))
-            if not needs_verification:
-                continue
-            try:
+                if not needs_verification:
+                    continue
                 # An exception is raised if cyclic dependencies are found
                 handler.get_review_ids(review_request)
             except ReviewError as err:
                 message = ("Bad review!\n\n"
                            "Error:\n%s" % (err.args[0]))
                 handler.post_review(review_request, message)
+                continue
+            except Exception:
+                needs_verification = False
+                print("WARNING: Cannot find if review %s needs "
+                      "verification" % (review_request["id"]))
+            if not needs_verification:
                 continue
             review_ids.append(str(review_request["id"]))
             num_reviews += 1
