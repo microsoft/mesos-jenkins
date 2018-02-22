@@ -304,7 +304,7 @@ test_windows_agent_dcos_dns() {
     #
     local AGENT_IP="$1"
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || return 1
-    for DNS_RECORD in leader.mesos master.mesos; do
+    for DNS_RECORD in microsoft.com leader.mesos master.mesos; do
         echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD'" || return 1
         echo -e "\n"
