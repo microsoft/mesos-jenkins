@@ -26,13 +26,6 @@ fi
 if [[ $(echo "$AZURE_REGION" | grep "\s") ]]; then
     echo "ERROR: The AZURE_REGION parameter must not contain any spaces"
 fi
-if [[ -z $DCOS_VERSION ]]; then
-    export DCOS_VERSION="1.10.0"
-fi
-if [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
-    echo "ERROR: Supported DCOS_VERSION values are: 1.8.8, 1.9.0 or 1.10.0"
-    exit 1
-fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
     export LINUX_MASTER_COUNT="1"
     export LINUX_PUBLIC_AGENT_COUNT="0"
