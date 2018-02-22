@@ -54,7 +54,7 @@ docker rm -f $TMP_CONTAINER_NAME
 gunzip jenkins-container.tar.gz
 docker load -i jenkins-container.tar
 docker run --detach --restart unless-stopped --volume $VOLUME_NAME:/var/jenkins_home \
-           --publish 8443:8443 --publish 50000:50000 --publish 8080:8080 \
+           --publish 50000:50000 --publish 8080:8080 \
            --name jenkins jenkinsbuild
 
 # - Cleanup temp restore backup dir
