@@ -62,14 +62,17 @@ UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
-rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && \
-rm -rf $HOME/.dcos && source $UTILS_FILE || exit 1
+VENV_DIR="$WORKSPACE/venv"
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
 
 
 job_cleanup() {
     #
     # Deletes the Azure resource group used for the deployment
     #
+    dcos cluster remove $DCOS_CLUSTER_ID || {
+        echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
+    }
     echo "Cleanup in progress for the current Azure DC/OS deployment"
     az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
         echo "ERROR: Failed to delete the resource group"
@@ -191,10 +194,6 @@ test_mesos_fetcher() {
         echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
     }
-    sudo apt-get update -y >/dev/null && sudo apt-get install jq -y >/dev/null || {
-        echo "ERROR: Failed to install jq dependency"
-        return 1
-    }
     TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
         echo "ERROR: Failed to copy wsmancmd.py to the proxy master node"
@@ -294,7 +293,6 @@ test_mesos_fetcher_remote_https() {
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
-
 
 test_windows_agent_dcos_dns() {
     #
@@ -467,31 +465,6 @@ collect_dcos_nodes_logs() {
     fi
 }
 
-install_dcos_cli() {
-    DCOS_CLI_BASE_URL="https://downloads.dcos.io/binaries/cli/linux/x86-64"
-    if [[ "$DCOS_VERSION" = "1.8.8" ]]; then
-        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.8/dcos"
-    elif [[ "$DCOS_VERSION" = "1.9.0" ]]; then
-        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.9/dcos"
-    elif [[ "$DCOS_VERSION" = "1.10.0" ]]; then
-        DCOS_CLI_URL="$DCOS_CLI_BASE_URL/dcos-1.10/dcos"
-    else
-        echo "ERROR: Cannot find the DC/OS cli url for the version: $DCOS_VERSION"
-        return 1
-    fi
-    DCOS_BINARY_FILE="/usr/local/bin/dcos"
-    sudo curl $DCOS_CLI_URL -o $DCOS_BINARY_FILE && \
-    sudo chmod +x $DCOS_BINARY_FILE || {
-        echo "ERROR: Failed to install the DC/OS CLI"
-        return 1
-    }
-    if [[ "$DCOS_VERSION" = "1.8.8" ]] || [[ "$DCOS_VERSION" = "1.9.0" ]]; then
-        dcos config set core.dcos_url "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
-    else
-        dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
-    fi
-}
-
 check_exit_code() {
     if [[ $? -eq 0 ]]; then
         return 0
@@ -509,6 +482,34 @@ check_exit_code() {
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
     job_cleanup
     exit 1
+}
+
+create_testing_environment() {
+    #
+    # - Install the required dependencies
+    # - Create the python3 virtual environment and activate it
+    # - Installs the DC/OS client packages
+    # - Configures the DC/OS clients for the current cluster and export the
+    #   cluster ID as the DCOS_CLUSTER_ID environment variable
+    #
+    sudo apt-get update -y &>/dev/null && sudo apt-get install jq python3-pip python3-virtualenv -y &>/dev/null || {
+        echo "ERROR: Failed to install dependencies for the testing environment"
+        return 1
+    }
+    virtualenv -p python3 $VENV_DIR && . $VENV_DIR/bin/activate || {
+        echo "ERROR: Failed to create the python3 virtualenv"
+        return 1
+    }
+    pip3 install -U dcos dcoscli &> /dev/null || {
+        echo "ERROR: Failed to install the DC/OS pip client packages"
+        return 1
+    }
+    dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
+    export DCOS_CLUSTER_ID=$(dcos cluster list | egrep "http://${MASTER_PUBLIC_ADDRESS}:80" | awk '{print $2}')
+    dcos cluster list | grep -q $DCOS_CLUSTER_ID || {
+        echo "ERROR: Cannot find any cluster with the ID: $DCOS_CLUSTER_ID"
+        return 1
+    }
 }
 
 # Install latest stable ACS Engine tool
@@ -529,8 +530,8 @@ echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 open_dcos_port
 check_exit_code false
 
-# Install the proper DC/OS cli version
-install_dcos_cli
+# Create the testing environment
+create_testing_environment
 check_exit_code false
 
 # Run the functional tests
