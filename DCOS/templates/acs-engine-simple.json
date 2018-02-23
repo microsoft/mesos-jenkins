@@ -4,6 +4,9 @@
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
       "dcosConfig": {
+          "dcosRepositoryURL": "${DCOS_REPOSITORY_URL}",
+          "dcosClusterPackageListID": "${DCOS_CLUSTER_PACKAGE_LIST_ID}",
+          "dcosBootstrapURL": "${DCOS_BOOTSTRAP_URL}",
           "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
       }
     },
