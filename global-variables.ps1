@@ -1,4 +1,4 @@
-$JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com:8443"
+$JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com"
 
 # Remote log server
 $REMOTE_LOG_SERVER = "10.3.1.6"
@@ -71,6 +71,3 @@ $GNU_WIN32_DIR = Join-Path ${env:ProgramFiles(x86)} "GnuWin32"
 $PYTHON_DIR = Join-Path $env:SystemDrive "Python27"
 $PUTTY_DIR = Join-Path $env:ProgramFiles "PuTTY"
 $7ZIP_DIR = Join-Path $env:ProgramFiles "7-Zip"
-
-# Git repositories URLs
-$MESOS_GIT_URL = "https://github.com/apache/mesos"

@@ -1,5 +1,7 @@
 Param(
     [Parameter(Mandatory=$false)]
+    [string]$GitURL="https://github.com/apache/mesos",
+    [Parameter(Mandatory=$false)]
     [string]$ReviewID,
     [Parameter(Mandatory=$false)]
     [string]$Branch="master",
@@ -208,7 +210,7 @@ function New-Environment {
     New-Directory $MESOS_BUILD_LOGS_DIR
     $global:PARAMETERS["BRANCH"] = $Branch
     # Clone Mesos repository
-    Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $MESOS_GIT_URL -Branch $Branch
+    Start-GitClone -Path $MESOS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMesosCommit
     if($ReviewID) {
         Write-Output "Started testing review: https://reviews.apache.org/r/${ReviewID}"
@@ -217,12 +219,7 @@ function New-Environment {
     }
     Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
-    # Set Visual Studio variables based on tested branch
-    if($Branch -in @("master", "1.5.x")) {
-        Set-VCVariables "15.0"
-    } else {
-        Set-VCVariables "14.0"
-    }
+    Set-VCVariables "15.0"
     Write-Output "New tests environment was successfully created"
 }
 
@@ -231,11 +228,7 @@ function Start-MesosBuild {
     Push-Location $MESOS_DIR
     $logsUrl = Get-BuildLogsUrl
     try {
-        if($Branch -in @("master", "1.5.x")) {
-            $generatorName = "Visual Studio 15 2017 Win64"
-        } else {
-            $generatorName = "Visual Studio 14 2015 Win64"
-        }
+        $generatorName = "Visual Studio 15 2017 Win64"
         $parameters = @("$MESOS_GIT_REPO_DIR", "-G", "`"$generatorName`"", "-T", "host=x64", "-DENABLE_LIBEVENT=ON", "-DHAS_AUTHENTICATION=ON", "-DENABLE_JAVA=ON")
         if($EnableSSL) {
             $parameters += "-DENABLE_SSL=ON"
@@ -361,27 +354,23 @@ function New-RemoteSymlink {
     Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $REMOTE_KEY -Command $remoteCMD
 }
 
-function Get-RemoteBuildDirectoryPath {
+function Get-MesosBuildRelativePath {
     if($ReviewID) {
-        return "$REMOTE_MESOS_BUILD_DIR/review/$ReviewID"
+        return "review/$ReviewID"
     }
+    $repositoryOwner = $GitURL.Split("/")[-2]
     $mesosCommitID = Get-LatestCommitID
-    return "$REMOTE_MESOS_BUILD_DIR/$Branch/$mesosCommitID"
+    return "$repositoryOwner/$Branch/$mesosCommitID"
 }
 
-function Get-RemoteLatestSymlinkPath {
-    if($ReviewID) {
-        return "$REMOTE_MESOS_BUILD_DIR/review/latest"
-    }
-    return "$REMOTE_MESOS_BUILD_DIR/$Branch/latest"
+function Get-RemoteBuildDirectoryPath {
+    $relativePath = Get-MesosBuildRelativePath
+    return "$REMOTE_MESOS_BUILD_DIR/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
-    if($ReviewID) {
-        return "$MESOS_BUILD_BASE_URL/review/$ReviewID"
-    }
-    $mesosCommitID = Get-LatestCommitID
-    return "$MESOS_BUILD_BASE_URL/$Branch/$mesosCommitID"
+    $relativePath = Get-MesosBuildRelativePath
+    return "$MESOS_BUILD_BASE_URL/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -394,6 +383,19 @@ function Get-BuildBinariesUrl {
     return "$buildOutUrl/binaries"
 }
 
+function New-RemoteLatestSymlinks {
+    $remoteDirPath = Get-RemoteBuildDirectoryPath
+    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
+    if($ReviewID) {
+        # We only need to update a single symlink if this is testing a
+        # ReviewBoard Mesos patch.
+        return
+    }
+    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+}
+
 function Start-LogServerFilesUpload {
     $consoleUrl = "${JENKINS_SERVER_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
     Start-FileDownload -Force -URL $consoleUrl -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
@@ -404,8 +406,7 @@ function Start-LogServerFilesUpload {
     $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
     if($global:PARAMETERS["BUILD_STATUS"] -eq "PASS") {
-        $remoteSymlinkPath = Get-RemoteLatestSymlinkPath
-        New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $remoteSymlinkPath
+        New-RemoteLatestSymlinks
     }
 }
 
@@ -421,7 +422,7 @@ function Get-SuccessBuildMessage {
     if($ReviewID) {
         return "Mesos patch $ReviewID was successfully built and tested."
     }
-    return "Mesos nightly build and testing was successful."
+    return "Successful Mesos nightly build and testing for repository $GitURL on branch $Branch"
 }
 
 function Start-TempDirCleanup {

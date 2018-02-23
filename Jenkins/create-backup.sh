@@ -26,5 +26,5 @@ mkdir -p $BACKUPS_DIR/$BACKUP_NAME
 docker run --rm -v jenkins-data:/jenkins-data -v $BACKUPS_DIR/$BACKUP_NAME:/mnt alpine tar czf /mnt/jenkins-data.tar.gz jenkins-data
 
 # - Backup the Jenkins container
-docker save -o $BACKUPS_DIR/$BACKUP_NAME/jenkins-container.tar jenkins
+docker save -o $BACKUPS_DIR/$BACKUP_NAME/jenkins-container.tar jenkinsbuild
 gzip $BACKUPS_DIR/$BACKUP_NAME/jenkins-container.tar

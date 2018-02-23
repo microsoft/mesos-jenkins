@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+CI_WEB_ROOT="http://dcos-win.westus.cloudapp.azure.com"
+
+
 validate_simple_deployment_params() {
     if [[ -z $AZURE_USER ]]; then echo "ERROR: Parameter AZURE_USER is not set"; exit 1; fi
     if [[ -z $AZURE_USER_PASSWORD ]]; then echo "ERROR: Parameter AZURE_USER_PASSWORD is not set"; exit 1; fi
@@ -18,15 +21,22 @@ validate_simple_deployment_params() {
     if [[ -z $WIN_AGENT_ADMIN ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN is not set"; exit 1; fi
     if [[ -z $WIN_AGENT_ADMIN_PASSWORD ]]; then echo "ERROR: Parameter WIN_AGENT_ADMIN_PASSWORD is not set"; exit 1; fi
 
-    if [[ -z $DCOS_VERSION ]]; then
-        # Set latest stable DCOS version 1.10.0 as the default one
-        export DCOS_VERSION="1.10.0"
-    fi
-    if [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
+    if [[ ! -z $DCOS_VERSION ]] && [[ "$DCOS_VERSION" != "1.8.8" ]] && [[ "$DCOS_VERSION" != "1.9.0" ]] && [[ "$DCOS_VERSION" != "1.10.0" ]]; then
         echo "ERROR: Supported DCOS_VERSION are: 1.8.8, 1.9.0 or 1.10.0"
         exit 1
     fi
-    if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then echo "ERROR: Parameter DCOS_WINDOWS_BOOTSTRAP_URL is not set"; exit 1; fi
+    if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then
+        export DCOS_WINDOWS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos-windows/mesosphere"
+    fi
+    if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
+        export DCOS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos/bootstrap/latest.bootstrap.tar.xz"
+    fi
+    if [[ -z $DCOS_REPOSITORY_URL ]]; then
+        export DCOS_REPOSITORY_URL="$CI_WEB_ROOT/dcos"
+    fi
+    if [[ -z $DCOS_CLUSTER_PACKAGE_LIST_ID ]]; then
+        export DCOS_CLUSTER_PACKAGE_LIST_ID=$(curl $CI_WEB_ROOT/dcos/cluster-package-list.latest)
+    fi
 }
 
 validate_extra_hybrid_deployment_params() {
@@ -102,7 +112,11 @@ install_acs_engine_from_src
 install_azure_cli_2
 
 # Generate the Azure ARM deploy files
-ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
+if [[ ! -z $DCOS_VERSION ]]; then
+    ACS_TEMPLATE="$TEMPLATES_DIR/stable/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
+else
+    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
+fi
 DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
 ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
 eval "cat << EOF
@@ -112,7 +126,7 @@ EOF
 acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf ./translations # Left-over after running 'acs-engine generate'
 
-# Deploy the DCOS with Mesos environment
+# Deploy the DC/OS with Mesos environment
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
 
@@ -124,6 +138,6 @@ sed -i 's|    "agentWindowsSku": "2016-Datacenter-with-Containers",|    "agentWi
 
 azure_cli_login
 az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
-echo "Started the DCOS deployment"
+echo "Started the DC/OS deployment"
 az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
 rm -rf $DCOS_DEPLOY_DIR
