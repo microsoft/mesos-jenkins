@@ -512,7 +512,11 @@ check_exit_code() {
 }
 
 # Install latest stable ACS Engine tool
-$DIR/utils/install-latest-stable-acs-engine.sh
+# $DIR/utils/install-latest-stable-acs-engine.sh
+###
+### NOTE(ibalutoiu): We temporarily rely on a private acs-engine build.
+###
+sudo curl http://dcos-win.westus.cloudapp.azure.com/downloads/acs-engine -o /usr/local/bin/acs-engine && sudo chmod +x /usr/local/bin/acs-engine
 check_exit_code false
 
 # Deploy DC/OS master + slave nodes
