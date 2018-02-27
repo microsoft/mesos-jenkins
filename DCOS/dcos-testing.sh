@@ -70,9 +70,11 @@ job_cleanup() {
     #
     # Deletes the Azure resource group used for the deployment
     #
-    dcos cluster remove $DCOS_CLUSTER_ID || {
-        echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
-    }
+    if [[ ! -z $DCOS_CLUSTER_ID ]]; then
+        dcos cluster remove $DCOS_CLUSTER_ID || {
+            echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
+        }
+    fi
     echo "Cleanup in progress for the current Azure DC/OS deployment"
     az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
         echo "ERROR: Failed to delete the resource group"
