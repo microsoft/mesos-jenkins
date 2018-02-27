@@ -12,13 +12,13 @@
       "Windows"
     ]
   ],
+  "networks": [ { "mode": "container", "name": "customnat" } ],
   "container": {
     "type": "DOCKER",
     "volumes": [],
     "docker": {
       "image": "microsoft/iis:windowsservercore-1709",
       "privileged": false,
-      "network": "BRIDGE",
       "parameters": [
         {
           "key": "publish",
@@ -36,7 +36,7 @@
       "maxConsecutiveFailures": 3,
       "port": 80,
       "path": "/",
-      "protocol": "HTTP",
+      "protocol": "MESOS_HTTP",
       "ignoreHttp1xx": false
     }
   ],
