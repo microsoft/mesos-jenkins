@@ -42,6 +42,9 @@ else
     echo "ERROR: $DCOS_DEPLOYMENT_TYPE DCOS_DEPLOYMENT_TYPE is not supported"
     exit 1
 fi
+# LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
+export LINUX_PRIVATE_IPS=""
+export WINDOWS_PRIVATE_IPS=""
 
 DIR=$(dirname $0)
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
@@ -414,6 +417,48 @@ collect_windows_agents_logs() {
     done
 }
 
+linux_agents_private_ips() {
+    if [[ ! -z $LINUX_PRIVATE_IPS ]]; then
+        echo -e $LINUX_PRIVATE_IPS
+        return 0
+    fi
+    VMSS_NAMES=$(az vmss list --resource-group $AZURE_RESOURCE_GROUP | jq -r ".[] | select(.virtualMachineProfile.osProfile.linuxConfiguration != null) | .name") || {
+        echo "ERROR: Failed to get the Linux VMSS names"
+        return 1
+    }
+    PRIVATE_IPS=""
+    for VMSS_NAME in $VMSS_NAMES; do
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+            echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
+            return 1
+        }
+        PRIVATE_IPS="$IPS $PRIVATE_IPS"
+    done
+    export LINUX_PRIVATE_IPS="$PRIVATE_IPS"
+    echo -e $LINUX_PRIVATE_IPS
+}
+
+windows_agents_private_ips() {
+    if [[ ! -z $WINDOWS_PRIVATE_IPS ]]; then
+        echo -e $WINDOWS_PRIVATE_IPS
+        return 0
+    fi
+    VMSS_NAMES=$(az vmss list --resource-group $AZURE_RESOURCE_GROUP | jq -r ".[] | select(.virtualMachineProfile.osProfile.windowsConfiguration != null) | .name") || {
+        echo "ERROR: Failed to get the Windows VMSS names"
+        return 1
+    }
+    PRIVATE_IPS=""
+    for VMSS_NAME in $VMSS_NAMES; do
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+            echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
+            return 1
+        }
+        PRIVATE_IPS="$IPS $PRIVATE_IPS"
+    done
+    export WINDOWS_PRIVATE_IPS="$PRIVATE_IPS"
+    echo -e $WINDOWS_PRIVATE_IPS
+}
+
 collect_dcos_nodes_logs() {
     #
     # Collect logs from all the deployment nodes and upload them to the log server
@@ -431,38 +476,20 @@ collect_dcos_nodes_logs() {
     run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
 
-    # Collect logs from all the public Windows nodes(s)
-    echo "Collecting Windows public agents logs"
-    WIN_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/windows_public_agents"
-    mkdir -p $WIN_PUBLIC_LOGS_DIR || return 1
-    IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
-    collect_windows_agents_logs "$WIN_PUBLIC_LOGS_DIR" "$IPS" || return 1
-
-    if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
-        echo "Collecting Windows private agents logs"
-        # Collect logs from all the private Windows nodes(s)
-        WIN_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/windows_private_agents"
-        mkdir -p $WIN_PRIVATE_LOGS_DIR  || return 1
-        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
-        collect_windows_agents_logs "$WIN_PRIVATE_LOGS_DIR" "$IPS" || return 1
+    IPS=$(linux_agents_private_ips)
+    if [[ ! -z $IPS ]]; then
+        echo "Collecting Linux agents logs"
+        LINUX_LOGS_DIR="$TEMP_LOGS_DIR/linux_agents"
+        mkdir -p $LINUX_LOGS_DIR || return 1
+        collect_linux_agents_logs "$LINUX_LOGS_DIR" "$IPS" || return 1
     fi
 
-    if [[ $LINUX_PUBLIC_AGENT_COUNT -gt 0 ]]; then
-        echo "Collecting Linux public agents logs"
-        # Collect logs from all the public Linux node(s)
-        LINUX_PUBLIC_LOGS_DIR="$TEMP_LOGS_DIR/linux_public_agents"
-        mkdir -p $LINUX_PUBLIC_LOGS_DIR || return 1
-        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'linux' --role 'public') || return 1
-        collect_linux_agents_logs "$LINUX_PUBLIC_LOGS_DIR" "$IPS" || return 1
-    fi
-
-    if [[ $LINUX_PRIVATE_AGENT_COUNT -gt 0 ]]; then
-        echo "Collecting Linux private agents logs"
-        # Collect logs from all the private Linux node(s)
-        LINUX_PRIVATE_LOGS_DIR="$TEMP_LOGS_DIR/linux_private_agents"
-        mkdir -p $LINUX_PRIVATE_LOGS_DIR || return 1
-        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'linux' --role 'private') || return 1
-        collect_linux_agents_logs "$LINUX_PRIVATE_LOGS_DIR" "$IPS" || return 1
+    IPS=$(windows_agents_private_ips)
+    if [[ ! -z $IPS ]]; then
+        echo "Collecting Windows agents logs"
+        WIN_LOGS_DIR="$TEMP_LOGS_DIR/windows_agents"
+        mkdir -p $WIN_LOGS_DIR || return 1
+        collect_windows_agents_logs "$WIN_LOGS_DIR" "$IPS" || return 1
     fi
 }
 
@@ -524,17 +551,17 @@ check_exit_code false
 
 # Deploy DC/OS master + slave nodes
 $DIR/acs-engine-dcos-deploy.sh
-check_exit_code false
+check_exit_code true
 echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
 echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
 
 # Open DC/OS API & GUI port
 open_dcos_port
-check_exit_code false
+check_exit_code true
 
 # Create the testing environment
 create_testing_environment
-check_exit_code false
+check_exit_code true
 
 # Run the functional tests
 run_functional_tests
