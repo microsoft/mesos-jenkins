@@ -65,7 +65,6 @@ BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
-rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
 
 
 job_cleanup() {
@@ -539,44 +538,3 @@ create_testing_environment() {
     }
     dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
 }
-
-# Install latest stable ACS Engine tool
-# $DIR/utils/install-latest-stable-acs-engine.sh
-###
-### NOTE(ibalutoiu): We temporarily rely on a private acs-engine build.
-###
-sudo curl http://dcos-win.westus.cloudapp.azure.com/downloads/acs-engine -o /usr/local/bin/acs-engine && sudo chmod +x /usr/local/bin/acs-engine
-check_exit_code false
-
-# Deploy DC/OS master + slave nodes
-$DIR/acs-engine-dcos-deploy.sh
-check_exit_code true
-echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
-echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
-
-# Open DC/OS API & GUI port
-open_dcos_port
-check_exit_code true
-
-# Create the testing environment
-create_testing_environment
-check_exit_code true
-
-# Run the functional tests
-run_functional_tests
-check_exit_code true
-
-# Collect all the logs in the DC/OS deployments
-collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
-upload_logs || echo "ERROR: Failed to upload logs to log server"
-
-MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
-MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
-echo "STATUS=PASS" >> $PARAMETERS_FILE
-echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
-echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
-
-# Do the final cleanup
-job_cleanup
-
-echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
