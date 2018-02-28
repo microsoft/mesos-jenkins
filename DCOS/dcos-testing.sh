@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-export BUILD_ID=$(date +%m%d%y%T | sed 's|\:||g')
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
