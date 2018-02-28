@@ -45,7 +45,7 @@ fi
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
 
-DIR=$(dirname $0)
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
