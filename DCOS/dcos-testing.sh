@@ -464,6 +464,9 @@ collect_dcos_nodes_logs() {
     # Collect logs from all the deployment nodes and upload them to the log server
     #
     echo "Collecting logs from all the DC/OS nodes"
+    if [[ ! -z $DCOS_CLUSTER_ID ]]; then
+        dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
+    fi
 
     # Collect logs from all the Linux master node(s)
     echo "Collecting Linux master logs"
@@ -538,5 +541,4 @@ create_testing_environment() {
         echo "ERROR: Cannot find any cluster with the ID: $DCOS_CLUSTER_ID"
         return 1
     }
-    dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
 }
