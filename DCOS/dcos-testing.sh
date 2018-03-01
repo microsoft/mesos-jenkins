@@ -206,6 +206,10 @@ test_mesos_fetcher() {
         echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
         return 1
     }
+    if [[ -z $DOCKER_CONTAINER_ID ]]; then
+        echo "ERROR: There aren't any containers running on the Windows host: $TASK_HOST"
+        return 1
+    fi
     MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash'") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
