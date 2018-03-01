@@ -13,18 +13,7 @@ function Login-AzureRmFromEnv {
         }
     }
     
-    # Suppress error message for check
-    $ErrorActionPreference = 'silentlycontinue'
-    
-    # Check if already logged in
-    try {
-        $subscription = Get-AzureRmSubscription
-    }
-    catch {
-        $subscription = $null
-    }
-    
-    $ErrorActionPreference = 'continue'
+    $subscription = Get-AzureRmSubscription -ErrorAction SilentlyContinue
     
     if ($subscription -eq $null) {
         $secpasswd = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force
@@ -43,7 +32,6 @@ function getScalesetsVMcount ($RG_NAME) {
 
     $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
     $scaleSets | ForEach-Object {
-        # Write-Host "Scaleset: " $_.Name
         $vms = Get-AzureRmVmssVM -ResourceGroupName $RG_NAME -VMScaleSetName $_.Name
         $vmCount += $vms.Count
     }
@@ -83,7 +71,6 @@ Describe "Getting initial state" {
         $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
         $scaleSets | Should not be $null
         $scaleSets.Count | Should BeGreaterThan 0
-        # ,$scaleSets | Should BeOfType System.Collections.ArrayList
     }
 
     It "Can get scaleset OS" {
@@ -107,12 +94,9 @@ Describe "Getting initial state" {
         $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
         $scaleSets | Should not be $null
         $scaleSets.Count | Should BeGreaterThan 0
-        # $scaleSets | ConvertTo-Json | Write-Host 
         $scaleSets | ForEach-Object {
-            # Write-Host "Scaleset: " $_.Name
             $vms = Get-AzureRmVmssVM -ResourceGroupName $RG_NAME -VMScaleSetName $_.Name
             $vms | Should not be $null
-            # Write-Host "Count = ", $vms.Count
             $vms.Count | Should BeGreaterThan 0
         }
     }
@@ -124,7 +108,6 @@ Describe "Getting initial state" {
         
         $masterFQDN = $deployment.Outputs.masterFQDN.Value
         $masterFQDN | Should not be $null
-        # $masterFQDN | Should BeLike "*azure.com"
         
         $res = Invoke-WebRequest "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
         $res | Should not be $null
@@ -194,7 +177,6 @@ Describe "DCOS UI" {
 
 Describe "DCOS cli cluster" {
 
-    # $masterFQDN = getMasterFQDN($RG_NAME)
     It "Can list the clusters" {
         $clusters = $(dcos cluster list --json | ConvertFrom-Json)
         $? | Should be $True
@@ -230,10 +212,12 @@ Describe "DCOS service progress" {
 
     It "Can get the deployment" {
         dcos marathon deployment list --json
+        $? | Should be $true
     }
 
     It "Can get the service" {
         dcos marathon app list --json
+        $? | Should be $true
     }
 }
 
@@ -262,10 +246,3 @@ Describe "ScaleDown" {
     }
 
 }
-
-Describe "DCOS UI after scale down" {
-    It "Removes the agents from DCOS" {
-        
-    }
-}
-
