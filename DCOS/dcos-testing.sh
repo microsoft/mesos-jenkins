@@ -345,17 +345,31 @@ test_dcos_dns() {
     fi
 }
 
+check_master_agent_authentication() {
+    for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
+        MASTER_SSH_PORT="220$i"
+        AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y &>/dev/null && curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || return 1
+        if [[ "$AUTH_ENABLED" != "true" ]]; then
+            echo "ERROR: Master $i doesn't have 'authenticate_agents' flag enabled"
+            return 1
+        fi
+    done
+    echo "Success: All the masters have the authenticate_agents flag enabled"
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
+    #  - Check if the Mesos master - agent authentication is enabled
     #  - Check DC/OS DNS functionality from the Windows node
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
     #
     check_custom_attributes || return 1
+    check_master_agent_authentication || return 1
     deploy_iis || return 1
     test_dcos_dns || return 1
     test_mesos_fetcher_local || return 1
