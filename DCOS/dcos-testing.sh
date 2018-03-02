@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-export BUILD_ID=$(date +%m%d%y%T | sed 's|\:||g')
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
@@ -46,7 +45,7 @@ fi
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
 
-DIR=$(dirname $0)
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
@@ -66,7 +65,6 @@ BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
-rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
 
 
 job_cleanup() {
@@ -208,6 +206,10 @@ test_mesos_fetcher() {
         echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
         return 1
     }
+    if [[ -z $DOCKER_CONTAINER_ID ]]; then
+        echo "ERROR: There aren't any containers running on the Windows host: $TASK_HOST"
+        return 1
+    fi
     MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash'") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
@@ -343,17 +345,31 @@ test_dcos_dns() {
     fi
 }
 
+check_master_agent_authentication() {
+    for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
+        MASTER_SSH_PORT="220$i"
+        AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y &>/dev/null && curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || return 1
+        if [[ "$AUTH_ENABLED" != "true" ]]; then
+            echo "ERROR: Master $i doesn't have 'authenticate_agents' flag enabled"
+            return 1
+        fi
+    done
+    echo "Success: All the masters have the authenticate_agents flag enabled"
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
     #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
     #  - Check if the custom attributes are set
+    #  - Check if the Mesos master - agent authentication is enabled
     #  - Check DC/OS DNS functionality from the Windows node
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
     #
     check_custom_attributes || return 1
+    check_master_agent_authentication || return 1
     deploy_iis || return 1
     test_dcos_dns || return 1
     test_mesos_fetcher_local || return 1
@@ -409,9 +425,12 @@ collect_windows_agents_logs() {
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
         AGENT_LOGS_DIR="/tmp/$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR/logs && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
         for SERVICE in "epmd" "mesos" "spartan"; do
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/logs/$SERVICE ; fi" || return 1
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "mkdir -p $AGENT_LOGS_DIR/$SERVICE && if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
         done
         download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
@@ -464,6 +483,9 @@ collect_dcos_nodes_logs() {
     # Collect logs from all the deployment nodes and upload them to the log server
     #
     echo "Collecting logs from all the DC/OS nodes"
+    if [[ ! -z $DCOS_CLUSTER_ID ]]; then
+        dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
+    fi
 
     # Collect logs from all the Linux master node(s)
     echo "Collecting Linux master logs"
@@ -538,46 +560,4 @@ create_testing_environment() {
         echo "ERROR: Cannot find any cluster with the ID: $DCOS_CLUSTER_ID"
         return 1
     }
-    dcos node --json > $TEMP_LOGS_DIR/dcos-nodes.json
 }
-
-# Install latest stable ACS Engine tool
-# $DIR/utils/install-latest-stable-acs-engine.sh
-###
-### NOTE(ibalutoiu): We temporarily rely on a private acs-engine build.
-###
-sudo curl http://dcos-win.westus.cloudapp.azure.com/downloads/acs-engine -o /usr/local/bin/acs-engine && sudo chmod +x /usr/local/bin/acs-engine
-check_exit_code false
-
-# Deploy DC/OS master + slave nodes
-$DIR/acs-engine-dcos-deploy.sh
-check_exit_code true
-echo "Linux master load balancer public address: $MASTER_PUBLIC_ADDRESS"
-echo "Windows agent load balancer public address: $WIN_AGENT_PUBLIC_ADDRESS"
-
-# Open DC/OS API & GUI port
-open_dcos_port
-check_exit_code true
-
-# Create the testing environment
-create_testing_environment
-check_exit_code true
-
-# Run the functional tests
-run_functional_tests
-check_exit_code true
-
-# Collect all the logs in the DC/OS deployments
-collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
-upload_logs || echo "ERROR: Failed to upload logs to log server"
-
-MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
-MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
-echo "STATUS=PASS" >> $PARAMETERS_FILE
-echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
-echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
-
-# Do the final cleanup
-job_cleanup
-
-echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
