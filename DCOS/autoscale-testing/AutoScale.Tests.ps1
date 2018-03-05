@@ -12,9 +12,11 @@ function Login-AzureRmFromEnv {
             exit 1
         }
     }
-    
-    $subscription = Get-AzureRmSubscription -ErrorAction SilentlyContinue
-    
+    try {
+        $subscription = Get-AzureRmSubscription
+    } catch {
+        $subscription = $null
+    }
     if ($subscription -eq $null) {
         $secpasswd = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential -ArgumentList $Env:CLIENT_ID, $secpasswd
