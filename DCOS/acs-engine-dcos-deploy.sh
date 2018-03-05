@@ -138,6 +138,8 @@ sed -i 's|    "agentWindowsSku": "2016-Datacenter-with-Containers",|    "agentWi
 
 azure_cli_login
 az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
+echo "Validating the DC/OS ARM deployment templates"
+az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
 echo "Started the DC/OS deployment"
 az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
 rm -rf $DCOS_DEPLOY_DIR
