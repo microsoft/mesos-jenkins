@@ -3,7 +3,6 @@ $JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com"
 # Remote log server
 $REMOTE_LOG_SERVER = "10.3.1.6"
 $REMOTE_USER = "logs"
-$REMOTE_KEY = Join-Path $env:SystemDrive "jenkins\workspace\key\logs_id_rsa.ppk"
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 
