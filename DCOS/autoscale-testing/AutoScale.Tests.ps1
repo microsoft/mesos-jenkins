@@ -53,6 +53,20 @@ function getDCOSagentCount ($RG_NAME) {
     return $agentCount
 }
 
+function AreAllNodesHealthy ($RG_NAME) {
+    $masterFQDN = getMasterFQDN($RG_NAME)
+    $res = Invoke-WebRequest "http://$masterFQDN/system/health/v1/nodes" | ConvertFrom-Json | Select-Object nodes
+    $isHealthy = $true
+    foreach ($agentNode in $res.nodes) {
+        if ($agentNode.health -ne 0) {
+            $isHealthy = $false
+            Write-Output "Unhealthy node detected:"
+            Write-Output "host_ip = $($agentNode.host_ip) role = $($agentNode.role) health = $($agentNode.health)"
+        }
+    }
+    return $isHealthy
+}
+
 Describe "Sanity check" {
     It "Is logged in to Azure" {
         $subscription = Get-AzureRmSubscription
@@ -121,6 +135,10 @@ Describe "Getting initial state" {
         $RG_NAME | Should not be $null
         getScalesetsVMcount($RG_NAME) | Should be $(getDCOSagentCount($RG_NAME))
     }
+
+    It "Are all nodes healthy" {
+        AreAllNodesHealthy($RG_NAME) |  Should be $true
+    }    
 }
 
 Describe "ScaleUp" {
@@ -147,6 +165,10 @@ Describe "ScaleUp" {
         $updated_vmss = Get-AzureRmVmss -ResourceGroupName $RG_NAME -VMScaleSetName $scaleset.Name
         $updated_vmss.Sku.Capacity | Should be 4
     }
+
+    It "Are all nodes healthy" {
+        AreAllNodesHealthy($RG_NAME) |  Should be $true
+    }      
 }
 
 Describe "DCOS UI" {
@@ -174,7 +196,7 @@ Describe "DCOS UI" {
         }
 
         $agentCount | Should Be $vmCount
-    }
+    }  
 }
 
 Describe "DCOS cli cluster" {
@@ -247,4 +269,8 @@ Describe "ScaleDown" {
         $updated_vmss.Sku.Capacity | Should be 2
     }
 
+    It "Are all nodes healthy" {
+        AreAllNodesHealthy($RG_NAME) |  Should be $true
+    }      
+    
 }
