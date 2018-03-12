@@ -50,6 +50,26 @@ $SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
 $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
 $SPARTAN_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/spartan-build"
 
+# Diagnostics configurations
+$DIAGNOSTICS_SERVICE_NAME = "dcos-diagnostics"
+$DIAGNOSTICS_AGENT_PORT = 9003
+$DIAGNOSTICS_DIR = Join-Path $DCOS_DIR "diagnostics"
+$DIAGNOSTICS_BIN_DIR = Join-Path $DIAGNOSTICS_DIR "bin"
+$DIAGNOSTICS_WORK_DIR = Join-Path $DIAGNOSTICS_DIR "work"
+$DIAGNOSTICS_LOG_DIR = Join-Path $DIAGNOSTICS_DIR "log"
+$DIAGNOSTICS_SERVICE_DIR = Join-Path $DIAGNOSTICS_DIR "service"
+$DIAGNOSTICS_BUILD_DIR = Join-Path $DIAGNOSTICS_DIR "build"
+$DIAGNOSTICS_BINARIES_DIR = Join-Path $DIAGNOSTICS_DIR "binaries"
+$DIAGNOSTICS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "src\github.com\dcos\dcos-diagnostics"
+$DIAGNOSTICS_BUILD_OUT_DIR = Join-Path $DIAGNOSTICS_DIR "build-output"
+$DIAGNOSTICS_BUILD_LOGS_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "logs"
+$DIAGNOSTICS_BUILD_BINARIES_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "binaries"
+$DIAGNOSTICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/diagnostics-build"
+$DIAGNOSTICS_SERVICE_LIST_FILE_DIR = Join-Path $DIAGNOSTICS_BUILD_BINARIES_DIR "servicelist.txt"
+
+$DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "dcos-windows"
+$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "mesos-jenkins"
+
 # Installers URLs
 $SERVICE_WRAPPER_URL = "$LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
 $VS2017_URL = "https://download.visualstudio.microsoft.com/download/pr/10930949/045b56eb413191d03850ecc425172a7d/vs_Community.exe"
@@ -61,6 +81,11 @@ $PUTTY_URL = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-ins
 $7ZIP_URL = "http://d.7-zip.org/a/7z1700-x64.msi"
 $VCREDIST_2013_URL = "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
 $DEVCON_CAB_URL = "https://download.microsoft.com/download/7/D/D/7DD48DE6-8BDA-47C0-854A-539A800FAA90/wdk/Installers/787bee96dbd26371076b37b13c405890.cab"
+$GOLANG_URL = "https://dl.google.com/go/go1.10.windows-amd64.msi"
+$DCOS_WINDOWS_GITURL="https://github.com/dcos/dcos-windows.git"
+
+# Before checkin, the "soccerGB" need to be placed with Microsoft"
+$MESOS_JENKINS_GIT_URL="https://github.com/soccerGB/mesos-jenkins.git"
 
 # Tools installation directories
 $GIT_DIR = Join-Path $env:ProgramFiles "Git"
@@ -70,3 +95,4 @@ $GNU_WIN32_DIR = Join-Path ${env:ProgramFiles(x86)} "GnuWin32"
 $PYTHON_DIR = Join-Path $env:SystemDrive "Python27"
 $PUTTY_DIR = Join-Path $env:ProgramFiles "PuTTY"
 $7ZIP_DIR = Join-Path $env:ProgramFiles "7-Zip"
+$GOLANG_DIR =  Join-Path $env:SystemDrive "Go"
