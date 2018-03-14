@@ -1,0 +1,138 @@
+{
+  "node_checks": {
+    "checks": {
+      "components_master": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "--role",
+          "master",
+          "components"
+        ],
+        "roles": [
+          "master"
+        ],
+        "timeout": "3s",
+        "description": "All DC/OS components are healthy."
+      },
+      "tar": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "executable",
+          "tar"
+        ],
+        "timeout": "1s",
+        "description": "The tar utility is available"
+      },
+      "mesos_master_replog_synchronized": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "--role",
+          "master",
+          "mesos-metrics"
+        ],
+        "roles": [
+          "master"
+        ],
+        "timeout": "1s",
+        "description": "The Mesos master has synchronized its replicated log"
+      },
+      "journald_dir_permissions": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "journald"
+        ],
+        "timeout": "1s",
+        "description": "Journald directory has the right owners and permissions"
+      },
+      "components_agent": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "--role",
+          "agent",
+          "components",
+          "--port",
+          "61001"
+        ],
+        "roles": [
+          "agent"
+        ],
+        "timeout": "3s",
+        "description": "All DC/OS components are healthy"
+      },
+      "ip_detect_script": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "ip"
+        ],
+        "timeout": "1s",
+        "description": "The IP detect script produces valid output"
+      },
+      "mesos_agent_registered_with_masters": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "--role",
+          "agent",
+          "mesos-metrics"
+        ],
+        "roles": [
+          "agent"
+        ],
+        "timeout": "1s",
+        "description": "The Mesos agent has registered with the masters"
+      },
+      "xz": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "executable",
+          "xz"
+        ],
+        "timeout": "1s",
+        "description": "The xz utility is available"
+      },
+      "clock_sync": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "time"
+        ],
+        "timeout": "1s",
+        "description": "System clock is in sync."
+      },
+      "curl": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "executable",
+          "curl"
+        ],
+        "timeout": "1s",
+        "description": "The curl utility is available"
+      },
+      "unzip": {
+        "cmd": [
+          "/opt/mesosphere/bin/dcos-checks",
+          "executable",
+          "unzip"
+        ],
+        "timeout": "1s",
+        "description": "The unzip utility is available"
+      }
+    },
+    "prestart": [],
+    "poststart": [
+      "components_master",
+      "components_agent",
+      "xz",
+      "tar",
+      "curl",
+      "unzip",
+      "ip_detect_script",
+      "mesos_master_replog_synchronized",
+      "mesos_agent_registered_with_masters",
+      "journald_dir_permissions",
+      "clock_sync"
+    ]
+  },
+  "check_env": {
+    "PATH": "/opt/mesosphere/bin:/usr/bin:/bin:/sbin",
+    "LD_LIBRARY_PATH": "/opt/mesosphere/lib"
+  }
+}
