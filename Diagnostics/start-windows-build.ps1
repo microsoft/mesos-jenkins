@@ -6,9 +6,8 @@ Param(
     [Parameter(Mandatory=$false)]
     [string]$CommitID,
     [Parameter(Mandatory=$false)]
-    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.json",
-    [Parameter(Mandatory=$false)]
-    [switch]$EnableSSL
+    [string]$ParametersFile="${env:WORKSPACE}\build-parameters.json"
+
 )
 
 $ErrorActionPreference = "Stop"
@@ -239,7 +238,7 @@ function New-RemoteSymlink {
 }
 function Get-DiagnosticsBuildRelativePath {
     $repositoryOwner = $GitURL.Split("/")[-2]
-    $mesosCommitID = Get-LatestCommitID
+    $diagnosticsCommitID = Get-LatestCommitID
     return "$repositoryOwner/$Branch/$diagnosticsCommitID"
 }
 
@@ -295,7 +294,7 @@ function Start-EnvironmentCleanup {
 }
 
 function Get-SuccessBuildMessage {
-    return "Successful Diagnostics nightly build and testing for repository $GitURL on branch $Branch"
+    return "Successful Diagnostics build and testing for repository $GitURL on branch $Branch"
 }
 
 function Start-TempDirCleanup {
