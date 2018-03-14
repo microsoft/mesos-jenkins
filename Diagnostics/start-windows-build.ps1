@@ -7,7 +7,6 @@ Param(
     [string]$CommitID,
     [Parameter(Mandatory=$false)]
     [string]$ParametersFile="${env:WORKSPACE}\build-parameters.json"
-
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,7 +42,6 @@ function Install-Prerequisites {
         }
     }
     foreach($program in $prerequisites.Keys) {
-        write-output $prerequisites[$program]['install_dir']
         if(Test-Path $prerequisites[$program]['install_dir']) {
             Write-Output "$program is already installed"
             continue
@@ -52,7 +50,6 @@ function Install-Prerequisites {
         $fileName = $prerequisites[$program]['url'].Split('/')[-1]
         $programFile = Join-Path $env:TEMP $fileName
         Start-ExecuteWithRetry { Invoke-WebRequest -Uri $prerequisites[$program]['url'] -OutFile $programFile}
-
         $parameters = @{
             'FilePath' = $programFile
             'ArgumentList' = $prerequisites[$program]['install_args']
@@ -138,73 +135,55 @@ function Set-LatestDiagnosticsCommit {
     }
 }
 
-function Clone-DiagnosticsSource {
+function New-TestingEnvironment {
     Write-Output "Creating new tests environment"
     Start-EnvironmentCleanup # Do an environment cleanup to make sure everything is fresh
     New-Directory $DIAGNOSTICS_DIR
-    New-Directory $DIAGNOSTICS_BUILD_DIR
-    New-Directory $DIAGNOSTICS_BINARIES_DIR
     New-Directory $DIAGNOSTICS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $DIAGNOSTICS_BUILD_LOGS_DIR
     $global:PARAMETERS["BRANCH"] = $Branch
-
-    # Clone DIANOSTICS repository
     Start-GitClone -Path $DIAGNOSTICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestDiagnosticsCommit
-
-    Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GITURL -Branch $Branch
-    Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL -Branch "diagnostics"    
-
+    Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
+    Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
     Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
     Write-Output "New tests environment was successfully created"
 }
 
-function Build-DiagnosticsBinaries {
-    Write-Output "Building Diagnostics binary"
-    Push-Location $DIAGNOSTICS_DIR
-    Set-Location $DIAGNOSTICS_GIT_REPO_DIR
-    $logsUrl = Get-BuildLogsUrl
+function Start-DCOSDiagnosticsBuild {
+    Write-Output "Building DC/OS Diagnostics"
+    Push-Location $DIAGNOSTICS_GIT_REPO_DIR
     try {
-        $parameters = @(".\scripts\make.ps1", "build")
-        $processPath = "powershell.exe"
-        Start-DiagnosticsCIProcess  -ProcessPath  $processPath `
+        Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
                                     -StdoutFileName "diagnostics-build-stdout.log" `
                                     -StderrFileName "diagnostics-build-stderr.log" `
-                                    -ArgumentList $parameters `
+                                    -ArgumentList @(".\scripts\make.ps1", "build") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
         Pop-Location
     }
-    Write-Output "Diagnostics was successfully built"
+    Write-Output "DC/OS Diagnostics was successfully built"
 }
 
-function Generate-ServerListFile {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$FilePath
-    )
-    Write-Output "ServerListFile = $FilePath"
-    $services = Get-Variable |  where {$_.Name.Contains("_SERVICE_NAME")} 
-    foreach ($service in $services) {
-        $service.Value | Out-File $FilePath -Append
-    }
-}
-
-function Generate-DiagnosticsZipFile {
-    Write-Output "Started building Diagnostics binaries"
-    write-output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR" 
+function New-DCOSDiagnosticsPackage {
+    Write-Output "Creating DC/OS Diagnostics package"
+    Write-Output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR"
     New-Directory $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Generate-ServerListFile -FilePath $DIAGNOSTICS_SERVICE_LIST_FILE_DIR
-
+    $diagnosticsServicesList = Join-Path $DIAGNOSTICS_BUILD_BINARIES_DIR "services-list.txt"
+    Write-Output "Creating services list file: $diagnosticsServicesList"
+    $services = Get-Variable | Foreach-Object {
+        if($_.Name.EndsWith("_SERVICE_NAME")) {
+            $_.Value | Out-File $diagnosticsServicesList -Append
+        }
+    }
     Copy-Item -Path "$DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Copy-Item -Path "$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR\diagnostics\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR -Recurse
-
+    Copy-Item -Recurse -Path "$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR\diagnostics\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$DIAGNOSTICS_GIT_REPO_DIR\*.exe" -Destination "$DIAGNOSTICS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$DIAGNOSTICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$DIAGNOSTICS_BUILD_BINARIES_DIR\diagnostics.zip"
-    Write-Output "Diagnostic zip file: $DIAGNOSTICS_BUILD_BINARIES_DIR\diagnostics.zip"
-    Write-Output "Diagnostics files were successfully generated"
+    Write-Output "DC/OS Diagnostics package was successfully generated"
 }
+
 function Copy-FilesToRemoteServer {
     Param(
         [Parameter(Mandatory=$true)]
@@ -236,6 +215,7 @@ function New-RemoteSymlink {
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
     Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
+
 function Get-DiagnosticsBuildRelativePath {
     $repositoryOwner = $GitURL.Split("/")[-2]
     $diagnosticsCommitID = Get-LatestCommitID
@@ -266,7 +246,6 @@ function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
     New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-
     $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
     New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
 }
@@ -290,11 +269,10 @@ function Start-EnvironmentCleanup {
     $processes = @('go')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
     cmd.exe /C "rmdir /s /q $DIAGNOSTICS_DIR > nul 2>&1"
-    Clear-Variable -Name "LATEST_COMMIT_ID"
 }
 
 function Get-SuccessBuildMessage {
-    return "Successful Diagnostics build and testing for repository $GitURL on branch $Branch"
+    return "Successful DC/OS Diagnostics Windows build and testing for repository $GitURL on $Branch branch"
 }
 
 function Start-TempDirCleanup {
@@ -310,31 +288,19 @@ function Start-TempDirCleanup {
     }
 }
 
-function Run-DiagnosticsUnittests {
-    Write-Output "Run Diagnostics unittests"
-    Push-Location
-    Set-Location $DIAGNOSTICS_GIT_REPO_DIR
-    $currLoc = Get-Location
-    write-output "Current location: $($currLoc.Path)" 
-    $logsUrl = Get-BuildLogsUrl
+function Start-DCOSDiagnosticsUnitTests {
+    Write-Output "Run DC/OS Diagnostics unit tests"
+    Push-Location $DIAGNOSTICS_GIT_REPO_DIR
     try {
-        $parameters = @(".\scripts\make.ps1", "test")
-        $processPath = "powershell.exe"
-        Start-DiagnosticsCIProcess  -ProcessPath  $processPath `
+        Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
                                     -StdoutFileName "diagnostics-unitests-stdout.log" `
                                     -StderrFileName "diagnostics-unitests-stderr.log" `
-                                    -ArgumentList $parameters `
+                                    -ArgumentList @(".\scripts\make.ps1", "test") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
         Pop-Location
     }
-
-    if($global:PARAMETERS["BUILD_STATUS"] -eq 'FAIL') {
-        $errMsg = "Some of the unit tests failed. Please check the relevant logs."
-        $global:PARAMETERS["FAILED_COMMAND"] = 'Run-DiagnosticsUnittests'
-        Throw $errMsg
-    }  
-    Write-Output "All Diagnostics unittests passed successfully"
+    Write-Output "DC/OS Diagnostics unit tests passed"
 }
 
 function New-ParametersFile {
@@ -364,11 +330,10 @@ try {
     Start-TempDirCleanup
     New-ParametersFile -FilePath $ParametersFile
     Install-Prerequisites
-    Clone-DiagnosticsSource
-    Build-DiagnosticsBinaries
-    Run-DiagnosticsUnittests
-    Generate-DiagnosticsZipFile
-
+    New-TestingEnvironment
+    Start-DCOSDiagnosticsBuild
+    Start-DCOSDiagnosticsUnitTests
+    New-DCOSDiagnosticsPackage
     $global:PARAMETERS["BUILD_STATUS"] = "PASS"
     $global:PARAMETERS["MESSAGE"] = Get-SuccessBuildMessage
 } catch {
@@ -379,8 +344,6 @@ try {
     exit 1
 } finally {
     Start-LogServerFilesUpload
-    Copy-Item -Path "$DIAGNOSTICS_BUILD_BINARIES_DIR\diagnostics.zip" -Destination $DCOS_DIR
-  
     Write-ParametersFile -FilePath $ParametersFile
     Start-EnvironmentCleanup
 }
