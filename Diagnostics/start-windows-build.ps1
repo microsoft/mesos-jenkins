@@ -170,7 +170,7 @@ function New-DCOSDiagnosticsPackage {
     Write-Output "Creating DC/OS Diagnostics package"
     Write-Output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR"
     New-Directory $DIAGNOSTICS_BUILD_BINARIES_DIR
-    $diagnosticsServicesList = Join-Path $DIAGNOSTICS_BUILD_BINARIES_DIR "services-list.txt"
+    $diagnosticsServicesList = Join-Path $DIAGNOSTICS_BUILD_BINARIES_DIR "servicelist.txt"
     Write-Output "Creating services list file: $diagnosticsServicesList"
     $services = Get-Variable | Foreach-Object {
         if($_.Name.EndsWith("_SERVICE_NAME")) {
