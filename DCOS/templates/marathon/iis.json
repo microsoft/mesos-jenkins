@@ -1,10 +1,10 @@
 {
-  "id": "test-fetcher-http",
+  "id": "test-iis",
   "cmd": null,
-  "disk": 0,
-  "instances": 1,
   "cpus": 1,
   "mem": 512,
+  "disk": 0,
+  "instances": 1,
   "constraints": [
     [
       "os",
@@ -15,19 +15,25 @@
   "networks": [ { "mode": "container", "name": "customnat" } ],
   "container": {
     "type": "DOCKER",
+    "volumes": [],
     "docker": {
       "image": "microsoft/iis:windowsservercore-1709",
+      "privileged": false,
       "parameters": [
         {
           "key": "publish",
           "value": "80:80"
         }
-      ]
+      ],
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 0
+        }
+      ],
+      "forcePullImage": true
     }
   },
-  "uris": [
-    "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
-  ],
   "healthChecks": [
     {
       "gracePeriodSeconds": 300,

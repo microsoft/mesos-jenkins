@@ -1,6 +1,6 @@
 {
-  "id": "dcos-iis",
-  "cmd": null,
+  "id": "test-fetcher-https",
+  "cmd": "python -m http.server 8080",
   "cpus": 1,
   "mem": 512,
   "disk": 0,
@@ -17,24 +17,33 @@
     "type": "DOCKER",
     "volumes": [],
     "docker": {
-      "image": "microsoft/iis:windowsservercore-1709",
+      "image": "python:3",
       "privileged": false,
       "parameters": [
         {
           "key": "publish",
-          "value": "80:80"
+          "value": "8080:8080"
         }
       ],
-      "forcePullImage": false
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 0
+        }
+      ],
+      "forcePullImage": true
     }
   },
+  "uris": [
+    "https://github.com/Microsoft/mesos-jenkins/raw/master/DCOS/resources/fetcher-test.zip"
+  ],
   "healthChecks": [
     {
       "gracePeriodSeconds": 300,
       "intervalSeconds": 60,
       "timeoutSeconds": 20,
       "maxConsecutiveFailures": 3,
-      "port": 80,
+      "port": 8080,
       "path": "/",
       "protocol": "MESOS_HTTP",
       "ignoreHttp1xx": false
