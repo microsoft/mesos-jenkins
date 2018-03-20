@@ -113,9 +113,9 @@ install_azure_cli_2
 
 # Generate the Azure ARM deploy files
 if [[ ! -z $DCOS_VERSION ]]; then
-    ACS_TEMPLATE="$TEMPLATES_DIR/stable/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
+    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/stable/${DCOS_DEPLOYMENT_TYPE}.json"
 else
-    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine-${DCOS_DEPLOYMENT_TYPE}.json"
+    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/testing/${DCOS_DEPLOYMENT_TYPE}.json"
 fi
 DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
 ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
