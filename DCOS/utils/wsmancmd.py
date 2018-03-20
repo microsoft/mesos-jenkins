@@ -15,6 +15,7 @@
 
 import getopt
 import sys
+import base64
 
 from winrm import protocol
 
@@ -138,8 +139,10 @@ def main():
     if args_ok:
         url = get_url(url, host, use_ssl, port)
         if is_powershell_cmd:
-            cmd = ["powershell.exe", "-ExecutionPolicy", "RemoteSigned",
-                   "-NonInteractive", "-Command"] + cmd
+            cmd = ["powershell.exe",
+                   "-ExecutionPolicy", "RemoteSigned", "-NonInteractive",
+                   "-EncodedCommand",
+                   base64.b64encode((" ".join(cmd)).encode("utf-16-le"))]
         std_out, std_err, exit_code = run_wsman_cmd(url, auth, username,
                                                     password, cert_pem,
                                                     cert_key_pem, cmd)
