@@ -26,12 +26,14 @@ if [[ $(echo "$AZURE_REGION" | grep "\s") ]]; then
     echo "ERROR: The AZURE_REGION parameter must not contain any spaces"
 fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
+    export DCOS_AZURE_PROVIDER_PACKAGE_ID="5a6b7b92820dc4a7825c84f0a96e012e0fcc8a6b"
     export LINUX_MASTER_COUNT="1"
     export LINUX_PUBLIC_AGENT_COUNT="0"
     export LINUX_PRIVATE_AGENT_COUNT="0"
     export WIN_PUBLIC_AGENT_COUNT="1"
     export WIN_PRIVATE_AGENT_COUNT="0"
 elif [[ "$DCOS_DEPLOYMENT_TYPE" = "hybrid" ]]; then
+    export DCOS_AZURE_PROVIDER_PACKAGE_ID="327392a609d77d411886216d431e00581a8612f7"
     export LINUX_MASTER_COUNT="3"
     export LINUX_PUBLIC_AGENT_COUNT="1"
     export LINUX_PRIVATE_AGENT_COUNT="1"
@@ -41,6 +43,9 @@ else
     echo "ERROR: $DCOS_DEPLOYMENT_TYPE DCOS_DEPLOYMENT_TYPE is not supported"
     exit 1
 fi
+if [[ -z $DCOS_DIR ]]; then
+    export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
+fi
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
@@ -49,10 +54,11 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
-IIS_TEMPLATE="$DIR/templates/marathon-iis.json"
-FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon-fetcher-http.json"
-FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon-fetcher-https.json"
-FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon-fetcher-local.json"
+IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
+WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
+FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
+FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
+FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="10.3.1.6"
@@ -75,6 +81,7 @@ job_cleanup() {
         dcos cluster remove $DCOS_CLUSTER_ID || {
             echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
         }
+        rm -rf $DCOS_DIR || return 1
     fi
     echo "Cleanup in progress for the current Azure DC/OS deployment"
     az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
@@ -155,70 +162,15 @@ open_dcos_port() {
     check_open_port "$MASTER_PUBLIC_ADDRESS" "80" || return 1
 }
 
-deploy_iis() {
-    #
-    # - Deploys an IIS app via marathon
-    # - Checks if marathon successfully launched a Mesos task
-    # - Checks if the IIS exposed public port 80 is open
-    #
-    echo "Deploying the IIS marathon template on DC/OS"
-    dcos marathon app add $IIS_TEMPLATE || {
-        echo "ERROR: Failed to deploy the IIS marathon app"
-        return 1
-    }
-    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
-    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
-        echo "ERROR: Failed to get $APP_NAME application health checks"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
-        echo "EROR: Port 80 is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "IIS successfully deployed on DCOS"
-    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-    remove_dcos_marathon_app $APP_NAME || return 1
-}
-
-check_custom_attributes() {
-    #
-    # Check if the custom attributes are set for the slaves
-    #
-    $DIR/utils/check-custom-attributes.py || return 1
-    echo "The custom attributes are correctly set"
-}
-
-test_mesos_fetcher() {
-    local APPLICATION_NAME="$1"
-    $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
+setup_remote_winrm_client() {
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
         echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
     }
-    TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
         echo "ERROR: Failed to copy wsmancmd.py to the proxy master node"
         return 1
     }
-    DOCKER_CONTAINER_ID=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker ps -q'") || {
-        echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
-        return 1
-    }
-    if [[ -z $DOCKER_CONTAINER_ID ]]; then
-        echo "ERROR: There aren't any containers running on the Windows host: $TASK_HOST"
-        return 1
-    fi
-    MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD 'docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash'") || {
-        echo "ERROR: Failed to get the fetcher file MD5 checksum"
-        return 1
-    }
-    if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
-        echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
-        return 1
-    fi
-    echo "The MD5 checksum for the fetcher file was successfully checked"
 }
 
 remove_dcos_marathon_app() {
@@ -233,6 +185,104 @@ remove_dcos_marathon_app() {
 get_marathon_application_name() {
     local TEMPLATE_PATH="$1"
     cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['id'])"
+}
+
+test_windows_marathon_app() {
+    #
+    # - Deploy a simple Python web server on Windows listening on port 8080
+    # - Check if Marathon successfully launched the Mesos Docker task
+    # - Check if the exposed port 8080 is open
+    # - Check if the DNS records for the task are advertised to the Windows nodes
+    #
+    echo "Deploying a Windows Marathon application on DC/OS"
+    dcos marathon app add $WINDOWS_APP_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "8080" || {
+        echo "EROR: Port 8080 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    setup_remote_winrm_client || return 1
+    TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+    DNS_RECORDS=(
+        "${APP_NAME}.marathon.agentip.dcos.thisdcos.directory"
+        "${APP_NAME}.marathon.autoip.dcos.thisdcos.directory"
+        "${APP_NAME}.marathon.containerip.dcos.thisdcos.directory"
+        "${APP_NAME}.marathon.mesos.thisdcos.directory"
+        "${APP_NAME}.marathon.slave.mesos.thisdcos.directory"
+    )
+    for DNS_RECORD in ${DNS_RECORDS[@]}; do
+        test_windows_agent_dcos_dns "$TASK_HOST" "$DNS_RECORD" || return 1
+    done
+    echo "Windows Marathon application successfully deployed on DC/OS"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
+test_iis() {
+    #
+    # - Deploy a simple DC/OS IIS marathon application
+    #
+    echo "Deploying IIS application on DC/OS"
+    dcos marathon app add $IIS_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
+        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
+test_custom_attributes() {
+    #
+    # Check if the custom attributes are set for the slaves
+    #
+    $DIR/utils/check-custom-attributes.py || return 1
+    echo "The custom attributes are correctly set"
+}
+
+test_mesos_fetcher() {
+    local APPLICATION_NAME="$1"
+    $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
+    setup_remote_winrm_client || return 1
+    TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
+    REMOTE_CMD='docker ps | Where-Object { $_.Contains("python:3") -and $_.Contains("->8080/tcp") } | ForEach-Object { $_.Split()[0] }'
+    DOCKER_CONTAINER_ID=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
+        echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
+        return 1
+    }
+    if [[ -z $DOCKER_CONTAINER_ID ]]; then
+        echo "ERROR: There aren't any Docker containers running on $TASK_HOST for application $APPLICATION_NAME"
+        return 1
+    fi
+    REMOTE_CMD="docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash"
+    MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
+        echo "ERROR: Failed to get the fetcher file MD5 checksum"
+        return 1
+    }
+    if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
+        echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
+        return 1
+    fi
+    echo "The MD5 checksum for the fetcher file was successfully checked"
 }
 
 test_mesos_fetcher_local() {
@@ -308,13 +358,18 @@ test_windows_agent_dcos_dns() {
     # already installed on the first master node that is used as a proxy.
     #
     local AGENT_IP="$1"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || return 1
-    for DNS_RECORD in microsoft.com leader.mesos master.mesos; do
-        echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD'" || return 1
-        echo -e "\n"
-    done
-    echo -e "Successfully resolved DC/OS Mesos DNS records on Windows slave: ${AGENT_IP}"
+    local DNS_RECORD="$2"
+    echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
+    REMOTE_PS_CMD="\$s = Get-Date; while (\$true) { if(((Get-Date) - \$s).Minutes -ge 5) { Throw 'Cannot resolve $DNS_RECORD' }; try { Resolve-DnsName $DNS_RECORD -ErrorAction Stop; break; } catch { Write-Output 'Retrying' }; Start-Sleep 1}"
+    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_PS_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+        echo "ERROR: Failed to resolve $DNS_RECORD from $AGENT_IP"
+        return 1
+    }
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
+    echo -e "\n"
+    echo -e "Successfully resolved $DNS_RECORD from DC/OS Windows slave ${AGENT_IP}"
 }
 
 test_dcos_dns() {
@@ -325,27 +380,28 @@ test_dcos_dns() {
     # set up
     #
     echo "Testing DC/OS DNS on the Windows slaves"
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
-        echo "ERROR: Failed to install dependencies on the first master used as a proxy"
-        return 1
-    }
+    setup_remote_winrm_client || return 1
     if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
         IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
         for IP in $IPS; do
             echo "Checking DNS for Windows private agent: $IP"
-            test_windows_agent_dcos_dns "$IP" || return 1
+            for DNS_RECORD in microsoft.com leader.mesos master.mesos; do
+                test_windows_agent_dcos_dns "$IP" "$DNS_RECORD" || return 1
+            done
         done
     fi
     if [[ $WIN_PUBLIC_AGENT_COUNT -gt 0 ]]; then
         IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
         for IP in $IPS; do
             echo "Checking DNS for Windows public agent: $IP"
-            test_windows_agent_dcos_dns "$IP" || return 1
+            for DNS_RECORD in microsoft.com leader.mesos master.mesos; do
+                test_windows_agent_dcos_dns "$IP" "$DNS_RECORD" || return 1
+            done
         done
     fi
 }
 
-check_master_agent_authentication() {
+test_master_agent_authentication() {
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
         AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y &>/dev/null && curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || return 1
@@ -360,18 +416,20 @@ check_master_agent_authentication() {
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
-    #  - Deploy a simple IIS marathon app and test if the exposed port 80 is open
-    #  - Check if the custom attributes are set
-    #  - Check if the Mesos master - agent authentication is enabled
-    #  - Check DC/OS DNS functionality from the Windows node
+    #  - Test if the custom attributes are set
+    #  - Test if the Mesos master - agent authentication is enabled
+    #  - Test DC/OS DNS functionality from the Windows node
+    #  - Test if a Windows marathon application can be successfully deployed and consumed
+    #  - Test a simple IIS marathon Windows app
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
     #
-    check_custom_attributes || return 1
-    check_master_agent_authentication || return 1
-    deploy_iis || return 1
+    test_custom_attributes || return 1
+    test_master_agent_authentication || return 1
     test_dcos_dns || return 1
+    test_windows_marathon_app || return 1
+    test_iis || return 1
     test_mesos_fetcher_local || return 1
     test_mesos_fetcher_remote_http || return 1
     test_mesos_fetcher_remote_https || return 1
@@ -428,7 +486,7 @@ collect_windows_agents_logs() {
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
-        for SERVICE in "epmd" "mesos" "spartan" "diagnostics"; do
+        for SERVICE in "epmd" "mesos" "spartan" "diagnostics" "dcos-net"; do
             run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "mkdir -p $AGENT_LOGS_DIR/$SERVICE && if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
             run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
         done
@@ -554,6 +612,7 @@ create_testing_environment() {
         echo "ERROR: Failed to install the DC/OS pip client packages"
         return 1
     }
+    rm -rf $DCOS_DIR || return 1
     dcos cluster setup "http://${MASTER_PUBLIC_ADDRESS}:80" || return 1
     export DCOS_CLUSTER_ID=$(dcos cluster list | egrep "http://${MASTER_PUBLIC_ADDRESS}:80" | awk '{print $2}')
     dcos cluster list | grep -q $DCOS_CLUSTER_ID || {
