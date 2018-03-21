@@ -63,6 +63,19 @@ $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "dcos-window
 $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "mesos-jenkins"
 $DIAGNOSTICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/diagnostics-build"
 
+# Metrics configurations
+$METRICS_SERVICE_NAME = "dcos-metrics"
+$METRICS_AGENT_PORT = 9000
+$METRICS_DIR = Join-Path $env:SystemDrive "metrics"
+$METRICS_GOPTH_DIR = Join-Path $env:SystemDrive "github"
+$METRICS_GIT_REPO_DIR = Join-Path $METRICS_GOPTH_DIR "src\github.com\dcos\dcos-metrics"
+$METRICS_BUILD_OUT_DIR = Join-Path $METRICS_DIR "build-output"
+$METRICS_BUILD_LOGS_DIR = Join-Path $METRICS_BUILD_OUT_DIR "logs"
+$METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
+$METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
+$METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
+$METRICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/metrics-build"
+
 # Installers URLs
 $SERVICE_WRAPPER_URL = "$LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
 $VS2017_URL = "https://download.visualstudio.microsoft.com/download/pr/10930949/045b56eb413191d03850ecc425172a7d/vs_Community.exe"
