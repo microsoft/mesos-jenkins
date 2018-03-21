@@ -30,7 +30,11 @@ function Install-Prerequisites {
             'install_dir' = $GIT_DIR
         }
         'go'= @{
+<<<<<<< HEAD
             'url'= $GOLANG_URL_1_94
+=======
+            'url'= $GOLANG_URL
+>>>>>>> 8757a41abf07dad3252c7138d2360289e4637f1e
             'install_args'= @("/quiet")
             'install_dir'= $GOLANG_DIR
         }
