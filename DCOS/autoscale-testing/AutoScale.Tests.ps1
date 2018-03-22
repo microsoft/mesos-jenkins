@@ -67,6 +67,38 @@ function AreAllNodesHealthy ($RG_NAME) {
     return $isHealthy
 }
 
+function AllMetricsGood ($RG_NAME) {
+    $masterFQDN = getMasterFQDN($RG_NAME)
+    $res = Invoke-WebRequest "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
+    $isAllGood = $true
+    foreach ($agentNode in $res.slaves) {
+        Try
+        {
+            $agentMetricsRequestEp = "http://$masterFQDN/system/v1/agent/$($agentNode.id)/metrics/v0/node"
+            $dataPoints = Invoke-WebRequest $agentMetricsRequestEp | ConvertFrom-Json 
+            $dataPointCount = $dataPoints.datapoints.Count
+
+            if ($dataPointCount -eq 0) {
+                Write-Output "Got no datapoints back, somthing wrong with dcos-metrics service"
+                Write-Output "agentNode.attributes.os = $($agentNode.attributes.os)"
+                Write-Output "agentNode.id = $($agentNode.id)"
+                Write-Output "agentNode.hostname = $($agentNode.hostname)"
+                Write-Output "dataPointCount = $dataPointCount"
+                $isAllGood = $false
+            }
+        }
+        Catch
+        {
+            $ErrorMessage = $_.Exception.Message
+            Write-Output "$ErrorMessage, metrics query failed on agent: hostname=$($agentNode.hostname) osType = $($agentNode.attributes.os) id= $($agentNode.id) "
+            $isAllGood = $false
+        }
+    }
+
+    return $isAllGood
+}
+
+
 Describe "Sanity check" {
     It "Is logged in to Azure" {
         $subscription = Get-AzureRmSubscription
@@ -138,7 +170,11 @@ Describe "Getting initial state" {
 
     It "Are all nodes healthy" {
         AreAllNodesHealthy($RG_NAME) |  Should be $true
-    }    
+    }
+
+    It "Are all nodes metric service running fine" {
+        AllMetricsGood($RG_NAME) |  Should be $true
+    }
 }
 
 Describe "ScaleUp" {
@@ -168,7 +204,11 @@ Describe "ScaleUp" {
 
     It "Are all nodes healthy" {
         AreAllNodesHealthy($RG_NAME) |  Should be $true
-    }      
+    }
+
+    It "Are all nodes metric service running fine" {
+        AllMetricsGood($RG_NAME) |  Should be $true
+    }     
 }
 
 Describe "DCOS UI" {
@@ -271,6 +311,9 @@ Describe "ScaleDown" {
 
     It "Are all nodes healthy" {
         AreAllNodesHealthy($RG_NAME) |  Should be $true
-    }      
-    
+    } 
+
+    It "Are all nodes metric service running fine" {
+        AllMetricsGood($RG_NAME) |  Should be $true
+    }    
 }

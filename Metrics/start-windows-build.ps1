@@ -69,14 +69,6 @@ function Install-Prerequisites {
     # Add all the tools to PATH
     $toolsDirs = @("$GOLANG_DIR\bin", "$GIT_DIR\cmd", "$GIT_DIR\bin", "$7ZIP_DIR")
     $env:PATH += ';' + ($toolsDirs -join ';')
-    
-    $env:GOPATH = $METRICS_GOPTH_DIR
-    [System.Environment]::SetEnvironmentVariable('GOPATH', $METRICS_GOPTH_DIR)
-    $env:PATH += ';' + ($METRICS_GOPTH_DIR -join ';') 
-
-    $goBinPath = Join-Path $GOLANG_DIR "bin"
-    [System.Environment]::SetEnvironmentVariable('GOBIN', $goBinPath)
-    $env:PATH += ';' + ($goBinPath -join ';') 
 }
 
 function Start-MetricsCIProcess {
@@ -152,8 +144,14 @@ function New-TestingEnvironment {
     Start-GitClone -Path $METRICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMetricsCommit
     Start-GitClone -Path $METRICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-    Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
+      
+    $env:GOPATH = $METRICS_GOPTH_DIR
+    [System.Environment]::SetEnvironmentVariable('GOPATH', $METRICS_GOPTH_DIR)
+    $env:PATH += ';' + ($METRICS_GOPTH_DIR -join ';') 
+    $goBinPath = Join-Path $GOLANG_DIR "bin"
+    [System.Environment]::SetEnvironmentVariable('GOBIN', $goBinPath)
+    $env:PATH += ';' + ($goBinPath -join ';') 
+
     Write-Output "New tests environment was successfully created"
 }
 
@@ -162,7 +160,9 @@ function Start-DCOSMetricsBuild {
     Push-Location $METRICS_GIT_REPO_DIR
     try {
         New-Item -ItemType directory -Path ".\build" -Force
-        & $GOLANG_DIR\bin\go get .\...
+        $GoExecuable = Join-Path $GOLANG_DIR "bin\go"
+        Start-ExternalCommand { & $GoExecuable get .\... } -ErrorMessage "Failed to setup the dependent packages"
+ 
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
                                     -StdoutFileName "metrics-build-stdout.log" `
                                     -StderrFileName "metrics-build-stderr.log" `
@@ -182,7 +182,11 @@ function New-DCOSMetricsPackage {
     $MetricsClusterIdFile = Join-Path $METRICS_BUILD_BINARIES_DIR "cluster-id"
 
     Write-Output "Creating cluster-id file: $MetricsClusterIdFile"
-    # the following hardcoded cluster id was from the dcos-metrics source
+    # The following cluster-id file was created for setting up a dcosInfo's default
+    # clusterIDLocation. It will be overwritten by the real cluster id in the real 
+    # scenarios, which always set it. It looks like any guid is good that because
+    # this guid was not acually used, I copied the current this hardcoded guid from
+    # the dcos-go repo.
     $clusterid = "{fdb1d7c0-06cf-4d65-bb9b-a8920bb854ef}"
     $clusterid | Set-Content $MetricsClusterIdFile
     Copy-Item -Path "$METRICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $METRICS_BUILD_BINARIES_DIR
