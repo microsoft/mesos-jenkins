@@ -146,8 +146,6 @@ function New-TestingEnvironment {
     Set-LatestDiagnosticsCommit
     Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
     Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
-    Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
     Write-Output "New tests environment was successfully created"
 }
 

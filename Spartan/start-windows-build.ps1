@@ -123,8 +123,6 @@ function New-Environment {
     $newConfig = Get-Content $configFile | ForEach-Object { $_ -replace '{processes, 10}', '{processes, 1}' }
     Set-Content -Path $configFile -Value $newConfig
     Set-LatestSpartanCommit
-    Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
 }
 
 function Start-CommonTests {
