@@ -257,7 +257,7 @@ function Start-LogServerFilesUpload {
 
 function Start-EnvironmentCleanup {
     # Stop any potential hanging process
-    $processes = @('go')
+    $processes = @('go', 'bash')
     $processes | Foreach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
     cmd.exe /C "rmdir /s /q $DIAGNOSTICS_DIR > nul 2>&1"
 }
