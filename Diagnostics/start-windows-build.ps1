@@ -69,7 +69,6 @@ function Install-Prerequisites {
     # Add all the tools to PATH
     $toolsDirs = @("$GOLANG_DIR\bin", "$GIT_DIR\cmd", "$GIT_DIR\bin", "$7ZIP_DIR")
     $env:PATH += ';' + ($toolsDirs -join ';')
-    $env:GOPATH = $DIAGNOSTICS_DIR
 }
 
 function Start-DiagnosticsCIProcess {
@@ -146,6 +145,7 @@ function New-TestingEnvironment {
     Set-LatestDiagnosticsCommit
     Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
     Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
+    $env:GOPATH = $DIAGNOSTICS_DIR
     Write-Output "New tests environment was successfully created"
 }
 
