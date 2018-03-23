@@ -48,14 +48,14 @@ function getMasterFQDN ($RG_NAME) {
 
 function getDCOSagentCount ($RG_NAME) {
     $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
     $agentCount = $res.slaves.Count
     return $agentCount
 }
 
 function AreAllNodesHealthy ($RG_NAME) {
     $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest "http://$masterFQDN/system/health/v1/nodes" | ConvertFrom-Json | Select-Object nodes
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/system/health/v1/nodes" | ConvertFrom-Json | Select-Object nodes
     $isHealthy = $true
     foreach ($agentNode in $res.nodes) {
         if ($agentNode.health -ne 0) {
@@ -69,13 +69,13 @@ function AreAllNodesHealthy ($RG_NAME) {
 
 function AllMetricsGood ($RG_NAME) {
     $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
     $isAllGood = $true
     foreach ($agentNode in $res.slaves) {
         Try
         {
             $agentMetricsRequestEp = "http://$masterFQDN/system/v1/agent/$($agentNode.id)/metrics/v0/node"
-            $dataPoints = Invoke-WebRequest $agentMetricsRequestEp | ConvertFrom-Json 
+            $dataPoints = Invoke-WebRequest -UseBasicParsing -Uri $agentMetricsRequestEp | ConvertFrom-Json 
             $dataPointCount = $dataPoints.datapoints.Count
 
             if ($dataPointCount -eq 0) {
@@ -157,7 +157,7 @@ Describe "Getting initial state" {
         $masterFQDN = $deployment.Outputs.masterFQDN.Value
         $masterFQDN | Should not be $null
         
-        $res = Invoke-WebRequest "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
+        $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
         $res | Should not be $null
         $res.slaves | Should not be $null
         $res.slaves.Count | Should BeGreaterThan 0

@@ -49,7 +49,7 @@ function Install-Prerequisites {
         Write-Output "Downloading $program from $($prerequisites[$program]['url'])"
         $fileName = $prerequisites[$program]['url'].Split('/')[-1]
         $programFile = Join-Path $env:TEMP $fileName
-        Start-ExecuteWithRetry { Invoke-WebRequest -Uri $prerequisites[$program]['url'] -OutFile $programFile}
+        Start-ExecuteWithRetry { Invoke-WebRequest -UseBasicParsing -Uri $prerequisites[$program]['url'] -OutFile $programFile}
         $parameters = @{
             'FilePath' = $programFile
             'ArgumentList' = $prerequisites[$program]['install_args']
