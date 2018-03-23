@@ -307,7 +307,7 @@ function New-MesosBinaries {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-cmake-stdout.log" -StderrFileName "mesos-binaries-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
+                             -ArgumentList @("--build", ".", "--config", "Release", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
         Pop-Location
     }
