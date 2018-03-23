@@ -217,8 +217,6 @@ function New-Environment {
         # Pull the patch and all the dependent ones, if a review ID was given
         Add-ReviewBoardPatch
     }
-    Start-ExternalCommand { git.exe config --global user.email "ostcauto@microsoft.com" } -ErrorMessage "Failed to set git user email"
-    Start-ExternalCommand { git.exe config --global user.name "ostcauto" } -ErrorMessage "Failed to set git user name"
     Set-VCVariables "15.0"
     Write-Output "New tests environment was successfully created"
 }
@@ -309,7 +307,7 @@ function New-MesosBinaries {
     Push-Location $MESOS_DIR
     try {
         Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-cmake-stdout.log" -StderrFileName "mesos-binaries-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
+                             -ArgumentList @("--build", ".", "--config", "Release", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
         Pop-Location
     }
