@@ -168,13 +168,6 @@ function New-DCOSDiagnosticsPackage {
     Write-Output "Creating DC/OS Diagnostics package"
     Write-Output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR"
     New-Directory $DIAGNOSTICS_BUILD_BINARIES_DIR
-    $diagnosticsServicesList = Join-Path $DIAGNOSTICS_BUILD_BINARIES_DIR "servicelist.txt"
-    Write-Output "Creating services list file: $diagnosticsServicesList"
-    $services = Get-Variable | Foreach-Object {
-        if($_.Name.EndsWith("_SERVICE_NAME")) {
-            $_.Value | Out-File $diagnosticsServicesList -Append
-        }
-    }
     Copy-Item -Path "$DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
     Copy-Item -Recurse -Path "$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR\diagnostics\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$DIAGNOSTICS_GIT_REPO_DIR\*.exe" -Destination "$DIAGNOSTICS_BUILD_BINARIES_DIR\"
