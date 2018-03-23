@@ -487,8 +487,8 @@ collect_windows_agents_logs() {
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
         for SERVICE in "epmd" "mesos" "spartan" "diagnostics" "dcos-net"; do
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "mkdir -p $AGENT_LOGS_DIR/$SERVICE && if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
+            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
         done
         download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
