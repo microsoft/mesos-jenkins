@@ -6,6 +6,7 @@ $REMOTE_USER = "logs"
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DIAGNOSTICS_BUILD_DIR = "/data/diagnostics-build"
+$REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
 # DCOS common configurations
 $LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
