@@ -144,14 +144,9 @@ function New-TestingEnvironment {
     Start-GitClone -Path $METRICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMetricsCommit
     Start-GitClone -Path $METRICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-      
-    $env:GOPATH = $METRICS_GOPTH_DIR
-    [System.Environment]::SetEnvironmentVariable('GOPATH', $METRICS_GOPTH_DIR)
-    $env:PATH += ';' + ($METRICS_GOPTH_DIR -join ';') 
+    $env:GOPATH = $METRICS_DIR
     $goBinPath = Join-Path $GOLANG_DIR "bin"
     [System.Environment]::SetEnvironmentVariable('GOBIN', $goBinPath)
-    $env:PATH += ';' + ($goBinPath -join ';') 
-
     Write-Output "New tests environment was successfully created"
 }
 
@@ -160,15 +155,13 @@ function Start-DCOSMetricsBuild {
     Push-Location $METRICS_GIT_REPO_DIR
     try {
         New-Item -ItemType directory -Path ".\build" -Force
-        $GoExecuable = Join-Path $GOLANG_DIR "bin\go"
-        Start-ExternalCommand { & $GoExecuable get .\... } -ErrorMessage "Failed to setup the dependent packages"
- 
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
                                     -StdoutFileName "metrics-build-stdout.log" `
                                     -StderrFileName "metrics-build-stderr.log" `
                                     -ArgumentList @(".\scripts\build.ps1", "collector") `
                                     -BuildErrorMessage "Metrics failed to build."
-        Copy-Item -Path "$METRICS_GIT_REPO_DIR\build\collector\dcos-metrics-collector-*" -Destination "$METRICS_GIT_REPO_DIR/dcos-metrics.exe"                                    
+        Start-ExternalCommand { & go.exe get .\... } -ErrorMessage "Failed to setup the dependent packages"
+        Copy-Item -Path "$METRICS_GIT_REPO_DIR\build\collector\dcos-metrics-collector-*" -Destination "$METRICS_GIT_REPO_DIR/dcos-metrics.exe"
     } finally {
         Pop-Location
     }
@@ -180,7 +173,6 @@ function New-DCOSMetricsPackage {
     Write-Output "METRICS_GIT_REPO_DIR: $METRICS_GIT_REPO_DIR"
     New-Directory $METRICS_BUILD_BINARIES_DIR
     $MetricsClusterIdFile = Join-Path $METRICS_BUILD_BINARIES_DIR "cluster-id"
-
     Write-Output "Creating cluster-id file: $MetricsClusterIdFile"
     # The following cluster-id file was created for setting up a dcosInfo's default
     # clusterIDLocation. It will be overwritten by the real cluster id in the real 
