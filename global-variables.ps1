@@ -67,9 +67,8 @@ $DIAGNOSTICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/diagnostics-build"
 # Metrics configurations
 $METRICS_SERVICE_NAME = "dcos-metrics"
 $METRICS_AGENT_PORT = 9000
-$METRICS_DIR = Join-Path $env:SystemDrive "metrics"
-$METRICS_GOPTH_DIR = Join-Path $env:SystemDrive "github"
-$METRICS_GIT_REPO_DIR = Join-Path $METRICS_GOPTH_DIR "src\github.com\dcos\dcos-metrics"
+$METRICS_DIR = Join-Path $DCOS_DIR "metrics"
+$METRICS_GIT_REPO_DIR = Join-Path $METRICS_DIR "src\github.com\dcos\dcos-metrics"
 $METRICS_BUILD_OUT_DIR = Join-Path $METRICS_DIR "build-output"
 $METRICS_BUILD_LOGS_DIR = Join-Path $METRICS_BUILD_OUT_DIR "logs"
 $METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
