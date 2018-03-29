@@ -399,7 +399,13 @@ function Start-LogServerFilesUpload {
     Start-FileDownload -Force -URL $consoleUrl -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
-    Copy-FilesToRemoteServer "$MESOS_BUILD_OUT_DIR\*" $remoteDirPath
+    $tempDir = Join-Path $env:TEMP "build-output"
+    if(Test-Path $tempDir) {
+        Remove-Item -Recurse -Force $tempDir
+    }
+    Copy-Item -Recurse -Force $MESOS_BUILD_OUT_DIR $tempDir
+    Copy-FilesToRemoteServer "${tempDir}\*" $remoteDirPath
+    Remove-Item -Recurse -Force $tempDir
     $buildOutputsUrl = Get-BuildOutputsUrl
     $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl
     Write-Output "Build artifacts can be found at: $buildOutputsUrl"
