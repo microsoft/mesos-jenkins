@@ -1,0 +1,99 @@
+{
+    "Errors": [
+        {
+            "name": "AzCliRunError",
+            "class": "AzCLI",
+            "regex": "_init__.py"
+        },
+        {
+            "name": "AzCliLoadError",
+            "class": "AzCLI",
+            "regex": "Error loading command module"
+        },
+        {
+            "name": "VMStartTimedOut",
+            "class": "Deployment",
+            "regex": "VMStartTimedOut"
+        },
+		{
+            "name": "OSProvisioningTimedOut",
+            "class": "Deployment",
+            "regex": "OSProvisioningTimedOut"
+        },
+		{
+            "name": "VMExtensionProvisioningError",
+            "class": "Deployment",
+            "regex": "VMExtensionProvisioningError"
+        },
+		{
+            "name": "VMExtensionProvisioningTimeout",
+            "class": "Deployment",
+            "regex": "VMExtensionProvisioningTimeout"
+        },
+		{
+            "name": "InternalExecutionError",
+            "class": "Deployment",
+            "regex": "InternalExecutionError"
+        },
+		{
+            "name": "SkuNotAvailable",
+            "class": "Deployment",
+            "regex": "SkuNotAvailable"
+        },
+		{
+            "name": "MaxStorageAccountsCountPerSubscriptionExceeded",
+            "class": "Deployment",
+            "regex": "MaxStorageAccountsCountPerSubscriptionExceeded"
+        },
+		{
+            "name": "ImageManagementOperationError",
+            "class": "Deployment",
+            "regex": "ImageManagementOperationError"
+        },
+		{
+            "name": "DiskProcessingError",
+            "class": "Deployment",
+            "regex": "DiskProcessingError"
+        },
+		{
+            "name": "DiskServiceInternalError",
+            "class": "Deployment",
+            "regex": "DiskServiceInternalError"
+        },
+		{
+            "name": "AllocationFailed",
+            "class": "Deployment",
+            "regex": "AllocationFailed"
+        },
+		{
+            "name": "NetworkingInternalOperationError",
+            "class": "Deployment",
+            "regex": "NetworkingInternalOperationError"
+        },
+		{
+            "name": "PlatformFaultDomainCount",
+            "class": "Deployment",
+            "regex": "platformFaultDomainCount"
+        },
+		{
+            "name": "DcosNodeNotReady",
+            "class": "Validation",
+            "regex": "gave up waiting for DCOS nodes"
+        },
+		{
+            "name": "DcosMarathonValidationFailed",
+            "class": "Validation",
+            "regex": "marathon validation failed"
+        },
+		{
+            "name": "DcosMarathonNotAdded",
+            "class": "Validation",
+            "regex": "gave up waiting for marathon to be added"
+        },
+		{
+            "name": "DcosMarathonLbNotInstalled",
+            "class": "Validation",
+            "regex": "Failed to install marathon-lb"
+        }
+    ]
+}
