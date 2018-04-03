@@ -5,6 +5,7 @@ $REMOTE_LOG_SERVER = "10.3.1.6"
 $REMOTE_USER = "logs"
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
+$REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
 $REMOTE_DIAGNOSTICS_BUILD_DIR = "/data/diagnostics-build"
 $REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
@@ -52,6 +53,16 @@ $SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
 $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
 $SPARTAN_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/spartan-build"
 
+# dcos-net configurations
+$DCOS_NET_SERVICE_NAME = "dcos-net"
+$DCOS_NET_DIR = Join-Path $DCOS_DIR "dcos-net"
+$DCOS_NET_GIT_REPO_DIR = Join-Path $DCOS_NET_DIR "dcos-net"
+$DCOS_NET_LIBSODIUM_GIT_DIR = Join-Path $DCOS_NET_DIR "libsodium"
+$DCOS_NET_BUILD_OUT_DIR = Join-Path $DCOS_NET_DIR "build-output"
+$DCOS_NET_BUILD_RELEASE_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "release"
+$DCOS_NET_BUILD_LOGS_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "logs"
+$DCOS_NET_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/net-build"
+
 # Diagnostics configurations
 $DIAGNOSTICS_SERVICE_NAME = "dcos-diagnostics"
 $DIAGNOSTICS_AGENT_PORT = 9003
@@ -76,7 +87,7 @@ $METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
 $METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
 $METRICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/metrics-build"
 
-# Installers URLs
+# Installers & git repositories URLs
 $SERVICE_WRAPPER_URL = "$LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
 $VS2017_URL = "https://download.visualstudio.microsoft.com/download/pr/10930949/045b56eb413191d03850ecc425172a7d/vs_Community.exe"
 $CMAKE_URL = "https://cmake.org/files/v3.9/cmake-3.9.0-win64-x64.msi"
@@ -91,6 +102,7 @@ $GOLANG_URL = "https://dl.google.com/go/go1.10.windows-amd64.msi"
 $GOLANG_URL_1_94 = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows.git"
 $MESOS_JENKINS_GIT_URL = "https://github.com/Microsoft/mesos-jenkins.git"
+$LIBSODIUM_GIT_URL = "https://github.com/jedisct1/libsodium.git"
 
 # Tools installation directories
 $GIT_DIR = Join-Path $env:ProgramFiles "Git"
