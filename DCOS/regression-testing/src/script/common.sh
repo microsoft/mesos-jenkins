@@ -232,16 +232,15 @@ function validate_linux_agent {
 	trap "${remote_exec} ./dcos marathon app remove /web || true" EXIT
 
 	echo "Validating marathon app"
-	count=0
-	while [[ ${count} -lt 25 ]]; do
-		count=$((count+1))
-		echo "  ... cycle $count"
+	count=20
+	while (( ${count} > 0 )); do
+		echo "  ... counting down $count"
 		running=$(${remote_exec} ./dcos marathon app show /web | jq .tasksRunning)
 		if [[ "${running}" == "3" ]]; then
 			echo "Found 3 running tasks"
 			break
 		fi
-		sleep ${count}
+		sleep 15; count=$((count-1))
 	done
 
 	if [[ "${running}" != "3" ]]; then
