@@ -50,10 +50,12 @@ function generate_template() {
 	indx=0
 	for n in "${oArr[@]}"; do
 		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${FINAL_CLUSTER_DEFINITION})
-		if [ "${oArr[$indx]}" = "Windows" ] && [ $dnsPrefix != "null" ]; then
-			jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-w$indx\""
-		else
-			jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-l$indx\""
+		if [ $dnsPrefix != "null" ]; then
+			if [ "${oArr[$indx]}" = "Windows" ]; then
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-w$indx\""
+			else
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-l$indx\""
+			fi
 		fi
 		indx=$((indx+1))
 	done
@@ -171,9 +173,9 @@ function get_orchestrator_type() {
 }
 
 function get_orchestrator_version() {
-	[[ ! -z "${CLUSTER_DEFINITION:-}" ]] || (echo "Must specify CLUSTER_DEFINITION" && exit -1)
+	[[ ! -z "${OUTPUT:-}" ]] || (echo "Must specify OUTPUT" && exit -1)
 
-	orchestratorVersion=$(jq -r 'getpath(["properties","orchestratorProfile","orchestratorVersion"])' ${CLUSTER_DEFINITION})
+	orchestratorVersion=$(jq -r 'getpath(["properties","orchestratorProfile","orchestratorVersion"])' ${OUTPUT}/apimodel.json)
 	if [[ "$orchestratorVersion" == "null" ]]; then
 		orchestratorVersion=""
 	fi
@@ -192,13 +194,94 @@ function get_api_version() {
 	echo $apiVersion
 }
 
-function validate() {
-	[[ ! -z "${SSH_KEY:-}" ]]             || (echo "Must specify SSH_KEY" && exit -1)
-	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]] || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
+function validate_linux_agent {
+	[[ ! -z "${INSTANCE_NAME:-}" ]] || (echo "Must specify INSTANCE_NAME" && exit -1)
+	[[ ! -z "${LOCATION:-}" ]]      || (echo "Must specify LOCATION" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]       || (echo "Must specify SSH_KEY" && exit -1)
+
+	agentFQDN=$1
 
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
-	#agentFQDN="${INSTANCE_NAME}0.${LOCATION}.cloudapp.azure.com"
 	remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
+
+	echo "Copying marathon.json"
+
+	${remote_cp} "${DIR}/marathon-slave-public.json" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:marathon.json
+	if [[ "$?" != "0" ]]; then echo "Failed to copy marathon.json"; exit 1; fi
+
+	# feed agentFQDN to marathon.json
+	echo "Configuring marathon.json"
+	${remote_exec} sed -i "s/{agentFQDN}/${agentFQDN}/g" marathon.json
+	if [[ "$?" != "0" ]]; then echo "Failed to configure marathon.json"; exit 1; fi
+
+
+	echo "Adding marathon app"
+	count=20
+	while (( $count > 0 )); do
+		echo "  ... counting down $count"
+		${remote_exec} ./dcos marathon app list | grep /web
+		retval=$?
+		if [[ $retval -eq 0 ]]; then echo "Marathon App successfully installed" && break; fi
+		${remote_exec} ./dcos marathon app add marathon.json
+		retval=$?
+		if [[ "$retval" == "0" ]]; then break; fi
+			sleep 15; count=$((count-1))
+	done
+	if [[ $retval -ne 0 ]]; then echo "gave up waiting for marathon to be added"; exit 1; fi
+
+	# only need to teardown if app added successfully
+	trap "${remote_exec} ./dcos marathon app remove /web || true" EXIT
+
+	echo "Validating marathon app"
+	count=0
+	while [[ ${count} -lt 25 ]]; do
+		count=$((count+1))
+		echo "  ... cycle $count"
+		running=$(${remote_exec} ./dcos marathon app show /web | jq .tasksRunning)
+		if [[ "${running}" == "3" ]]; then
+			echo "Found 3 running tasks"
+			break
+		fi
+		sleep ${count}
+	done
+
+	if [[ "${running}" != "3" ]]; then
+		echo "marathon validation failed"
+		${remote_exec} ./dcos marathon app show /web
+		${remote_exec} ./dcos marathon app list
+		exit 1
+	fi
+
+	# install marathon-lb
+	${remote_exec} ./dcos package install marathon-lb --yes
+	if [[ "$?" != "0" ]]; then echo "Failed to install marathon-lb"; exit 1; fi
+
+	# curl simpleweb through external haproxy
+	echo "Checking Service"
+	count=20
+	while true; do
+		echo "  ... counting down $count"
+		rc=$(curl -sI --max-time 60 "http://${agentFQDN}" | head -n1 | cut -d$' ' -f2)
+		[[ "$rc" -eq "200" ]] && echo "Successfully hitting simpleweb through external haproxy http://${agentFQDN}" && break
+		if [[ "${count}" -le 1 ]]; then
+			echo "failed to get expected response from nginx through the loadbalancer: Error $rc"
+			exit 1
+		fi
+		sleep 15; count=$((count-1))
+	done
+
+	${remote_exec} ./dcos marathon app remove /web || true
+}
+
+function validate() {
+	set -x
+	[[ ! -z "${INSTANCE_NAME:-}" ]]       || (echo "Must specify INSTANCE_NAME" && exit -1)
+	[[ ! -z "${LOCATION:-}" ]]            || (echo "Must specify LOCATION" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]             || (echo "Must specify SSH_KEY" && exit -1)
+	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]] || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
+	[[ ! -z "${OUTPUT:-}" ]]              || (echo "Must specify OUTPUT" && exit -1)
+
+	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 
 	echo "Checking node count"
 	count=20
@@ -212,10 +295,35 @@ function validate() {
 		echo "gave up waiting for DCOS nodes: $node_count available, ${EXPECTED_NODE_COUNT} expected"
 		exit 1
 	fi
+
+	echo "Downloading dcos"
+	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
+	if [[ "$?" != "0" ]]; then echo "Failed to download dcos"; exit 1; fi
+	echo "Setting dcos permissions"
+	${remote_exec} chmod a+x ./dcos
+	if [[ "$?" != "0" ]]; then echo "Failed to chmod dcos"; exit 1; fi
+	echo "Configuring dcos"
+	${remote_exec} ./dcos cluster setup http://localhost:80
+	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
+
+	# Iterate dnsPrefix
+	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${OUTPUT}/apimodel.json)
+	oArr=( $osTypes )
+	indx=0
+	for n in "${oArr[@]}"; do
+		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${OUTPUT}/apimodel.json)
+		if [ "${oArr[$indx]}" = "Windows" ] && [ $dnsPrefix != "null" ]; then
+			echo "skipping Windows agent test for $dnsPrefix"
+		else
+			validate_linux_agent "$dnsPrefix.${LOCATION}.cloudapp.azure.com"
+		fi
+		indx=$((indx+1))
+	done
 }
 
 function cleanup() {
 	if [[ "${CLEANUP:-}" == "y" ]]; then
+		echo "Deleting ${RESOURCE_GROUP}"
 		az group delete --no-wait --name="${RESOURCE_GROUP}" --yes || true
 	fi
 }
