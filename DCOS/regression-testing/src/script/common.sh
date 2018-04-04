@@ -214,7 +214,6 @@ function validate_linux_agent {
 	${remote_exec} sed -i "s/{agentFQDN}/${agentFQDN}/g" marathon.json
 	if [[ "$?" != "0" ]]; then echo "Failed to configure marathon.json"; exit 1; fi
 
-
 	echo "Adding marathon app"
 	count=20
 	while (( $count > 0 )); do
@@ -322,6 +321,8 @@ function validate() {
 }
 
 function cleanup() {
+	set -x
+	echo "cleanup: CLEANUP=${CLEANUP:-}"
 	if [[ "${CLEANUP:-}" == "y" ]]; then
 		echo "Deleting ${RESOURCE_GROUP}"
 		az group delete --no-wait --name="${RESOURCE_GROUP}" --yes || true

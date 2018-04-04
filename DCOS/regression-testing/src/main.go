@@ -251,7 +251,9 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 	}
 	// clean up
 	if txt, _, err := m.runStep(resourceGroup, stepCleanup, env, timeout); err != nil {
-		wrileLog(logFile, "Error: %v\nOutput: %s", err, txt)
+		wrileLog(logFile, "Error [%s:%s] %v\nOutput: %s", stepCleanup, resourceGroup, err, txt)
+	} else {
+		wrileLog(logFile, txt)
 	}
 	return errorInfo
 }
