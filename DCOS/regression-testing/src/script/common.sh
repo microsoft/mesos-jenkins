@@ -206,7 +206,7 @@ function validate_linux_agent {
 
 	echo "Copying marathon.json"
 
-	${remote_cp} "${DIR}/marathon-slave-public.json" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:marathon.json
+	${remote_cp} "${ROOT}/marathon-slave-public.json" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:marathon.json
 	if [[ "$?" != "0" ]]; then echo "Failed to copy marathon.json"; exit 1; fi
 
 	# feed agentFQDN to marathon.json
