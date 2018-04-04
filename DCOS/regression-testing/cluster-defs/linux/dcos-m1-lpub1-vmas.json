@@ -9,22 +9,15 @@
       "count": 1,
       "dnsPrefix": "",
       "vmSize": "Standard_D2_v2",
-      "storageProfile": "StorageAccount"
+      "storageProfile": "ManagedDisks"
     },
     "agentPoolProfiles": [
-      {
-        "name": "lnxpri",
-        "count": 1,
-        "vmSize": "Standard_D2_v2",
-        "availabilityProfile": "AvailabilitySet",
-        "storageProfile": "ManagedDisks"
-      },
       {
         "name": "lnxpub",
         "count": 1,
         "vmSize": "Standard_D2_v2",
         "availabilityProfile": "AvailabilitySet",
-        "storageProfile": "StorageAccount",
+        "storageProfile": "ManagedDisks",
         "dnsPrefix": "",
         "ports": [
           80,
