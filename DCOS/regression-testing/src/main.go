@@ -211,8 +211,8 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 			sendDurationMetrics(step, d.Location, duration, errorInfo.ErrName)
 			wrileLog(logFile, "Error [%s:%s] %v\nOutput: %s", step, resourceGroup, err, txt)
 			// check AUTOCLEAN flag: if set to 'n', don't remove deployment
-			if os.Getenv("AUTOCLEAN") == "n" {
-				env = append(env, "CLEANUP=n")
+			if os.Getenv("AUTOCLEAN") == "false" {
+				env = append(env, "CLEANUP=false")
 			}
 			break
 		}

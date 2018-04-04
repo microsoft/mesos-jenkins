@@ -323,7 +323,7 @@ function validate() {
 function cleanup() {
 	set -x
 	echo "cleanup: CLEANUP=${CLEANUP:-}"
-	if [[ "${CLEANUP:-}" == "y" ]]; then
+	if [ "${CLEANUP:-}" = true ]; then
 		echo "Deleting ${RESOURCE_GROUP}"
 		az group delete --no-wait --name="${RESOURCE_GROUP}" --yes || true
 	fi

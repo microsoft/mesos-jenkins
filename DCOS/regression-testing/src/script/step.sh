@@ -72,7 +72,7 @@ validate)
 ;;
 
 cleanup)
-  export CLEANUP="${CLEANUP:-y}"
+  export CLEANUP="${CLEANUP:-true}"
   cleanup
 ;;
 esac
