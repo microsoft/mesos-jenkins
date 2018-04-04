@@ -293,29 +293,29 @@ function validate() {
 		exit 1
 	fi
 
-	echo "Downloading dcos"
-	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
-	if [[ "$?" != "0" ]]; then echo "Failed to download dcos"; exit 1; fi
-	echo "Setting dcos permissions"
-	${remote_exec} chmod a+x ./dcos
-	if [[ "$?" != "0" ]]; then echo "Failed to chmod dcos"; exit 1; fi
-	echo "Configuring dcos"
-	${remote_exec} ./dcos cluster setup http://localhost:80
-	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
+#	echo "Downloading dcos"
+#	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
+#	if [[ "$?" != "0" ]]; then echo "Failed to download dcos"; exit 1; fi
+#	echo "Setting dcos permissions"
+#	${remote_exec} chmod a+x ./dcos
+#	if [[ "$?" != "0" ]]; then echo "Failed to chmod dcos"; exit 1; fi
+#	echo "Configuring dcos"
+#	${remote_exec} ./dcos cluster setup http://localhost:80
+#	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
 
 	# Iterate dnsPrefix
-	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${OUTPUT}/apimodel.json)
-	oArr=( $osTypes )
-	indx=0
-	for n in "${oArr[@]}"; do
-		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${OUTPUT}/apimodel.json)
-		if [ "${oArr[$indx]}" = "Windows" ] && [ $dnsPrefix != "null" ]; then
-			echo "skipping Windows agent test for $dnsPrefix"
-		else
-			validate_linux_agent "$dnsPrefix.${LOCATION}.cloudapp.azure.com"
-		fi
-		indx=$((indx+1))
-	done
+#	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${OUTPUT}/apimodel.json)
+#	oArr=( $osTypes )
+#	indx=0
+#	for n in "${oArr[@]}"; do
+#		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${OUTPUT}/apimodel.json)
+#		if [ "${oArr[$indx]}" = "Windows" ] && [ $dnsPrefix != "null" ]; then
+#			echo "skipping Windows agent test for $dnsPrefix"
+#		else
+#			validate_linux_agent "$dnsPrefix.${LOCATION}.cloudapp.azure.com"
+#		fi
+#		indx=$((indx+1))
+#	done
 }
 
 function cleanup() {
