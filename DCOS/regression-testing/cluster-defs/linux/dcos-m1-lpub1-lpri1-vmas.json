@@ -1,0 +1,47 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS",
+      "orchestratorRelease": ""
+    },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "",
+      "vmSize": "Standard_D2_v2",
+      "storageProfile": "StorageAccount"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "lnxpri",
+        "count": 1,
+        "vmSize": "Standard_D2_v2",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile": "ManagedDisks"
+      },
+      {
+        "name": "lnxpub",
+        "count": 1,
+        "vmSize": "Standard_D2_v2",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile": "StorageAccount",
+        "dnsPrefix": "",
+        "ports": [
+          80,
+          443,
+          8080
+        ]
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "azureuser",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": ""
+          }
+        ]
+      }
+    }
+  }
+}
