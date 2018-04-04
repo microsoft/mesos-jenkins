@@ -68,10 +68,7 @@ get_orchestrator_release)
 validate)
   export OUTPUT="${ROOT}/_output/${INSTANCE_NAME}"
   export SSH_KEY="${OUTPUT}/id_rsa"
-  if [ ${ORCHESTRATOR} = "kubernetes" ]; then
-    export KUBECONFIG="${OUTPUT}/kubeconfig/kubeconfig.${LOCATION}.json"
-  fi
-  "${ROOT}/test/cluster-tests/${ORCHESTRATOR}/test.sh"
+  validate
 ;;
 
 cleanup)
