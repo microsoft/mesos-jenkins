@@ -50,7 +50,7 @@ function generate_template() {
 	indx=0
 	for n in "${oArr[@]}"; do
 		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${FINAL_CLUSTER_DEFINITION})
-		if [ $dnsPrefix != "null" ]; then
+		if [ "$dnsPrefix" != "null" ]; then
 			if [ "${oArr[$indx]}" = "Windows" ]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-w$indx\""
 			else
@@ -273,7 +273,6 @@ function validate_linux_agent {
 }
 
 function validate() {
-	set -x
 	[[ ! -z "${INSTANCE_NAME:-}" ]]       || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${LOCATION:-}" ]]            || (echo "Must specify LOCATION" && exit -1)
 	[[ ! -z "${SSH_KEY:-}" ]]             || (echo "Must specify SSH_KEY" && exit -1)
@@ -321,7 +320,6 @@ function validate() {
 }
 
 function cleanup() {
-	set -x
 	echo "cleanup: CLEANUP=${CLEANUP:-}"
 	if [ "${CLEANUP:-}" = true ]; then
 		echo "Deleting ${RESOURCE_GROUP}"
