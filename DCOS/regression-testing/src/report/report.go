@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strconv"
 	"sync"
 	"time"
 
@@ -32,7 +31,7 @@ type ErrorStat struct {
 type Manager struct {
 	lock        sync.Mutex
 	JobName     string    `json:"job"`
-	BuildNum    int       `json:"build"`
+	Build       string    `json:"build"`
 	Deployments int       `json:"deployments"`
 	Errors      int       `json:"errors"`
 	StartTime   time.Time `json:"startTime"`
@@ -69,10 +68,10 @@ const (
 )
 
 // New creates a new error report
-func New(jobName string, buildNum int, nDeploys int, logErrorsFileName string) *Manager {
+func New(jobName string, build string, nDeploys int, logErrorsFileName string) *Manager {
 	h := &Manager{}
 	h.JobName = jobName
-	h.BuildNum = buildNum
+	h.Build = build
 	h.Deployments = nDeploys
 	h.Errors = 0
 	h.StartTime = time.Now().UTC()
@@ -97,7 +96,7 @@ func makeErrorList(fileName string) logErrors {
 
 // Copy TBD needs definition [ToDo]
 func (h *Manager) Copy() *Manager {
-	n := New(h.JobName, h.BuildNum, h.Deployments, "")
+	n := New(h.JobName, h.Build, h.Deployments, "")
 	n.Errors = h.Errors
 	n.StartTime = h.StartTime
 	for e, f := range h.Failures {
@@ -162,34 +161,6 @@ func (h *Manager) CreateTestReport(filepath string) error {
 	defer file.Close()
 	_, err = file.Write(data)
 	return err
-}
-
-// CreateCombinedReport TBD needs definition
-func (h *Manager) CreateCombinedReport(filepath, testReportFname string) error {
-	// "COMBINED_PAST_REPORTS" is the number of recent reports in the combined report
-	reports, err := strconv.Atoi(os.Getenv("COMBINED_PAST_REPORTS"))
-	if err != nil || reports <= 0 {
-		return nil
-	}
-	combinedReport := h.Copy()
-	for i := 1; i <= reports; i++ {
-		data, err := ioutil.ReadFile(fmt.Sprintf("%s/%d/%s/%s",
-			os.Getenv("JOB_BUILD_ROOTDIR"), h.BuildNum-i, os.Getenv("JOB_BUILD_SUBDIR"), testReportFname))
-		if err != nil {
-			break
-		}
-		testReport := &Manager{}
-		if err := json.Unmarshal(data, &testReport); err != nil {
-			break
-		}
-		combinedReport.StartTime = testReport.StartTime
-		combinedReport.Deployments += testReport.Deployments
-
-		for e, f := range testReport.Failures {
-			combinedReport.addFailure(e, f.Locations)
-		}
-	}
-	return combinedReport.CreateTestReport(filepath)
 }
 
 // NewErrorInfo TBD needs definition

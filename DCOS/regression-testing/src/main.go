@@ -137,9 +137,6 @@ func (m *TestManager) Run() error {
 	if err = m.Manager.CreateTestReport(fmt.Sprintf("%s/%s", logDir, testReport)); err != nil {
 		fmt.Printf("Failed to create %s: %v\n", testReport, err)
 	}
-	if err = m.Manager.CreateCombinedReport(fmt.Sprintf("%s/%s", logDir, combinedReport), testReport); err != nil {
-		fmt.Printf("Failed to create %s: %v\n", combinedReport, err)
-	}
 	// fail the test on error
 	for _, ok := range success {
 		if !ok {
@@ -159,8 +156,8 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 	}
 
 	testName := strings.TrimSuffix(d.ClusterDefinition, filepath.Ext(d.ClusterDefinition))
-	instanceName := fmt.Sprintf("acse-%d-%s-%s-%d-%d", rand.Intn(0x0ffffff), d.Location, os.Getenv("BUILD_NUM"), index, attempt)
-	resourceGroup := fmt.Sprintf("%s-%s-%s-%s-%d-%d", rgPrefix, strings.Replace(testName, "/", "-", -1), d.Location, os.Getenv("BUILD_NUM"), index, attempt)
+	instanceName := fmt.Sprintf("acse-%d-%s-%s-%d-%d", rand.Intn(0x0ffffff), d.Location, os.Getenv("BUILD_NUMBER"), index, attempt)
+	resourceGroup := fmt.Sprintf("%s-%s-%s-%s-%d-%d", rgPrefix, strings.Replace(testName, "/", "-", -1), d.Location, os.Getenv("BUILD_NUMBER"), index, attempt)
 	logFile := fmt.Sprintf("%s/%s.log", logDir, resourceGroup)
 
 	// determine orchestrator
@@ -256,15 +253,6 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 	if txt, _, err := m.runStep(resourceGroup, stepCleanup, env, timeout); err != nil {
 		wrileLog(logFile, "Error: %v\nOutput: %s", err, txt)
 	}
-	if errorInfo == nil {
-		// do not keep logs for successful test
-		if _, err := os.Stat(logFile); !os.IsNotExist(err) {
-			if err = os.Remove(logFile); err != nil {
-				fmt.Printf("Failed to remove %s : %v\n", logFile, err)
-			}
-		}
-
-	}
 	return errorInfo
 }
 
@@ -275,7 +263,9 @@ func isValidEnv() bool {
 		"SERVICE_PRINCIPAL_CLIENT_SECRET",
 		"TENANT_ID",
 		"SUBSCRIPTION_ID",
-		"STAGE_TIMEOUT_MIN"}
+		"STAGE_TIMEOUT_MIN",
+		"JOB_BASE_NAME",
+		"BUILD_NUMBER"}
 
 	for _, envVar := range envVars {
 		if os.Getenv(envVar) == "" {
@@ -431,18 +421,12 @@ func mainInternal() error {
 	if err != nil {
 		return err
 	}
-	// get Jenkins build number
-	buildNum, err := strconv.Atoi(os.Getenv("BUILD_NUM"))
-	if err != nil {
-		fmt.Println("Warning: BUILD_NUM is not set or invalid. Assuming 0")
-		buildNum = 0
-	}
 	// set environment variable ENABLE_METRICS=y to enable sending the metrics (disabled by default)
 	if os.Getenv("ENABLE_METRICS") == "y" {
 		enableMetrics = true
 	}
 	// initialize report manager
-	testManager.Manager = report.New(os.Getenv("JOB_BASE_NAME"), buildNum, len(testManager.config.Deployments), logErrorFile)
+	testManager.Manager = report.New(os.Getenv("JOB_BASE_NAME"), os.Getenv("BUILD_NUMBER"), len(testManager.config.Deployments), logErrorFile)
 
 	if _, err = os.Stat(fmt.Sprintf("%s/%s", testManager.workDir, script)); err != nil {
 		return err
