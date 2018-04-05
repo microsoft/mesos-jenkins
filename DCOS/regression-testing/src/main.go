@@ -102,8 +102,8 @@ func (m *TestManager) Run() error {
 	fmt.Printf("Will allow %d retries to determine pass/fail\n", retries)
 
 	// login to Azure
-	if _, _, err := m.runStep("init", stepInitAzure, os.Environ(), timeout); err != nil {
-		return err
+	if txt, _, err := m.runStep("init", stepInitAzure, os.Environ(), timeout); err != nil {
+		return fmt.Errorf("Error [%s] %v : %s", stepInitAzure, err, txt)
 	}
 
 	// return values for tests
