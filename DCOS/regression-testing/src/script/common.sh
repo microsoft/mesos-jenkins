@@ -194,34 +194,31 @@ function get_api_version() {
 	echo $apiVersion
 }
 
-function validate_linux_agent {
+function validate_linux_agents {
 	[[ ! -z "${INSTANCE_NAME:-}" ]] || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${LOCATION:-}" ]]      || (echo "Must specify LOCATION" && exit -1)
 	[[ ! -z "${SSH_KEY:-}" ]]       || (echo "Must specify SSH_KEY" && exit -1)
 
-	agentFQDN=$1
-
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 	remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
 
-	echo "Copying marathon.json"
+	MARATHON_JSON="nginx-marathon-template.json"
+	appID="/$(jq -r .id ${MARATHON_JSON})"
+	instances="$(jq -r .instances ${MARATHON_JSON})"
 
-	${remote_cp} "${ROOT}/marathon-slave-public.json" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:marathon.json
-	if [[ "$?" != "0" ]]; then echo "Failed to copy marathon.json"; exit 1; fi
+	echo "Copying ${MARATHON_JSON} id:$appID instances:$instances"
 
-	# feed agentFQDN to marathon.json
-	echo "Configuring marathon.json"
-	${remote_exec} sed -i "s/{agentFQDN}/${agentFQDN}/g" marathon.json
-	if [[ "$?" != "0" ]]; then echo "Failed to configure marathon.json"; exit 1; fi
+	${remote_cp} "${ROOT}/${MARATHON_JSON}" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:${MARATHON_JSON}
+	if [[ "$?" != "0" ]]; then echo "Failed to copy ${MARATHON_JSON}"; exit 1; fi
 
 	echo "Adding marathon app"
 	count=20
 	while (( $count > 0 )); do
 		echo "  ... counting down $count"
-		${remote_exec} ./dcos marathon app list | grep /web
+		${remote_exec} ./dcos marathon app list | grep $appID
 		retval=$?
 		if [[ $retval -eq 0 ]]; then echo "Marathon App successfully installed" && break; fi
-		${remote_exec} ./dcos marathon app add marathon.json
+		${remote_exec} ./dcos marathon app add ${MARATHON_JSON}
 		retval=$?
 		if [[ "$retval" == "0" ]]; then break; fi
 			sleep 15; count=$((count-1))
@@ -229,54 +226,35 @@ function validate_linux_agent {
 	if [[ $retval -ne 0 ]]; then echo "gave up waiting for marathon to be added"; exit 1; fi
 
 	# only need to teardown if app added successfully
-#	trap "${remote_exec} ./dcos marathon app remove /web || true" EXIT
+	trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
 
 	echo "Validating marathon app"
 	count=20
 	while (( ${count} > 0 )); do
 		echo "  ... counting down $count"
-		running=$(${remote_exec} ./dcos marathon app show /web | jq .tasksRunning)
-		if [[ "${running}" == "3" ]]; then
-			echo "Found 3 running tasks"
+		running=$(${remote_exec} ./dcos marathon app show $appID | jq .tasksRunning)
+		if [ "${running}" = "$instances" ]; then
+			echo "Found $instances running tasks"
 			break
 		fi
 		sleep 15; count=$((count-1))
 	done
 
-	if [[ "${running}" != "3" ]]; then
+	if [ "${running}" != "$instances" ]; then
 		echo "marathon validation failed"
-		${remote_exec} ./dcos marathon app show /web
+		${remote_exec} ./dcos marathon app show $appID
 		${remote_exec} ./dcos marathon app list
 		exit 1
 	fi
-
-	# install marathon-lb
-	${remote_exec} ./dcos package install marathon-lb --yes
-	if [[ "$?" != "0" ]]; then echo "Failed to install marathon-lb"; exit 1; fi
-
-	# curl simpleweb through external haproxy
-	echo "Checking Service"
-	count=20
-	while true; do
-		echo "  ... counting down $count"
-		rc=$(curl -sI --max-time 60 "http://${agentFQDN}" | head -n1 | cut -d$' ' -f2)
-		[[ "$rc" -eq "200" ]] && echo "Successfully hitting simpleweb through external haproxy http://${agentFQDN}" && break
-		if [[ "${count}" -le 1 ]]; then
-			echo "failed to get expected response from nginx through the loadbalancer: Error $rc"
-			exit 1
-		fi
-		sleep 15; count=$((count-1))
-	done
-
-#	${remote_exec} ./dcos marathon app remove /web || true
 }
 
 function validate() {
-	[[ ! -z "${INSTANCE_NAME:-}" ]]       || (echo "Must specify INSTANCE_NAME" && exit -1)
-	[[ ! -z "${LOCATION:-}" ]]            || (echo "Must specify LOCATION" && exit -1)
-	[[ ! -z "${SSH_KEY:-}" ]]             || (echo "Must specify SSH_KEY" && exit -1)
-	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]] || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
-	[[ ! -z "${OUTPUT:-}" ]]              || (echo "Must specify OUTPUT" && exit -1)
+	[[ ! -z "${INSTANCE_NAME:-}" ]]         || (echo "Must specify INSTANCE_NAME" && exit -1)
+	[[ ! -z "${LOCATION:-}" ]]              || (echo "Must specify LOCATION" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]               || (echo "Must specify SSH_KEY" && exit -1)
+	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]]   || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
+	[[ ! -z "${EXPECTED_LINUX_AGENTS:-}" ]] || (echo "Must specify EXPECTED_LINUX_AGENTS" && exit -1)
+	[[ ! -z "${OUTPUT:-}" ]]                || (echo "Must specify OUTPUT" && exit -1)
 
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 
@@ -293,6 +271,10 @@ function validate() {
 		exit 1
 	fi
 
+	echo "Checking node health"
+	unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)'
+	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Unhealthy nodes: $unhealthy_nodes"; exit 1; fi
+
 	echo "Downloading dcos"
 	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
 	if [[ "$?" != "0" ]]; then echo "Failed to download dcos"; exit 1; fi
@@ -303,21 +285,9 @@ function validate() {
 	${remote_exec} ./dcos cluster setup http://localhost:80
 	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
 
-	# Iterate dnsPrefix
-	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${OUTPUT}/apimodel.json)
-	oArr=( $osTypes )
-	indx=0
-	for n in "${oArr[@]}"; do
-		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${OUTPUT}/apimodel.json)
-		if [ "$dnsPrefix" != "null" ]; then
-			if [ "${oArr[$indx]}" = "Windows" ]; then
-				echo "skipping Windows agent test for $dnsPrefix"
-			else
-				validate_linux_agent "$dnsPrefix.${LOCATION}.cloudapp.azure.com"
-			fi
-		fi
-		indx=$((indx+1))
-	done
+	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
+		validate_linux_agents
+	fi
 }
 
 function cleanup() {
