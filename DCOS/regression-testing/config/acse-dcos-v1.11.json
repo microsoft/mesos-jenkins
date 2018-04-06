@@ -1,0 +1,14 @@
+{
+  "deployments": [
+    {
+      "cluster_definition": "linux/dcos-m1-lpub2-lpri2-vmas.json",
+      "orchestratorRelease": "1.11",
+      "location": "eastus"
+    },
+    {
+      "cluster_definition": "linux/dcos-m3-lpub2-lpri2-vmss.json",
+      "orchestratorRelease": "1.11",
+      "location": "westus2"
+    }
+  ]
+}
