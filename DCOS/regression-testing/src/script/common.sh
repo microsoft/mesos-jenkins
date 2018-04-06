@@ -291,9 +291,9 @@ function validate() {
 	${remote_exec} ./dcos cluster setup http://localhost:80
 	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
 
-	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
-		validate_linux_agents
-	fi
+#	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
+#		validate_linux_agents
+#	fi
 }
 
 function cleanup() {
