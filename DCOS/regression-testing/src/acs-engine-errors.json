@@ -75,20 +75,45 @@
             "class": "Deployment",
             "regex": "platformFaultDomainCount"
         },
+        {
+            "name": "DcosNotHealthyNodes",
+            "class": "Validation",
+            "regex": "Error: unhealthy nodes:"
+        },
+        {
+            "name": "DcosDownloadError",
+            "class": "Validation",
+            "regex": "Error: failed to download dcos"
+        },
+        {
+            "name": "DcosChmodError",
+            "class": "Validation",
+            "regex": "Error: failed to chmod dcos"
+        },
+        {
+            "name": "DcosConfigError",
+            "class": "Validation",
+            "regex": "Error: failed to configure dcos"
+        },
+        {
+            "name": "DcosCopyError",
+            "class": "Validation",
+            "regex": "Error: failed to copy"
+        },
 		{
             "name": "DcosNodeNotReady",
             "class": "Validation",
-            "regex": "gave up waiting for DCOS nodes"
+            "regex": "Error: gave up waiting for DCOS nodes"
         },
 		{
             "name": "DcosMarathonValidationFailed",
             "class": "Validation",
-            "regex": "marathon validation failed"
+            "regex": "Error: marathon validation"
         },
 		{
             "name": "DcosMarathonNotAdded",
             "class": "Validation",
-            "regex": "gave up waiting for marathon to be added"
+            "regex": "Error: gave up waiting for marathon to be added"
         },
 		{
             "name": "DcosMarathonLbNotInstalled",

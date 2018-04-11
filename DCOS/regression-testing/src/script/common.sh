@@ -209,7 +209,7 @@ function validate_linux_agents {
 	echo "Copying ${MARATHON_JSON} id:$appID instances:$instances"
 
 	${remote_cp} "${ROOT}/${MARATHON_JSON}" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:${MARATHON_JSON}
-	if [[ "$?" != "0" ]]; then echo "Failed to copy ${MARATHON_JSON}"; exit 1; fi
+	if [[ "$?" != "0" ]]; then echo "Error: failed to copy ${MARATHON_JSON}"; exit 1; fi
 
 	echo "Adding marathon app"
 	count=20
@@ -223,7 +223,7 @@ function validate_linux_agents {
 		if [[ "$retval" == "0" ]]; then break; fi
 			sleep 15; count=$((count-1))
 	done
-	if [[ $retval -ne 0 ]]; then echo "gave up waiting for marathon to be added"; exit 1; fi
+	if [[ $retval -ne 0 ]]; then echo "Error: gave up waiting for marathon to be added"; exit 1; fi
 
 	# only need to teardown if app added successfully
 	trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
@@ -232,16 +232,18 @@ function validate_linux_agents {
 	count=20
 	while (( ${count} > 0 )); do
 		echo "  ... counting down $count"
-		running=$(${remote_exec} ./dcos marathon app show $appID | jq .tasksRunning)
-		if [ "${running}" = "$instances" ]; then
-			echo "Found $instances running tasks"
+		appStatus=$(${remote_exec} ./dcos marathon app show $appID)
+		running=$(echo $appStatus | jq .tasksRunning)
+		healthy=$(echo $appStatus | jq .tasksHealthy)
+		if [ "$running" = "$instances" ] && [ "$healthy" = "$instances" ]; then
+			echo "Found $instances running/healthy tasks"
 			break
 		fi
-		sleep 15; count=$((count-1))
+		sleep 30; count=$((count-1))
 	done
 
-	if [ "${running}" != "$instances" ]; then
-		echo "marathon validation failed"
+	if [ "$running" != "$instances" ] || [ "$healthy" != "$instances" ]; then
+		echo "Error: marathon validation: tasksRunning $running, tasksHealthy $healthy, expected $instances"
 		${remote_exec} ./dcos marathon app show $appID
 		${remote_exec} ./dcos marathon app list
 		exit 1
@@ -267,7 +269,7 @@ function validate() {
 		sleep 30; count=$((count-1))
 	done
 	if (( $node_count != ${EXPECTED_NODE_COUNT} )); then
-		echo "gave up waiting for DCOS nodes: $node_count available, ${EXPECTED_NODE_COUNT} expected"
+		echo "Error: gave up waiting for DCOS nodes: $node_count available, ${EXPECTED_NODE_COUNT} expected"
 		exit 1
 	fi
 
@@ -279,21 +281,21 @@ function validate() {
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
 		sleep 30; count=$((count-1))
 	done
-	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Unhealthy nodes: $unhealthy_nodes"; exit 1; fi
+	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Error: unhealthy nodes: $unhealthy_nodes"; exit 1; fi
 
 	echo "Downloading dcos"
 	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
-	if [[ "$?" != "0" ]]; then echo "Failed to download dcos"; exit 1; fi
+	if [[ "$?" != "0" ]]; then echo "Error: failed to download dcos"; exit 1; fi
 	echo "Setting dcos permissions"
 	${remote_exec} chmod a+x ./dcos
-	if [[ "$?" != "0" ]]; then echo "Failed to chmod dcos"; exit 1; fi
+	if [[ "$?" != "0" ]]; then echo "Error: failed to chmod dcos"; exit 1; fi
 	echo "Configuring dcos"
 	${remote_exec} ./dcos cluster setup http://localhost:80
-	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
+	if [[ "$?" != "0" ]]; then echo "Error: failed to configure dcos"; exit 1; fi
 
-#	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
-#		validate_linux_agents
-#	fi
+	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
+		validate_linux_agents
+	fi
 }
 
 function cleanup() {
