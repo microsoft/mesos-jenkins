@@ -16,14 +16,12 @@
         "name": "lnxpri",
         "count": 2,
         "vmSize": "Standard_D2s_v3",
-        "availabilityProfile": "VirtualMachineScaleSets",
         "storageProfile": "ManagedDisks"
       },
       {
         "name": "lnxpub",
         "count": 2,
         "vmSize": "Standard_D2s_v3",
-        "availabilityProfile": "AvailabilitySet",
         "storageProfile": "StorageAccount",
         "dnsPrefix": "",
         "ports": [
@@ -37,7 +35,6 @@
         "count": 2,
         "vmSize": "Standard_D2s_v3",
         "osType": "Windows",
-        "availabilityProfile": "AvailabilitySet",
         "storageProfile": "ManagedDisks"
       },
       {
@@ -45,13 +42,13 @@
         "count": 2,
         "vmSize": "Standard_D2s_v3",
         "osType": "Windows",
-        "availabilityProfile": "VirtualMachineScaleSets",
         "storageProfile": "StorageAccount",
         "dnsPrefix": "",
         "ports": [
           80,
           443,
-          8080
+          8080,
+          3389
         ]
       }
     ],
