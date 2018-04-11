@@ -8,14 +8,14 @@
     "masterProfile": {
       "count": 1,
       "dnsPrefix": "",
-      "vmSize": "Standard_D2_v2",
+      "vmSize": "Standard_D2s_v3",
       "storageProfile": "ManagedDisks"
     },
     "agentPoolProfiles": [
       {
         "name": "lnxpub",
-        "count": 1,
-        "vmSize": "Standard_D2_v2",
+        "count": 2,
+        "vmSize": "Standard_D2s_v3",
         "availabilityProfile": "AvailabilitySet",
         "storageProfile": "ManagedDisks",
         "dnsPrefix": "",

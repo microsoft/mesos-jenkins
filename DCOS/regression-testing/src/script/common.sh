@@ -277,7 +277,7 @@ function validate() {
 		echo "  ... counting down $count"
 		unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
-		sleep 15; count=$((count-1))
+		sleep 30; count=$((count-1))
 	done
 	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Unhealthy nodes: $unhealthy_nodes"; exit 1; fi
 
