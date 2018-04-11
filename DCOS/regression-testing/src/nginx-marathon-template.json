@@ -4,7 +4,7 @@
   "mem": 128,
   "instances": 1,
   "constraints": [
-    ["os", "LIKE", "linux"]
+    ["os", "LIKE", "Linux"]
   ],
   "container": {
     "type": "DOCKER",
@@ -18,7 +18,7 @@
   },
   "healthChecks": [
     {
-      "gracePeriodSeconds": 300,
+      "gracePeriodSeconds": 120,
       "intervalSeconds": 60,
       "timeoutSeconds": 20,
       "maxConsecutiveFailures": 3,
