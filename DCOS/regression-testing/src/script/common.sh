@@ -226,7 +226,7 @@ function validate_linux_agents {
 	if [[ $retval -ne 0 ]]; then echo "gave up waiting for marathon to be added"; exit 1; fi
 
 	# only need to teardown if app added successfully
-	trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
+	#trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
 
 	echo "Validating marathon app"
 	count=20
@@ -291,9 +291,9 @@ function validate() {
 	${remote_exec} ./dcos cluster setup http://localhost:80
 	if [[ "$?" != "0" ]]; then echo "Failed to configure dcos"; exit 1; fi
 
-#	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
-#		validate_linux_agents
-#	fi
+	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
+		validate_linux_agents
+	fi
 }
 
 function cleanup() {
