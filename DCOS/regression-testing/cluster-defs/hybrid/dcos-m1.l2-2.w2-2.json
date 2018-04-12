@@ -8,8 +8,7 @@
     "masterProfile": {
       "count": 1,
       "dnsPrefix": "",
-      "vmSize": "Standard_D2s_v3",
-      "storageProfile": "StorageAccount"
+      "vmSize": "Standard_D2s_v3"
     },
     "agentPoolProfiles": [
       {

@@ -198,7 +198,9 @@ function get_api_version() {
 	echo $apiVersion
 }
 
-function validate_linux_agents {
+function validate_agents {
+	MARATHON_JSON=$1
+	[[ ! -z "${MARATHON_JSON:-}" ]] || (echo "Marathon JSON filename is not passed" && exit -1)
 	[[ ! -z "${INSTANCE_NAME:-}" ]] || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${LOCATION:-}" ]]      || (echo "Must specify LOCATION" && exit -1)
 	[[ ! -z "${SSH_KEY:-}" ]]       || (echo "Must specify SSH_KEY" && exit -1)
@@ -206,7 +208,6 @@ function validate_linux_agents {
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 	remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
 
-	MARATHON_JSON="nginx-marathon-template.json"
 	appID="/$(jq -r .id ${MARATHON_JSON})"
 	instances="$(jq -r .instances ${MARATHON_JSON})"
 
@@ -255,11 +256,12 @@ function validate_linux_agents {
 }
 
 function validate() {
-	[[ ! -z "${INSTANCE_NAME:-}" ]]         || (echo "Must specify INSTANCE_NAME" && exit -1)
-	[[ ! -z "${LOCATION:-}" ]]              || (echo "Must specify LOCATION" && exit -1)
-	[[ ! -z "${SSH_KEY:-}" ]]               || (echo "Must specify SSH_KEY" && exit -1)
-	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]]   || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
-	[[ ! -z "${EXPECTED_LINUX_AGENTS:-}" ]] || (echo "Must specify EXPECTED_LINUX_AGENTS" && exit -1)
+	[[ ! -z "${INSTANCE_NAME:-}" ]]           || (echo "Must specify INSTANCE_NAME" && exit -1)
+	[[ ! -z "${LOCATION:-}" ]]                || (echo "Must specify LOCATION" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]                 || (echo "Must specify SSH_KEY" && exit -1)
+	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]]     || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
+	[[ ! -z "${EXPECTED_LINUX_AGENTS:-}" ]]   || (echo "Must specify EXPECTED_LINUX_AGENTS" && exit -1)
+	[[ ! -z "${EXPECTED_WINDOWS_AGENTS:-}" ]] || (echo "Must specify EXPECTED_WINDOWS_AGENTS" && exit -1)
 	[[ ! -z "${OUTPUT:-}" ]]                || (echo "Must specify OUTPUT" && exit -1)
 
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
@@ -298,7 +300,11 @@ function validate() {
 	if [[ "$?" != "0" ]]; then echo "Error: failed to configure dcos"; exit 1; fi
 
 	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
-		validate_linux_agents
+		validate_agents "nginx-marathon-template.json"
+	fi
+
+	if (( ${EXPECTED_WINDOWS_AGENTS} > 0 )); then
+		validate_agents "iis-marathon-template.json"
 	fi
 }
 
