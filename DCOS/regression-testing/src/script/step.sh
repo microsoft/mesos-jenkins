@@ -71,6 +71,7 @@ validate)
   set +e
   set -x
   validate
+  exit 1
 ;;
 
 cleanup)
