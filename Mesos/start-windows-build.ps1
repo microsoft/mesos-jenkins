@@ -313,9 +313,9 @@ function New-MesosBinaries {
     }
     Write-Output "Mesos binaries were successfully built"
     New-Directory $MESOS_BUILD_BINARIES_DIR
-    Copy-Item -Force -Exclude @("mesos-tests.exe","test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\"
+    Copy-Item -Force -Exclude @("mesos-master.exe", "mesos-tests.exe", "test-helper.exe") -Path "$MESOS_DIR\src\*.exe" -Destination "$MESOS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.exe" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-binaries.zip"
-    Copy-Item -Force -Exclude @("mesos-tests.pdb","test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\"
+    Copy-Item -Force -Exclude @("mesos-master.pdb", "mesos-tests.pdb", "test-helper.pdb") -Path "$MESOS_DIR\src\*.pdb" -Destination "$MESOS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$MESOS_BUILD_BINARIES_DIR\" -Filter "*.pdb" -Archive "$MESOS_BUILD_BINARIES_DIR\mesos-pdb.zip"
     Write-Output "Mesos binaries were successfully generated"
 }
