@@ -211,15 +211,15 @@ function validate_agents {
 	appID="/$(jq -r .id ${MARATHON_JSON})"
 	instances="$(jq -r .instances ${MARATHON_JSON})"
 
-	echo "Copying ${MARATHON_JSON} id:$appID instances:$instances"
+	echo $(date +%H:%M:%S) "Copying ${MARATHON_JSON} id:$appID instances:$instances"
 
 	${remote_cp} "${ROOT}/${MARATHON_JSON}" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:${MARATHON_JSON}
 	if [[ "$?" != "0" ]]; then echo "Error: failed to copy ${MARATHON_JSON}"; exit 1; fi
 
-	echo "Adding marathon app"
+	echo $(date +%H:%M:%S) "Adding marathon app"
 	count=20
 	while (( $count > 0 )); do
-		echo "  ... counting down $count"
+		echo $(date +%H:%M:%S) "  ... counting down $count"
 		${remote_exec} ./dcos marathon app list | grep $appID
 		retval=$?
 		if [[ $retval -eq 0 ]]; then echo "Marathon App successfully installed" && break; fi
@@ -233,15 +233,15 @@ function validate_agents {
 	# only need to teardown if app added successfully
 	#trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
 
-	echo "Validating marathon app"
-	count=20
+	echo $(date +%H:%M:%S) "Validating marathon app"
+	count=50
 	while (( ${count} > 0 )); do
-		echo "  ... counting down $count"
+		echo $(date +%H:%M:%S) "  ... counting down $count"
 		appStatus=$(${remote_exec} ./dcos marathon app show $appID)
 		running=$(echo $appStatus | jq .tasksRunning)
 		healthy=$(echo $appStatus | jq .tasksHealthy)
 		if [ "$running" = "$instances" ] && [ "$healthy" = "$instances" ]; then
-			echo "Found $instances running/healthy tasks"
+			echo $(date +%H:%M:%S) "Found $instances running/healthy tasks"
 			break
 		fi
 		sleep 30; count=$((count-1))
@@ -262,14 +262,14 @@ function validate() {
 	[[ ! -z "${EXPECTED_NODE_COUNT:-}" ]]     || (echo "Must specify EXPECTED_NODE_COUNT" && exit -1)
 	[[ ! -z "${EXPECTED_LINUX_AGENTS:-}" ]]   || (echo "Must specify EXPECTED_LINUX_AGENTS" && exit -1)
 	[[ ! -z "${EXPECTED_WINDOWS_AGENTS:-}" ]] || (echo "Must specify EXPECTED_WINDOWS_AGENTS" && exit -1)
-	[[ ! -z "${OUTPUT:-}" ]]                || (echo "Must specify OUTPUT" && exit -1)
+	[[ ! -z "${OUTPUT:-}" ]]                  || (echo "Must specify OUTPUT" && exit -1)
 
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 
-	echo "Checking node count"
+	echo $(date +%H:%M:%S) "Checking node count"
 	count=20
 	while (( $count > 0 )); do
-		echo "  ... counting down $count"
+		echo $(date +%H:%M:%S) "  ... counting down $count"
 		node_count=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes | length')
 		[ $? -eq 0 ] && [ ! -z "$node_count" ] && [ $node_count -eq ${EXPECTED_NODE_COUNT} ] && echo "Successfully got $EXPECTED_NODE_COUNT nodes" && break
 		sleep 30; count=$((count-1))
@@ -279,23 +279,23 @@ function validate() {
 		exit 1
 	fi
 
-	echo "Checking node health"
+	echo $(date +%H:%M:%S) "Checking node health"
 	count=20
 	while (( $count > 0 )); do
-		echo "  ... counting down $count"
+		echo $(date +%H:%M:%S) "  ... counting down $count"
 		unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
 		sleep 30; count=$((count-1))
 	done
 	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Error: unhealthy nodes: $unhealthy_nodes"; exit 1; fi
 
-	echo "Downloading dcos"
+	echo $(date +%H:%M:%S) "Downloading dcos"
 	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
 	if [[ "$?" != "0" ]]; then echo "Error: failed to download dcos"; exit 1; fi
-	echo "Setting dcos permissions"
+	echo $(date +%H:%M:%S) "Setting dcos permissions"
 	${remote_exec} chmod a+x ./dcos
 	if [[ "$?" != "0" ]]; then echo "Error: failed to chmod dcos"; exit 1; fi
-	echo "Configuring dcos"
+	echo $(date +%H:%M:%S) "Configuring dcos"
 	${remote_exec} ./dcos cluster setup http://localhost:80
 	if [[ "$?" != "0" ]]; then echo "Error: failed to configure dcos"; exit 1; fi
 
@@ -309,7 +309,7 @@ function validate() {
 }
 
 function cleanup() {
-	echo "cleanup: CLEANUP=${CLEANUP:-}"
+	echo $(date +%H:%M:%S) "cleanup: CLEANUP=${CLEANUP:-}"
 	if [ "${CLEANUP:-}" = true ]; then
 		echo "Deleting ${RESOURCE_GROUP}"
 		az group delete --no-wait --name="${RESOURCE_GROUP}" --yes || true
