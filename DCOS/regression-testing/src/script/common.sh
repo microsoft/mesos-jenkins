@@ -234,7 +234,7 @@ function validate_agents {
 	trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
 
 	echo $(date +%H:%M:%S) "Validating marathon app"
-	count=30
+	count=50
 	while (( ${count} > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
 		appStatus=$(${remote_exec} ./dcos marathon app show $appID)
