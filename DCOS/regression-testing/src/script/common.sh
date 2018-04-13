@@ -38,7 +38,7 @@ function generate_template() {
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.dnsPrefix = \"${INSTANCE_NAME}\""
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.linuxProfile.ssh.publicKeys[0].keyData = \"${SSH_KEY_DATA}\""
 	if [ "$(jq -r '.properties.windowsProfile' ${FINAL_CLUSTER_DEFINITION})" != "null" ]; then
-		winpwd=$(date +%s | sha256sum | base64 | head -c 32)
+		winpwd="Wp@1$(date +%s | sha256sum | base64 | head -c 32)"
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.adminPassword = \"$winpwd\""
 	fi
 
