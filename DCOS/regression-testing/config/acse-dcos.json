@@ -1,8 +1,8 @@
 {
   "deployments": [
     {
-      "cluster_definition": "hybrid/dcos-m1.l2-2.w2-2.json",
-      "orchestratorRelease": "1.10",
+      "cluster_definition": "win/dcos-m1.w0-1.json",
+      "orchestratorRelease": "1.11",
       "location": "westus2"
     }
   ]
