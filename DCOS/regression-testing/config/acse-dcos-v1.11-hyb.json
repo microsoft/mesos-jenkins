@@ -4,6 +4,11 @@
       "cluster_definition": "hyb/dcos-m1.l1-1.w1-1.json",
       "orchestratorRelease": "1.11",
       "location": "eastus"
+    },
+    {
+      "cluster_definition": "hyb/dcos-m3.l1-2.w1-2.preprov.json",
+      "orchestratorRelease": "1.11",
+      "location": "eastus"
     }
   ]
 }

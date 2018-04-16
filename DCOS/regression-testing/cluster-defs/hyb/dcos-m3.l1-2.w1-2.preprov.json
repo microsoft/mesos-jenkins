@@ -38,7 +38,7 @@
         "preProvisionExtension": {
           "name": "preprovision-agent-linux-public",
           "singleOrAll": "All"
-        },        
+        },
         "customNodeLabels": {
           "infrastructure": "ci"
         },
