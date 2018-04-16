@@ -1,0 +1,14 @@
+{
+  "deployments": [
+    {
+      "cluster_definition": "lnx/dcos-m1.l2-2.vmas.json",
+      "orchestratorRelease": "1.9",
+      "location": "eastus"
+    },
+    {
+      "cluster_definition": "lnx/dcos-m3.l2-2.vmss.json",
+      "orchestratorRelease": "1.9",
+      "location": "westus2"
+    }
+  ]
+}

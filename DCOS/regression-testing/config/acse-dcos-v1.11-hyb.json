@@ -1,0 +1,9 @@
+{
+  "deployments": [
+    {
+      "cluster_definition": "hyb/dcos-m1.l2-2.w2-2.json",
+      "orchestratorRelease": "1.11",
+      "location": "eastus"
+    }
+  ]
+}

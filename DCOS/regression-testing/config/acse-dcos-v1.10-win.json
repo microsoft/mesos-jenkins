@@ -1,0 +1,9 @@
+{
+  "deployments": [
+    {
+      "cluster_definition": "win/dcos-m1.w2-2.json",
+      "orchestratorRelease": "1.10",
+      "location": "westus2"
+    }
+  ]
+}
