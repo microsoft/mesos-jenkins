@@ -1,6 +1,6 @@
 {
   "id": "test-fetcher-http",
-  "cmd": "python -m http.server 8080",
+  "cmd": "powershell -Command while($true){Start-Sleep -Seconds 5}",
   "cpus": 1,
   "mem": 512,
   "disk": 0,
@@ -17,21 +17,15 @@
     "type": "DOCKER",
     "volumes": [],
     "docker": {
-      "image": "python:3",
+      "image": "microsoft/iis",
       "privileged": false,
-      "parameters": [
-        {
-          "key": "publish",
-          "value": "8080:8080"
-        }
-      ],
       "portMappings": [
         {
-          "containerPort": 8080,
-          "hostPort": 0
+          "containerPort": 80,
+          "hostPort": 31500
         }
       ],
-      "forcePullImage": true
+      "forcePullImage": false
     }
   },
   "uris": [
@@ -43,7 +37,7 @@
       "intervalSeconds": 60,
       "timeoutSeconds": 20,
       "maxConsecutiveFailures": 3,
-      "port": 8080,
+      "port": 80,
       "path": "/",
       "protocol": "MESOS_HTTP",
       "ignoreHttp1xx": false

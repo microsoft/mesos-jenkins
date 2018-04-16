@@ -113,15 +113,11 @@ function New-Environment {
     New-Directory $SPARTAN_BUILD_OUT_DIR
     New-Directory $SPARTAN_BUILD_LOGS_DIR
     Start-GitClone -URL $GitURL -Branch $Branch -Path $SPARTAN_GIT_REPO_DIR
+    # Apply fixes that are not upstream yet
+    Push-Location $SPARTAN_GIT_REPO_DIR
+    Start-ExternalCommand { git.exe am "$PSScriptRoot\fixes.patch" } -ErrorMessage "Failed to apply local patches"
+    Pop-Location
     $global:PARAMETERS["BRANCH"] = $Branch
-    #
-    # NOTE(ibalutoiu): Update the sys.config to use only a single process to
-    #                  spawn for the Spartan handler. Otherwise, during the
-    #                  common tests, Spartan will fail to start.
-    #
-    $configFile = Join-Path $SPARTAN_GIT_REPO_DIR "config\sys.config"
-    $newConfig = Get-Content $configFile | ForEach-Object { $_ -replace '{processes, 10}', '{processes, 1}' }
-    Set-Content -Path $configFile -Value $newConfig
     Set-LatestSpartanCommit
 }
 

@@ -77,17 +77,24 @@ job_cleanup() {
     #
     # Deletes the Azure resource group used for the deployment
     #
+    echo "Cleanup in progress for the current Azure DC/OS deployment"
     if [[ ! -z $DCOS_CLUSTER_ID ]]; then
         dcos cluster remove $DCOS_CLUSTER_ID || {
             echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
         }
         rm -rf $DCOS_DIR || return 1
     fi
-    echo "Cleanup in progress for the current Azure DC/OS deployment"
-    az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
-        echo "ERROR: Failed to delete the resource group"
-        return 1
-    }
+    RESOURCE_GROUP_CLEANUP="true"
+    if [[ "$STATUS" = "FAIL" ]] && [[ "$AUTOCLEAN" = "false" ]]; then
+        RESOURCE_GROUP_CLEANUP="false"
+    fi
+    if [[ "$RESOURCE_GROUP_CLEANUP" = "true" ]]; then
+        echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
+        az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
+            echo "ERROR: Failed to delete the resource group"
+            return 1
+        }
+    fi
     echo "Finished the environment cleanup"
 }
 
@@ -187,11 +194,16 @@ get_marathon_application_name() {
     cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['id'])"
 }
 
+get_marathon_application_host_port() {
+    local TEMPLATE_PATH="$1"
+    cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['container']['docker']['portMappings'][0]['hostPort'])"
+}
+
 test_windows_marathon_app() {
     #
-    # - Deploy a simple Python web server on Windows listening on port 8080
+    # - Deploy a simple IIS web server on Windows
     # - Check if Marathon successfully launched the Mesos Docker task
-    # - Check if the exposed port 8080 is open
+    # - Check if the exposed port is open
     # - Check if the DNS records for the task are advertised to the Windows nodes
     #
     echo "Deploying a Windows Marathon application on DC/OS"
@@ -205,8 +217,9 @@ test_windows_marathon_app() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "8080" || {
-        echo "EROR: Port 8080 is not open for the application: $APP_NAME"
+    PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" || {
+        echo "EROR: Port $PORT is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
@@ -264,7 +277,7 @@ test_mesos_fetcher() {
     $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
-    REMOTE_CMD='docker ps | Where-Object { $_.Contains("python:3") -and $_.Contains("->8080/tcp") } | ForEach-Object { $_.Split()[0] }'
+    REMOTE_CMD='docker ps | Where-Object { $_.Contains("microsoft/iis") -and $_.Contains("->80/tcp") } | ForEach-Object { $_.Split()[0] }'
     DOCKER_CONTAINER_ID=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
         echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
         return 1
@@ -588,6 +601,7 @@ check_exit_code() {
     echo "EMAIL_TITLE=[${JOB_NAME}] FAIL" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
+    export STATUS="FAIL"
     job_cleanup
     exit 1
 }

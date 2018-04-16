@@ -3,19 +3,15 @@
   "properties": {
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
-      "orchestratorVersion": "1.11.0",
+      "orchestratorRelease": "",
       "dcosConfig": {
-          "dcosRepositoryURL": "${DCOS_REPOSITORY_URL}",
-          "dcosClusterPackageListID": "${DCOS_CLUSTER_PACKAGE_LIST_ID}",
-          "dcosProviderPackageID": "${DCOS_AZURE_PROVIDER_PACKAGE_ID}",
-          "dcosBootstrapURL": "${DCOS_BOOTSTRAP_URL}",
-          "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
+        "dcosWindowsBootstrapURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing"
       }
     },
     "masterProfile": {
       "count": 3,
-      "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
-      "vmSize": "${LINUX_MASTER_SIZE}",
+      "dnsPrefix": "",
+      "vmSize": "Standard_D2s_v3",
       "preProvisionExtension": {
         "name": "preprovision-master-linux",
         "singleOrAll": "All"
@@ -23,86 +19,82 @@
     },
     "agentPoolProfiles": [
       {
-        "name": "${WIN_AGENT_PUBLIC_POOL}",
+        "name": "lnxpri",
         "count": 1,
-        "vmSize": "${WIN_AGENT_SIZE}",
+        "vmSize": "Standard_D2s_v3",
         "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
+          "name": "preprovision-agent-linux-private",
+          "singleOrAll": "All"
         },
-        "osType": "Windows",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        },
-        "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
-        "ports": [
-             80,
-             443,
-             8080,
-             3389,
-             5986,
-             31500
-          ]
-      },
-      {
-        "name": "${WIN_AGENT_PRIVATE_POOL}",
-        "count": 1,
-        "vmSize": "${WIN_AGENT_SIZE}",
-        "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
-        },
-        "osType": "Windows",
-        "dnsPrefix": "",
         "customNodeLabels": {
           "infrastructure": "ci"
         }
       },
       {
-        "name": "${LINUX_AGENT_PUBLIC_POOL}",
-        "count": 1,
-        "vmSize": "${LINUX_AGENT_SIZE}",
+        "name": "lnxpub",
+        "count": 2,
+        "vmSize": "Standard_D2s_v3",
+        "dnsPrefix": "",
         "preProvisionExtension": {
-            "name": "preprovision-agent-linux-public",
-            "singleOrAll": "All"
-        },
-        "osType": "linux",
-        "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
+          "name": "preprovision-agent-linux-public",
+          "singleOrAll": "All"
+        },        
         "customNodeLabels": {
           "infrastructure": "ci"
         },
         "ports": [
-             80,
-             443,
-             22
-          ]
+          80,
+          443,
+          8080
+        ]
       },
       {
-        "name": "${LINUX_AGENT_PRIVATE_POOL}",
+        "name": "winpri",
         "count": 1,
-        "vmSize": "${LINUX_AGENT_SIZE}",
+        "vmSize": "Standard_D2s_v3",
+        "osType": "Windows",
         "preProvisionExtension": {
-            "name": "preprovision-agent-linux-private",
+            "name": "preprovision-agent-windows",
             "singleOrAll": "All"
         },
-        "osType": "linux",
-        "dnsPrefix": "",
         "customNodeLabels": {
           "infrastructure": "ci"
         }
+      },
+      {
+        "name": "winpub",
+        "count": 2,
+        "vmSize": "Standard_D2s_v3",
+        "osType": "Windows",
+        "dnsPrefix": "",
+        "preProvisionExtension": {
+          "name": "preprovision-agent-windows",
+          "singleOrAll": "All"
+        },
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        },
+        "ports": [
+          80,
+          443,
+          8080,
+          3389
+        ]
       }
     ],
     "windowsProfile": {
-      "adminUsername": "${WIN_AGENT_ADMIN}",
-      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
-      "WindowsImageSourceUrl": "https://mesosdcosci.blob.core.windows.net/windows-images/windows_server_insider_preview_latest.vhd"
+      "adminUsername": "azureuser",
+      "adminPassword": "",
+      "WindowsPublisher": "MicrosoftWindowsServer",
+      "WindowsOffer": "WindowsServerSemiAnnual",
+      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
     },
     "linuxProfile": {
-      "adminUsername": "${LINUX_ADMIN}",
+      "adminUsername": "azureuser",
       "ssh": {
         "publicKeys": [
           {
-            "keyData": "${LINUX_PUBLIC_SSH_KEY}"
+            "keyData": ""
           }
         ]
       }
