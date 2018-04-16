@@ -34,7 +34,10 @@
     ],
     "windowsProfile": {
       "adminUsername": "${WIN_AGENT_ADMIN}",
-      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}"
+      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
+      "WindowsPublisher": "MicrosoftWindowsServer",
+      "WindowsOffer": "WindowsServerSemiAnnual",
+      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
     },
     "linuxProfile": {
       "adminUsername": "${LINUX_ADMIN}",
