@@ -1,9 +1,14 @@
 {
   "deployments": [
     {
-      "cluster_definition": "win/dcos-m1.w0-1.json",
-      "orchestratorRelease": "1.11",
+      "cluster_definition": "hyb/dcos-m3.l1-2.w1-2.preprov.json",
+      "orchestratorRelease": "1.10",
       "location": "westus2"
+    },
+    {
+      "cluster_definition": "hyb/dcos-m3.l1-2.w1-2.preprov.json",
+      "orchestratorRelease": "1.11",
+      "location": "eastus"
     }
   ]
 }
