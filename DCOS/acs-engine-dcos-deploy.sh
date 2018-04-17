@@ -135,9 +135,16 @@ DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
 
 azure_cli_login
-az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
+EXTRA_PARAMS=""
+if [[ "$DEBUG" = "true" ]]; then
+    EXTRA_PARAMS="$EXTRA_PARAMS --debug"
+fi
+if [[ "$VERBOSE" = "true" ]]; then
+    EXTRA_PARAMS="$EXTRA_PARAMS --verbose"
+fi
+az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table $EXTRA_PARAMS
 echo "Validating the DC/OS ARM deployment templates"
-az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
+az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table $EXTRA_PARAMS
 echo "Started the DC/OS deployment"
-az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
+az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table $EXTRA_PARAMS
 rm -rf $DCOS_DEPLOY_DIR
