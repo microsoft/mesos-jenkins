@@ -697,3 +697,33 @@ create_testing_environment() {
         return 1
     }
 }
+
+disable_linux_agents_dcos_metrics() {
+    #
+    # - Disable dcos-metrics on all the Linux agents
+    #
+    echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
+    # Upload the authorized SSH private key to the first master.
+    # We'll use this one as a proxy to disable dcos-metrics on all Linux agents.
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
+    REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
+    REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
+    REMOTE_CMD+="sudo systemctl stop dcos-checks-poststart.timer && sudo systemctl stop dcos-checks-poststart.service && "
+    REMOTE_CMD+="sudo systemctl disable dcos-checks-poststart.timer && sudo systemctl disable dcos-checks-poststart.service"
+    IPS=$(linux_agents_private_ips) || {
+        echo "ERROR: Failed to get the Linux agents private addresses"
+        return 1
+    }
+    if [[ -z $IPS ]]; then
+        return 0
+    fi
+    for IP in $IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '$REMOTE_CMD'" || {
+            echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
+            return 1
+        }
+    done
+    echo "Successfully disabled dcos-metrics and dcos-checks-poststart on all the Linux agents"
+}
