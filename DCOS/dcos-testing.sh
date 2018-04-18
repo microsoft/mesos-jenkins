@@ -277,6 +277,7 @@ test_iis_docker_private_image() {
     #
     # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
     #
+    echo "Testing marathon applications with Docker private images"
 
     # Login to create the docker config file with credentials
     echo $DOCKER_HUB_USER_PASSWORD | docker --config $WORKSPACE/.docker/ login -u $DOCKER_HUB_USER --password-stdin || return 1
@@ -324,6 +325,7 @@ test_iis_docker_private_image() {
     }
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
+    echo "Successfully tested marathon applications with Docker private images"
 }
 
 test_custom_attributes() {
