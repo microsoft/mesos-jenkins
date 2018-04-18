@@ -99,7 +99,7 @@ job_cleanup() {
     fi
     if [[ "$RESOURCE_GROUP_CLEANUP" = "true" ]]; then
         echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
-        az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
+        az group delete --yes --no-wait --name $AZURE_RESOURCE_GROUP --output table || {
             echo "ERROR: Failed to delete the resource group"
             return 1
         }
