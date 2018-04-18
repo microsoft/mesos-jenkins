@@ -25,6 +25,14 @@ fi
 if [[ $(echo "$AZURE_REGION" | grep "\s") ]]; then
     echo "ERROR: The AZURE_REGION parameter must not contain any spaces"
 fi
+if [[ -z $DOCKER_HUB_USER ]]; then
+    echo "ERROR: Parameter DOCKER_HUB_USER is not set"
+    exit 1
+fi
+if [[ -z $DOCKER_HUB_USER_PASSWORD ]]; then
+    echo "ERROR: Parameter DOCKER_HUB_USER_PASSWORD is not set"
+    exit 1
+fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
     export DCOS_AZURE_PROVIDER_PACKAGE_ID="5a6b7b92820dc4a7825c84f0a96e012e0fcc8a6b"
     export LINUX_MASTER_COUNT="1"
@@ -55,6 +63,7 @@ MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
+PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
 WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
@@ -264,6 +273,59 @@ test_iis() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
+test_iis_docker_private_image() {
+    #
+    # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
+    #
+
+    # Login to create the docker config file with credentials
+    echo $DOCKER_HUB_USER_PASSWORD | docker --config $WORKSPACE/.docker/ login -u $DOCKER_HUB_USER --password-stdin || return 1
+
+    # Create the zip archive
+    zip -r $WORKSPACE/docker.zip $WORKSPACE/.docker || return 1
+
+    # Upload docker.zip to master
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/docker.zip" "$WORKSPACE/docker.zip" || {
+        echo "ERROR: Failed to scp docker.zip"
+        return 1
+    }
+
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to scp utils.sh"
+        return 1
+    }
+    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
+        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+        return 1
+    }
+    # Download the config file with creds locally to all the targeted nodes
+    for IP in $WIN_PUBLIC_IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
+            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
+            return 1
+        }
+    done
+
+    echo "Deploying IIS application from private image on DC/OS"
+    dcos marathon app add $PRIVATE_IIS_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application from private image"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
+        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
 test_custom_attributes() {
     #
     # Check if the custom attributes are set for the slaves
@@ -443,6 +505,7 @@ run_functional_tests() {
     test_dcos_dns || return 1
     test_windows_marathon_app || return 1
     test_iis || return 1
+    test_iis_docker_private_image || return 1
     test_mesos_fetcher_local || return 1
     test_mesos_fetcher_remote_http || return 1
     test_mesos_fetcher_remote_https || return 1
