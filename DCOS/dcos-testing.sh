@@ -677,11 +677,11 @@ create_testing_environment() {
     # - Configures the DC/OS clients for the current cluster and export the
     #   cluster ID as the DCOS_CLUSTER_ID environment variable
     #
-    sudo apt-get update -y &>/dev/null && sudo apt-get install jq python3-pip python3-virtualenv -y &>/dev/null || {
+    sudo apt-get update -y &>/dev/null && sudo apt-get install jq python3-pip python3-virtualenv virtualenv -y &>/dev/null || {
         echo "ERROR: Failed to install dependencies for the testing environment"
         return 1
     }
-    virtualenv -p python3 $VENV_DIR && . $VENV_DIR/bin/activate || {
+    python3 -m venv $VENV_DIR && . $VENV_DIR/bin/activate || {
         echo "ERROR: Failed to create the python3 virtualenv"
         return 1
     }
