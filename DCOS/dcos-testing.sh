@@ -283,11 +283,16 @@ test_iis_docker_private_image() {
     echo $DOCKER_HUB_USER_PASSWORD | docker --config $WORKSPACE/.docker/ login -u $DOCKER_HUB_USER --password-stdin || return 1
 
     # Create the zip archive
-    zip -r $WORKSPACE/docker.zip $WORKSPACE/.docker || return 1
+    pushd $WORKSPACE && zip -r docker.zip .docker && rm -rf .docker && popd || return 1
 
     # Upload docker.zip to master
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/docker.zip" "$WORKSPACE/docker.zip" || {
         echo "ERROR: Failed to scp docker.zip"
+        return 1
+    }
+
+    rm $WORKSPACE/docker.zip || {
+        echo "ERROR: Failed to clean up docker.zip"
         return 1
     }
 
