@@ -705,9 +705,18 @@ disable_linux_agents_dcos_metrics() {
     echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
     # Upload the authorized SSH private key to the first master.
     # We'll use this one as a proxy to disable dcos-metrics on all Linux agents.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
+        echo "ERROR: Failed to create remote .ssh directory"
+        return 1
+    }
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
+        echo "ERROR: Failed to copy the id_rsa private ssh key"
+        return 1
+    }
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to upload utils.sh"
+        return 1
+    }
     REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl stop dcos-checks-poststart.timer && sudo systemctl stop dcos-checks-poststart.service && "
