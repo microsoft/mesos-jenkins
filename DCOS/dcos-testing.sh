@@ -17,7 +17,6 @@ if [[ -z $LINUX_PUBLIC_SSH_KEY ]]; then
         exit 1
     fi
     export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
-fi
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -81,6 +80,22 @@ PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
 
+
+copy_ssh_key_to_proxy_master() {
+    #
+    # Upload the authorized SSH private key to the first master. We'll use
+    # this one as a proxy node to execute remote CI commands against all the
+    # Linux slaves.
+    #
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
+        echo "ERROR: Failed to create remote .ssh directory"
+        return 1
+    }
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
+        echo "ERROR: Failed to copy the id_rsa private ssh key"
+        return 1
+    }
+}
 
 job_cleanup() {
     #
@@ -630,10 +645,7 @@ collect_dcos_nodes_logs() {
     mkdir -p $MASTERS_LOGS_DIR || return 1
     collect_linux_masters_logs "$MASTERS_LOGS_DIR" || return 1
 
-    # From now on, use the first Linux master as a proxy node to collect logs
-    # from all the other Linux machines.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
+    copy_ssh_key_to_proxy_master || return 1
 
     IPS=$(linux_agents_private_ips)
     if [[ ! -z $IPS ]]; then
@@ -706,16 +718,7 @@ disable_linux_agents_dcos_metrics() {
     # - Disable dcos-metrics on all the Linux agents
     #
     echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
-    # Upload the authorized SSH private key to the first master.
-    # We'll use this one as a proxy to disable dcos-metrics on all Linux agents.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
-        echo "ERROR: Failed to create remote .ssh directory"
-        return 1
-    }
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
-        echo "ERROR: Failed to copy the id_rsa private ssh key"
-        return 1
-    }
+    copy_ssh_key_to_proxy_master || return 1
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to upload utils.sh"
         return 1
