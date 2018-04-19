@@ -105,10 +105,11 @@ authorize_user_ssh_key() {
     fi
     REMOTE_CMD=' if [[ ! -e $HOME/.ssh ]]; then mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh || exit 1; fi ;'
     REMOTE_CMD+='touch $HOME/.ssh/authorized_keys && chmod 600 $HOME/.ssh/authorized_keys || exit 1 ;'
-    REMOTE_CMD+="echo -e '\n${USER_LINUX_PUBLIC_SSH_KEY}' >> $HOME/.ssh/authorized_keys || exit 1"
+    REMOTE_CMD+="echo -e '\n${USER_LINUX_PUBLIC_SSH_KEY}' >> \$HOME/.ssh/authorized_keys || exit 1"
     # Authorize ssh key on all the Linux masters
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
+        echo "Authorizing user ssh key on master $i"
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "$REMOTE_CMD" || {
             echo "ERROR: Failed to authorize ssh key on master $i"
             return 1
@@ -128,12 +129,12 @@ authorize_user_ssh_key() {
         return 0
     fi
     for IP in $IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '$REMOTE_CMD'" || {
+        echo "Authorizing user ssh key on agent $IP"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 \"$REMOTE_CMD\"" || {
             echo "ERROR: Failed to authorize the user ssh key on agent: $IP"
             return 1
         }
     done
-
 }
 
 job_cleanup() {
