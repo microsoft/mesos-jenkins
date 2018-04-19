@@ -770,7 +770,7 @@ disable_linux_agents_dcos_metrics() {
     REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl stop dcos-checks-poststart.timer && sudo systemctl stop dcos-checks-poststart.service && "
-    REMOTE_CMD+="sudo systemctl disable dcos-checks-poststart.timer && sudo systemctl disable dcos-checks-poststart.service"
+    REMOTE_CMD+="sudo systemctl disable dcos-checks-poststart.timer && sudo systemctl disable dcos-checks-poststart.service || exit 1"
     IPS=$(linux_agents_private_ips) || {
         echo "ERROR: Failed to get the Linux agents private addresses"
         return 1
