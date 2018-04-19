@@ -135,6 +135,7 @@ authorize_user_ssh_key() {
             return 1
         }
     done
+    echo "Finished authorizing the user SSH key on all the Linux machines"
 }
 
 job_cleanup() {
@@ -144,7 +145,7 @@ job_cleanup() {
     echo "Cleanup in progress for the current Azure DC/OS deployment"
     if [[ ! -z $DCOS_CLUSTER_ID ]]; then
         dcos cluster remove $DCOS_CLUSTER_ID || {
-            echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
+            echo "WARNING: Failed to remove the DC/OS cluster session for cluster ID: $DCOS_CLUSTER_ID"
         }
         rm -rf $DCOS_DIR || return 1
     fi
