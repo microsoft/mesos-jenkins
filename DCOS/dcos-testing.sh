@@ -10,13 +10,15 @@ export LINUX_MASTER_DNS_PREFIX="dcos-testing-lin-master-${BUILD_ID}"
 export WIN_AGENT_DNS_PREFIX="dcos-testing-win-agent-${BUILD_ID}"
 export LINUX_AGENT_DNS_PREFIX="dcos-testing-lin-agent-${BUILD_ID}"
 export WIN_AGENT_ADMIN="azureuser"
-if [[ -z $LINUX_PUBLIC_SSH_KEY ]]; then
-    PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
-    if [[ ! -e $PUB_KEY_FILE ]]; then
-        echo "ERROR: LINUX_PUBLIC_SSH_KEY was not set and the default $PUB_KEY_FILE doesn't exist"
-        exit 1
-    fi
-    export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
+if [[ ! -z $LINUX_PUBLIC_SSH_KEY ]]; then
+    USER_LINUX_PUBLIC_SSH_KEY="$LINUX_PUBLIC_SSH_KEY"
+fi
+PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
+if [[ ! -e $PUB_KEY_FILE ]]; then
+    echo "ERROR: The CI machine doesn't have a ssh key generated. Please generate one via 'ssh-keygen'"
+    exit 1
+fi
+export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -97,6 +99,43 @@ copy_ssh_key_to_proxy_master() {
     }
 }
 
+authorize_user_ssh_key() {
+    if [[ -z $USER_LINUX_PUBLIC_SSH_KEY ]]; then
+        return 0
+    fi
+    REMOTE_CMD=' if [[ ! -e $HOME/.ssh ]]; then mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh || exit 1; fi ;'
+    REMOTE_CMD+='touch $HOME/.ssh/authorized_keys && chmod 600 $HOME/.ssh/authorized_keys || exit 1 ;'
+    REMOTE_CMD+="echo -e '\n${USER_LINUX_PUBLIC_SSH_KEY}' >> $HOME/.ssh/authorized_keys || exit 1"
+    # Authorize ssh key on all the Linux masters
+    for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
+        MASTER_SSH_PORT="220$i"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "$REMOTE_CMD" || {
+            echo "ERROR: Failed to authorize ssh key on master $i"
+            return 1
+        }
+    done
+    copy_ssh_key_to_proxy_master
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to upload utils.sh"
+        return 1
+    }
+    # Authorize ssh key on all the Linux agents
+    IPS=$(linux_agents_private_ips) || {
+        echo "ERROR: Failed to get the Linux agents private addresses"
+        return 1
+    }
+    if [[ -z $IPS ]]; then
+        return 0
+    fi
+    for IP in $IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '$REMOTE_CMD'" || {
+            echo "ERROR: Failed to authorize the user ssh key on agent: $IP"
+            return 1
+        }
+    done
+
+}
+
 job_cleanup() {
     #
     # Deletes the Azure resource group used for the deployment
@@ -112,6 +151,11 @@ job_cleanup() {
         echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
         az group delete --yes --no-wait --name $AZURE_RESOURCE_GROUP --output table || {
             echo "ERROR: Failed to delete the resource group"
+            return 1
+        }
+    else
+        authorize_user_ssh_key || {
+            echo "ERROR: Failed to authorize the user SSH key"
             return 1
         }
     fi
