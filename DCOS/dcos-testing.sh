@@ -93,11 +93,7 @@ job_cleanup() {
         }
         rm -rf $DCOS_DIR || return 1
     fi
-    RESOURCE_GROUP_CLEANUP="true"
-    if [[ "$STATUS" = "FAIL" ]] && [[ "$AUTOCLEAN" = "false" ]]; then
-        RESOURCE_GROUP_CLEANUP="false"
-    fi
-    if [[ "$RESOURCE_GROUP_CLEANUP" = "true" ]]; then
+    if [[ "$AUTOCLEAN" = "true" ]]; then
         echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
         az group delete --yes --no-wait --name $AZURE_RESOURCE_GROUP --output table || {
             echo "ERROR: Failed to delete the resource group"
