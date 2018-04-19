@@ -75,12 +75,14 @@ LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
+JENKINS_SERVER="http://10.3.1.4:8080"
 JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
+JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
 
 copy_ssh_key_to_proxy_master() {
@@ -787,4 +789,43 @@ disable_linux_agents_dcos_metrics() {
         }
     done
     echo "Successfully disabled dcos-metrics and dcos-checks-poststart on all the Linux agents"
+}
+
+run_dcos_autoscale_job() {
+    curl "${JENKINS_SERVER}/jnlpJars/jenkins-cli.jar" -o $JENKINS_CLI || {
+        echo "ERROR: Failed to download jenkins-cli.jar from ${JENKINS_SERVER}"
+        return 1
+    }
+    AUTOSCALE_JOB_NAME="dcos-testing-autoscale"
+    echo "Triggering ${AUTOSCALE_JOB_NAME} job for the current DC/OS cluster"
+
+    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_SERVER build $AUTOSCALE_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
+    AUTOSCALE_EXIT_CODE=$?
+    AUTOSCALE_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
+
+    echo "You can check the Jenkins console at: ${JENKINS_SERVER_URL}/job/${AUTOSCALE_JOB_NAME}/${AUTOSCALE_JOB_NUMBER}/console"
+
+    if [[ $AUTOSCALE_EXIT_CODE -ne 0 ]]; then
+        echo "DC/OS autoscale testing job failed"
+        return 1
+    fi
+
+    echo "DC/OS autoscale testing job succeeded"
+    return 0
+}
+
+successfully_exit_dcos_testing_job() {
+    # - Collect all the logs in the DC/OS deployments
+    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+    MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
+    echo "STATUS=PASS" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
+    echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
+
+    # - Do the final cleanup
+    job_cleanup
+
+    echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
 }
