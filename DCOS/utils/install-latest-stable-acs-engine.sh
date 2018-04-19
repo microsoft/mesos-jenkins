@@ -2,7 +2,7 @@
 set -e
 
 REPO_URL="https://github.com/Azure/acs-engine"
-REPO_DIR="/tmp/acs-engine"
+REPO_DIR="$WORKSPACE/acs-engine"
 GIT_RELEASE_BASE_URL="https://github.com/Azure/acs-engine/releases/download"
 
 # Get the current ACS Engine (or set the variable to "" if the acs-engine is not installed)
@@ -35,7 +35,7 @@ rm -rf $REPO_DIR
 RELEASE_URL="${GIT_RELEASE_BASE_URL}/${ACS_LATEST_STABLE_VERSION}/acs-engine-${ACS_LATEST_STABLE_VERSION}-linux-amd64.tar.gz"
 OUT_FILE="acs-engine-${ACS_LATEST_STABLE_VERSION}-linux-amd64.tar.gz"
 
-cd /tmp
+cd $WORKSPACE
 EXIT_CODE=0
 OUTPUT=$(wget $RELEASE_URL -O $OUT_FILE 2>&1) || EXIT_CODE=1
 if [[ $EXIT_CODE -ne 0 ]]; then
