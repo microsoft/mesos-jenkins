@@ -50,7 +50,10 @@ fi
 
 tar xzf $OUT_FILE
 EXTRACT_DIR="acs-engine-${ACS_LATEST_STABLE_VERSION}-linux-amd64"
-sudo mv $EXTRACT_DIR/acs-engine /usr/local/bin/acs-engine
+mkdir -p $WORKSPACE/bin
+export PATH="$WORKSPACE/bin:$PATH"
+mv $EXTRACT_DIR/acs-engine $WORKSPACE/bin/acs-engine
+chmod +x $WORKSPACE/bin/acs-engine
 rm -rf $EXTRACT_DIR $OUT_FILE
 
 echo "Finished installing ACS Engine version: $ACS_LATEST_STABLE_VERSION"
