@@ -121,7 +121,11 @@ if [[ ! -z $DCOS_VERSION ]]; then
 else
     ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/testing/${DCOS_DEPLOYMENT_TYPE}.json"
 fi
-DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
+if [[ -z $DCOS_DEPLOY_DIR ]]; then
+    DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
+else
+    mkdir -p $DCOS_DEPLOY_DIR
+fi
 ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
 eval "cat << EOF
 $(cat $ACS_TEMPLATE)
