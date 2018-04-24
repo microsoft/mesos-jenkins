@@ -14,7 +14,7 @@ pushd $REPO_DIR
 
 if [[ $ACS_VERSION != "" ]]; then
     echo "Detected installed ACS Engine version: $ACS_VERSION. Checking if there is a newer stable ACS Engine"
-    ACS_LATEST_STABLE_VERSION=$(git tag --sort=-version:refname | head -1)
+    ACS_LATEST_STABLE_VERSION=$(git tag --sort=committerdate | tail -1)
     if [[ "$ACS_VERSION" = "$ACS_LATEST_STABLE_VERSION" ]]; then
         echo "ACS Engine is already updated to the latest stable version: $ACS_VERSION"
         popd
@@ -27,7 +27,7 @@ fi
 echo "Installing ACS Engine latest stable"
 
 if [[ -z $ACS_LATEST_STABLE_VERSION ]]; then
-    ACS_LATEST_STABLE_VERSION=$(git tag --sort=-taggerdate | head -1)
+    ACS_LATEST_STABLE_VERSION=$(git tag --sort=committerdate | tail -1)
 fi
 popd
 rm -rf $REPO_DIR
