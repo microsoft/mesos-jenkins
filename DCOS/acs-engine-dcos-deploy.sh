@@ -148,7 +148,7 @@ if [[ "$VERBOSE" = "true" ]]; then
 fi
 CLEANUP_TAG=""
 if [[ "$SET_CLEANUP_TAG" = "true" ]]; then
-    CLEANUP_TAG="--tags 'now=$(date +%s)'"
+    CLEANUP_TAG="--tags now=$(date +%s)"
 fi
 az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table $TAGS $EXTRA_PARAMS $CLEANUP_TAG
 echo "Validating the DC/OS ARM deployment templates"
