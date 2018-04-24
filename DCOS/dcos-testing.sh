@@ -151,7 +151,21 @@ job_cleanup() {
         }
         rm -rf $DCOS_DIR || return 1
     fi
-    if [[ "$AUTOCLEAN" = "true" ]]; then
+    if [[ "$SET_CLEANUP_TAG" = "true" ]]; then
+        if [[ "$STATUS" = "PASS" ]]; then
+            RESOURCE_GROUP_CLEANUP="true"
+        else
+            RESOURCE_GROUP_CLEANUP="false"
+        fi
+    fi
+    if [[ -z $RESOURCE_GROUP_CLEANUP ]]; then
+        if [[ "$AUTOCLEAN" = "true" ]]; then
+            RESOURCE_GROUP_CLEANUP="true"
+        else
+            RESOURCE_GROUP_CLEANUP="false"
+        fi
+    fi
+    if [[ "$RESOURCE_GROUP_CLEANUP" = "true" ]]; then
         echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
         az group delete --yes --no-wait --name $AZURE_RESOURCE_GROUP --output table || {
             echo "ERROR: Failed to delete the resource group"
@@ -723,11 +737,11 @@ check_exit_code() {
     upload_logs || echo "ERROR: Failed to upload logs to log server"
     MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
-    echo "STATUS=FAIL" >> $PARAMETERS_FILE
-    echo "EMAIL_TITLE=[${JOB_NAME}] FAIL" >> $PARAMETERS_FILE
+    export STATUS="FAIL"
+    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
-    export STATUS="FAIL"
     job_cleanup
     exit 1
 }
@@ -820,8 +834,9 @@ successfully_exit_dcos_testing_job() {
     upload_logs || echo "ERROR: Failed to upload logs to log server"
     MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
-    echo "STATUS=PASS" >> $PARAMETERS_FILE
-    echo "EMAIL_TITLE=[${JOB_NAME}] PASS" >> $PARAMETERS_FILE
+    export STATUS="PASS"
+    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 
     # - Do the final cleanup
