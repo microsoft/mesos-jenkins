@@ -8,6 +8,7 @@ $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
 $REMOTE_DIAGNOSTICS_BUILD_DIR = "/data/diagnostics-build"
 $REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
+$REMOTE_ADMINROUTER_BUILD_DIR = "/data/adminrouter-build"
 
 # DCOS common configurations
 $LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
@@ -87,6 +88,24 @@ $METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
 $METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
 $METRICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/metrics-build"
 
+# AdminRouter configurations
+$ADMINROUTER_SERVICE_NAME = "dcos-adminrouter"
+$ADMINROUTER_AGENT_PORT = 61001
+$ADMINROUTER_FOR_TEMPLATE_DIR = "c:\DCOS\adminrouter"
+$ADMINROUTER_DIR = Join-Path $DCOS_DIR "adminrouter"
+$ADMINROUTER_GIT_REPO_DIR = Join-Path $ADMINROUTER_DIR "src\github.com\dcos\dcos-adminrouter"
+$ADMINROUTER_BUILD_OUT_DIR = Join-Path $ADMINROUTER_DIR "build-output"
+$ADMINROUTER_BUILD_LOGS_DIR = Join-Path $ADMINROUTER_BUILD_OUT_DIR "logs"
+$ADMINROUTER_BUILD_BINARIES_DIR = Join-Path $ADMINROUTER_BUILD_OUT_DIR "binaries"
+$ADMINROUTER_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $ADMINROUTER_DIR "mesos-jenkins"
+$ADMINROUTER_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/adminrouter-build"
+$ADMINROUTER_APACHE_DIR = "Apache24"
+$ADMINROUTER_ZIP_FILE_PATH = Join-Path $ADMINROUTER_BUILD_BINARIES_DIR "adminrouter.zip"
+
+# Other ports
+$PKGPANDA_AGENT_PORT = 9001
+$LOGGING_AGENT_PORT = 9002
+
 # Installers & git repositories URLs
 $SERVICE_WRAPPER_URL = "$LOG_SERVER_BASE_URL/downloads/WinSW.NET4.exe"
 $VS2017_URL = "https://download.visualstudio.microsoft.com/download/pr/10930949/045b56eb413191d03850ecc425172a7d/vs_Community.exe"
@@ -103,6 +122,8 @@ $GOLANG_URL_1_94 = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows.git"
 $MESOS_JENKINS_GIT_URL = "https://github.com/Microsoft/mesos-jenkins.git"
 $LIBSODIUM_GIT_URL = "https://github.com/jedisct1/libsodium.git"
+$WINDOWS_APACHEL_HTTP_SERVER_URL = "https://www.apachelounge.com/download/VC15/binaries/httpd-2.4.33-win64-VC15.zip"
+$WINDOWS_APACHEL_HTTP_SERVER_SHA256 = "A9F94DBA6AFFE3BD98FEC01EF77DC932C123E25E360D29D970CC2CDD9F5BA237"
 
 # Tools installation directories
 $GIT_DIR = Join-Path $env:ProgramFiles "Git"
