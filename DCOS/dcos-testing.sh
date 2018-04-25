@@ -743,6 +743,12 @@ check_exit_code() {
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
     job_cleanup
+
+    # - Delete $PARAMETERS_FILE and skip e-mail notifications if the parameter EMAIL_NOTIFICATIONS is false
+    if [[ "$EMAIL_NOTIFICATIONS" = "false" ]]; then
+        rm -f $PARAMETERS_FILE
+    fi
+
     exit 1
 }
 
@@ -836,6 +842,11 @@ successfully_exit_dcos_testing_job() {
 
     # - Do the final cleanup
     job_cleanup
+
+    # - Delete $PARAMETERS_FILE and skip e-mail notifications if the parameter EMAIL_NOTIFICATIONS is false
+    if [[ "$EMAIL_NOTIFICATIONS" = "false" ]]; then
+        rm -f $PARAMETERS_FILE
+    fi
 
     echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
 }
