@@ -3,13 +3,14 @@ The `acs-engine-dcos-deploy.sh` script is used to spawn a DC/OS environment in A
 Requirements:
 - Ubuntu >= 14.04;
 - [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli);
-- Interactively login to Azure with the Azure CLI 2.0 in case the user has 2-way authentication enabled, otherwise the unattended login will fail.
+- Azure service principal account.
 
 Before running the script, some environment variables must be set. These are used as deployment config options by the script:
 
 ```
-export AZURE_USER="<azure_user>"
-export AZURE_USER_PASSWORD="<azure_password_value>"
+export AZURE_SERVICE_PRINCIPAL_ID="<service_principal_id>"
+export AZURE_SERVICE_PRINCIPAL_PASSWORD="<service_principal_password>"
+export AZURE_SERVICE_PRINCIPAL_TENAT="<service_principal_tenant>"
 export AZURE_REGION="westus"
 export AZURE_RESOURCE_GROUP="dcos_mesos_rg"
 
