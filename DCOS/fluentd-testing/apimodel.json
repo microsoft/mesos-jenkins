@@ -1,0 +1,73 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS",
+      "orchestratorRelease": "1.10",
+      "orchestratorVersion": "1.10.0",
+      "dcosConfig": {
+        "dcosWindowsBootstrapURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/stable/"
+      }
+    },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "preprovision",
+      "vmSize": "Standard_D2s_v3",
+      "firstConsecutiveStaticIP": "192.168.255.5",
+      "storageProfile": "ManagedDisks",
+      "oauthEnabled": false,
+      "preProvisionExtension": null,
+      "extensions": [],
+      "distro": "ubuntu"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "niroypp2win",
+        "count": 1,
+        "vmSize": "Standard_D2s_v3",
+        "dnsPrefix": "preprovision-win",
+        "osType": "Windows",
+        "ports": [
+          80,
+          443,
+          8080,
+          3389
+        ],
+        "availabilityProfile": "VirtualMachineScaleSets",
+        "storageProfile": "ManagedDisks",
+        "distro": "ubuntu",
+        "fqdn": "",
+        "preProvisionExtension": {
+          "name": "preprovision-agent-windows",
+          "singleOrAll": "All",
+          "template": ""
+        },
+        "extensions": []
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "REPLACE",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "REPLACE"
+          }
+        ]
+      }
+    },
+    "extensionProfiles": [
+      {
+        "name": "preprovision-agent-windows",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "http://REPLACE/preprovision/",
+        "script": "preprovision-agent-windows.ps1"
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "REPLACE",
+      "adminPassword": "REPLACE",
+      "WindowsImageSourceUrl": ""
+    }
+  }
+}
