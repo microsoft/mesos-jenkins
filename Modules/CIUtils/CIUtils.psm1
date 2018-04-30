@@ -179,9 +179,9 @@ function Start-ExecuteWithRetry {
                     Throw
                 } else {
                     if($RetryMessage) {
-                        Write-Output $RetryMessage
+                        Write-Host $RetryMessage
                     } elseif($_) {
-                        Write-Output $_
+                        Write-Host $_
                     }
                     Start-Sleep $RetryInterval
                 }
