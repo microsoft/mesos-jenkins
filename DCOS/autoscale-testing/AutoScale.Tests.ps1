@@ -1,137 +1,182 @@
-﻿$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿Import-Module AzureRM
 
-Import-Module AzureRM
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-function Login-AzureRmFromEnv {
-    if ($Env:CLIENT_ID -eq $null) {
-        if (Test-Path "$here\env.ps1") {
-            . "$here\env.ps1"
-        }
-        else {
-            Write-Error "Could not find $here\env.ps1 file to source credentials, please create it"
-            exit 1
-        }
+$ciUtils = (Resolve-Path "$here\..\..\Modules\CIUtils").Path
+Import-Module $ciUtils
+
+
+function Set-CredentialsFromEnvFile {
+    if (Test-Path "${here}\env.ps1") {
+        . "${here}\env.ps1"
+    } else {
+        Throw "ERROR: Could not find ${here}\env.ps1 file to source credentials. Please create it."
     }
+}
+
+function Confirm-CredentialsEnvVariables {
+    if(!$env:CLIENT_ID) {
+        Throw "ERROR: CLIENT_ID is not set"
+    }
+    if(!$env:CLIENT_SECRET) {
+        Throw "ERROR: CLIENT_SECRET is not set"
+    }
+    if(!$env:TENANT_ID) {
+        Throw "ERROR: TENANT_ID is not set"
+    }
+}
+
+function New-AzureRmSession {
     try {
         $subscription = Get-AzureRmSubscription
     } catch {
         $subscription = $null
     }
-    if ($subscription -eq $null) {
-        $secpasswd = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential -ArgumentList $Env:CLIENT_ID, $secpasswd
-        Login-AzureRmAccount -Credential $cred -ServicePrincipal -TenantId $Env:TENANT_ID
+    if($subscription) {
+        Write-Host "AzureRm session is already created"
+        return
     }
+    if(!$env:CLIENT_ID -or !$env:CLIENT_SECRET -or !$env:TENANT_ID) {
+        Set-CredentialsFromEnvFile
+    }
+    Confirm-CredentialsEnvVariables
+    $securePass = ConvertTo-SecureString $env:CLIENT_SECRET -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential -ArgumentList $env:CLIENT_ID, $securePass
+    Connect-AzureRmAccount -Credential $cred -ServicePrincipal -TenantId $env:TENANT_ID
 }
 
-
-Login-AzureRmFromEnv
-
-$RG_NAME = $Env:RESOURCE_GROUP
-
-function getScalesetsVMcount ($RG_NAME) {
-    $vmCount = 0
-
-    $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
+function Get-ScaleSetsVMsCount {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $vmsCount = 0
+    $scaleSets = Get-AzureRmVmss -ResourceGroupName $ResourceGroupName -WarningAction Ignore
     $scaleSets | ForEach-Object {
-        $vms = Get-AzureRmVmssVM -ResourceGroupName $RG_NAME -VMScaleSetName $_.Name
-        $vmCount += $vms.Count
+        $vms = Get-AzureRmVmssVM -ResourceGroupName $ResourceGroupName -VMScaleSetName $_.Name
+        $vmsCount += $vms.Count
     }
-    return $vmCount
+    return $vmsCount
 }
 
-function getMasterFQDN ($RG_NAME) {
-    $deployment = Get-AzureRmResourceGroupDeployment -ResourceGroupName $RG_NAME
-    $masterFQDN = $deployment.Outputs.masterFQDN.Value
-    return $masterFQDN
+function Get-MasterFQDN {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $deployment = Get-AzureRmResourceGroupDeployment -ResourceGroupName $ResourceGroupName
+    return $deployment.Outputs.masterFQDN.Value
 }
 
-function getDCOSagentCount ($RG_NAME) {
-    $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
-    $agentCount = $res.slaves.Count
-    return $agentCount
+function Get-DCOSAgentsCount {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $masterFQDN = Get-MasterFQDN $ResourceGroupName
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://${masterFQDN}/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object "slaves"
+    return $res.slaves.Count
 }
 
-function AreAllNodesHealthy ($RG_NAME) {
-    $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/system/health/v1/nodes" | ConvertFrom-Json | Select-Object nodes
-    $isHealthy = $true
+function Confirm-DCOSAgentsHealth {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $masterFQDN = Get-MasterFQDN $ResourceGroupName
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://${masterFQDN}/system/health/v1/nodes" | ConvertFrom-Json | Select-Object "nodes"
+    $allHealthy = $true
     foreach ($agentNode in $res.nodes) {
-        if ($agentNode.health -ne 0) {
-            $isHealthy = $false
-            Write-Output "Unhealthy node detected:"
-            Write-Output "host_ip = $($agentNode.host_ip) role = $($agentNode.role) health = $($agentNode.health)"
+        if ($agentNode.health -eq 0) {
+            continue
         }
+        $allHealthy = $false
+        Write-Host "Unhealthy node detected: host_ip = $($agentNode.host_ip) ; role = $($agentNode.role) ; health = $($agentNode.health)"
     }
-    return $isHealthy
+    return $allHealthy
 }
 
-function AllMetricsGood ($RG_NAME) {
-    $masterFQDN = getMasterFQDN($RG_NAME)
-    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://$masterFQDN/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object slaves
-    $isAllGood = $true
+function Confirm-DCOSAgentsGoodMetrics {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $mesosAuth = Confirm-MesosAuthentication
+    if($mesosAuth) {
+        Throw "Mesos authentication is enabled. dcos-metrics doesn't with with this feature enabled."
+    }
+    $masterFQDN = Get-MasterFQDN $ResourceGroupName
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://${masterFQDN}/dcos-history-service/history/last" | ConvertFrom-Json | Select-Object "slaves"
+    $allMetricsGood = $true
     foreach ($agentNode in $res.slaves) {
-        Try
-        {
-            $agentMetricsRequestEp = "http://$masterFQDN/system/v1/agent/$($agentNode.id)/metrics/v0/node"
-            $dataPoints = Invoke-WebRequest -UseBasicParsing -Uri $agentMetricsRequestEp | ConvertFrom-Json 
-            $dataPointCount = $dataPoints.datapoints.Count
-
+        try {
+            $res = Invoke-WebRequest -UseBasicParsing -Uri "http://${masterFQDN}/system/v1/agent/$($agentNode.id)/metrics/v0/node" | ConvertFrom-Json
+            $dataPointCount = $res.datapoints.Count
             if ($dataPointCount -eq 0) {
-                Write-Output "Got no datapoints back, somthing wrong with dcos-metrics service"
-                Write-Output "agentNode.attributes.os = $($agentNode.attributes.os)"
-                Write-Output "agentNode.id = $($agentNode.id)"
-                Write-Output "agentNode.hostname = $($agentNode.hostname)"
-                Write-Output "dataPointCount = $dataPointCount"
-                $isAllGood = $false
+                Write-Host "Got no datapoints back. Something is wrong with the dcos-metrics service"
+                Write-Host "agentNode.attributes.os = $($agentNode.attributes.os) ; agentNode.id = $($agentNode.id) ; agentNode.hostname = $($agentNode.hostname) ; dataPointCount = $dataPointCount"
+                $allMetricsGood = $false
             }
-        }
-        Catch
-        {
-            $ErrorMessage = $_.Exception.Message
-            Write-Output "$ErrorMessage, metrics query failed on agent: hostname=$($agentNode.hostname) osType = $($agentNode.attributes.os) id= $($agentNode.id) "
-            $isAllGood = $false
+        } catch {
+            Write-Host $_.Exception.Message
+            Write-Host "Metrics query failed on agent: hostname = $($agentNode.hostname) ; osType = $($agentNode.attributes.os) ; id = $($agentNode.id)"
+            $allMetricsGood = $false
         }
     }
+    return $allMetricsGood
+}
 
-    return $isAllGood
+function Confirm-MesosAuthentication {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroupName
+    )
+    $masterFQDN = Get-MasterFQDN $ResourceGroupName
+    $res = Invoke-WebRequest -UseBasicParsing -Uri "http://${masterFQDN}/mesos/flags" | ConvertFrom-Json
+    return ($res.flags.authenticate_agents -eq "true")
 }
 
 
+#
+# Create an AzureRM session
+#
+New-AzureRmSession
+
+
+#
+# Execute the Pester integration tests
+#
 Describe "Sanity check" {
+
     It "Is logged in to Azure" {
         $subscription = Get-AzureRmSubscription
         $subscription | Should not be $null
     }
 
-    It "Has a resource group defined: $RG_NAME" {
-        $RG_NAME | Should not be $null
-        $RG_NAME | Should be $Env:RESOURCE_GROUP
+    It "Has a resource group defined" {
+        $env:RESOURCE_GROUP | Should not be $null
     }
 }
 
-Describe "Getting initial state" {
+Describe "Initial check" {
 
     It "Can get scalesets" {
-        # We get ALL the scalesets from the subscription if resource group is null
-        $RG_NAME | Should not be $null
-        $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
+        $env:RESOURCE_GROUP | Should not be $null
+        $scaleSets = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -WarningAction Ignore
         $scaleSets | Should not be $null
         $scaleSets.Count | Should BeGreaterThan 0
     }
 
     It "Can get scaleset OS" {
-        $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
+        $scaleSets = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -WarningAction Ignore
         $scaleSets | Should not be $null
         $scaleSets.Count | Should BeGreaterThan 0
         $scaleSets | ForEach-Object {
             $os = $_.VirtualMachineProfile.OsProfile
-            $os.WindowsConfiguration -or $os.LinuxConfiguration | Should not be $null
+            $os.WindowsConfiguration -or $os.LinuxConfiguration | Should not be $false
             if ($os.WindowsConfiguration){
                 $os.LinuxConfiguration | Should be $null
             }
-
             if ($os.LinuxConfiguration){
                 $os.WindowsConfiguration | Should be $null
             }
@@ -139,19 +184,20 @@ Describe "Getting initial state" {
     }
 
     It "Can get scaleset VMs" {
-        $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
+        $scaleSets = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -WarningAction Ignore
         $scaleSets | Should not be $null
         $scaleSets.Count | Should BeGreaterThan 0
         $scaleSets | ForEach-Object {
-            $vms = Get-AzureRmVmssVM -ResourceGroupName $RG_NAME -VMScaleSetName $_.Name
+            $vms = Get-AzureRmVmssVM -ResourceGroupName $env:RESOURCE_GROUP -VMScaleSetName $_.Name
             $vms | Should not be $null
             $vms.Count | Should BeGreaterThan 0
         }
     }
 
     It "Can get DCOS" {
-        # If you want to manage the DCOS master remotely you will need to add an inbound NAT rule to open port 80 for the master load balancer and inbound rule for the master network security group.
-        $deployment = Get-AzureRmResourceGroupDeployment -ResourceGroupName $RG_NAME
+        # If you want to manage the DCOS master remotely you will need to add an inbound NAT rule to open
+        # port 80 for the master load balancer and inbound rule for the master network security group.
+        $deployment = Get-AzureRmResourceGroupDeployment -ResourceGroupName $env:RESOURCE_GROUP
         $deployment | Should not be $null
         
         $masterFQDN = $deployment.Outputs.masterFQDN.Value
@@ -164,176 +210,123 @@ Describe "Getting initial state" {
     }
 
     It "Has the expected number of instances in DCOS" {
-        $RG_NAME | Should not be $null
-        getScalesetsVMcount($RG_NAME) | Should be $(getDCOSagentCount($RG_NAME))
+        $env:RESOURCE_GROUP | Should not be $null
+        Get-ScaleSetsVMsCount $env:RESOURCE_GROUP | Should be $(Get-DCOSAgentsCount $env:RESOURCE_GROUP)
     }
 
     It "Are all nodes healthy" {
-        AreAllNodesHealthy($RG_NAME) |  Should be $true
+        Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
     }
 
-    ### TODO(ibalutoiu):
-    #   Enable metrics tests once dcos-metrics is running properly with Mesos
-    #   flag 'authenticate_agents' enabled.
-    #
-    # It "Are all nodes metric service running fine" {
-    #     AllMetricsGood($RG_NAME) |  Should be $true
-    # }
+    $mesosAuth = Confirm-MesosAuthentication -ResourceGroupName $env:RESOURCE_GROUP
+    # Skip metrics tests if Mesos authentication is enabled
+    $skipFlag = $mesosAuth
+
+    It "Are all nodes metric service running fine" -Skip:$skipFlag {
+        Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+    }
 }
 
-Describe "ScaleUp" {
-    
-    $TestCases = @()
-    $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
-    $scaleSets | Foreach-Object {$TestCases += @{scaleset = $_}}
+Describe "Scale up check" {
+    $testCases = @()
+    $scaleSets = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -WarningAction Ignore
+    $scaleSets | Foreach-Object {$testCases += @{scaleset = $_}}
 
-    It "Can increase the scaleset capacity" -TestCases $TestCases {
-        param($scaleset)
-        Write-Host $scaleset.Name
-        $initial_capacity = $scaleset.Sku.Capacity
-        
+    It "Can increase the scaleset capacity ${scaleset}" -TestCases $testCases {
+        Param($scaleset)
+
+        Write-Host "Testing vmss: $($scaleset.Name)"
+        $initialCapacity = $scaleset.Sku.Capacity
+
         # Make sure we are initially scaled down (1 or 2 vms)
-        $initial_capacity | Should BeLessThan 3
+        $initialCapacity | Should BeLessThan 3
 
         # Scale up
         $scaleset.Sku.capacity = 4
-        $res = Update-AzureRmVmss -ResourceGroupName $RG_NAME -Name $scaleset.Name -VirtualMachineScaleSet $scaleset
+        $res = Start-ExecuteWithRetry -ScriptBlock { Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore } `
+                                      -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Update-AzureRmVmss failed. Retrying"
         $res | Should not be $null
         $res.Sku.Capacity | Should be 4
 
         # Sanity check
-        $updated_vmss = Get-AzureRmVmss -ResourceGroupName $RG_NAME -VMScaleSetName $scaleset.Name
-        $updated_vmss.Sku.Capacity | Should be 4
+        $updatedVmss = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -VMScaleSetName $scaleset.Name -WarningAction Ignore
+        $updatedVmss.Sku.Capacity | Should be 4
     }
 
-    ### NOTE(ibalutoiu):
-    #   Do not check if all nodes are healthy after scale-up since we won't
-    #   have metrics disabled on all the nodes.
-    #
-    # It "Are all nodes healthy" {
-    #     AreAllNodesHealthy($RG_NAME) |  Should be $true
-    # }
+    $mesosAuth = Confirm-MesosAuthentication -ResourceGroupName $env:RESOURCE_GROUP
+    # New Linux agents added after scale-up won't have dcos-metrics disabled.
+    # If Mesos authentication is enabled, besides metrics tests, we skip
+    # the nodes health check tests.
+    $skipFlag = $mesosAuth
 
-    ### TODO(ibalutoiu):
-    #   Enable metrics tests once dcos-metrics is running properly with Mesos
-    #   flag 'authenticate_agents' enabled.
-    #
-    # It "Are all nodes metric service running fine" {
-    #     AllMetricsGood($RG_NAME) |  Should be $true
-    # }
+    It "Are all nodes healthy" -Skip:$skipFlag {
+        Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+    }
+
+    It "Are all nodes metric service running fine" -Skip:$skipFlag {
+        Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+    }
 }
 
-Describe "DCOS UI" {
+Describe "DC/OS API check" {
     It "Reports the same amount of agents as the number of VMs in the scalesets" {
-        $RG_NAME | Should not be $null
-        $vmCount = getScalesetsVMcount($RG_NAME)
-        $agentCount = 0
+        $env:RESOURCE_GROUP | Should not be $null
 
+        $vmCount = Get-ScaleSetsVMsCount $env:RESOURCE_GROUP
+        $agentCount = Get-DCOSAgentsCount $env:RESOURCE_GROUP
         $retryCount = 15
-
-        while ($retryCount -gt 0) {
-
-            $agentCount = getDCOSagentCount($RG_NAME)
-            Write-Host "Retry count=$retryCount  VMs=$vmCount  agents=$agentCount"
+        do {
             if ($vmCount -eq $agentCount){
                 break
             }
-
-            # Only sleep if we are going to  retry
-            if ($retryCount -gt 1) {
-                Start-Sleep -Seconds 60
-            }
-
+            Start-Sleep -Seconds 60
+            $agentCount = Get-DCOSAgentsCount $env:RESOURCE_GROUP
+            Write-Host "Retry count=$retryCount VMs=$vmCount agents=$agentCount"
             $retryCount -= 1
-        }
-
+        } while($retryCount -gt 0)
         $agentCount | Should Be $vmCount
-    }  
-}
-
-Describe "DCOS cli cluster" {
-
-    It "Can list the clusters" {
-        $clusters = $(dcos cluster list --json | ConvertFrom-Json)
-        $? | Should be $True
-
-        $masterFQDN = getMasterFQDN($RG_NAME)
-        $thisCluster = $clusters | Where-Object {$_.url -eq "http://$masterFQDN"}
-
-        # Only setup cluster if it not already setup or cli returns an error
-        if ($thisCluster -eq $null){
-            Write-Host "Adding DCOS cluster: $masterFQDN"
-            dcos cluster setup "http://$masterFQDN"
-            $? | Should be $True
-        }
     }
 }
 
-Describe "DCOS service" {
-    It "Has service definition file" {
-        $path = "$here/python-server.json"
-        Test-Path $path -PathType Leaf | Should be $True
-    }
+Describe "Scale down check" {
+    $testCases = @()
+    $scaleSets = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -WarningAction Ignore
+    $scaleSets | Foreach-Object {$testCases += @{scaleset = $_}}
 
+    It "Can reduce the scaleset capacity" -TestCases $testCases {
+        Param($scaleset)
 
-    It "Can schedule a service" {
-        $path = "$here/python-server.json"
-        dcos marathon app add "$path"
-        $? | Should be $true
-    }
+        Write-Host "Testing vmss: $($scaleset.Name)"
+        $initialCapacity = $scaleset.Sku.Capacity
 
-}
-
-Describe "DCOS service progress" {
-
-    It "Can get the deployment" {
-        dcos marathon deployment list --json
-        $? | Should be $true
-    }
-
-    It "Can get the service" {
-        dcos marathon app list --json
-        $? | Should be $true
-    }
-}
-
-Describe "ScaleDown" {
-    $TestCases = @()
-    $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
-    $scaleSets | Foreach-Object {$TestCases += @{scaleset = $_}}
-
-    It "Can reduce the scaleset capacity" -TestCases $TestCases {
-        param($scaleset)
-        Write-Host $scaleset.Name
-        $initial_capacity = $scaleset.Sku.Capacity
-        
         # Make sure we are initially scaled up 3 or more
-        $initial_capacity | Should BeGreaterThan 2
+        $initialCapacity | Should BeGreaterThan 2
 
         # Scale down to 2
         $scaleset.Sku.capacity = 2
-        $res = Update-AzureRmVmss -ResourceGroupName $RG_NAME -Name $scaleset.Name -VirtualMachineScaleSet $scaleset
+        $res = Start-ExecuteWithRetry -ScriptBlock { Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore } `
+                                      -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Update-AzureRmVmss failed. Retrying"
         $res | Should not be $null
         $res.Sku.Capacity | Should be 2
 
         # Sanity check
-        $updated_vmss = Get-AzureRmVmss -ResourceGroupName $RG_NAME -VMScaleSetName $scaleset.Name
-        $updated_vmss.Sku.Capacity | Should be 2
+        $updatedVmss = Get-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -VMScaleSetName $scaleset.Name -WarningAction Ignore
+        $updatedVmss.Sku.Capacity | Should be 2
     }
 
-    ### NOTE(ibalutoiu):
-    #   Do not check if all nodes are healthy after scale-down since we won't
-    #   have metrics disabled on all the nodes.
-    #
-    # It "Are all nodes healthy" {
-    #     AreAllNodesHealthy($RG_NAME) |  Should be $true
-    # }
+    $mesosAuth = Confirm-MesosAuthentication -ResourceGroupName $env:RESOURCE_GROUP
+    # New Linux agents added after scale-up won't have dcos-metrics disabled.
+    # After scale-down, we might be in the situation that some of the nodes
+    # left are the new agents added in the scale-up phase with dcos-metrics
+    # enabled. If Mesos authentication is enabled, besides metrics tests, we
+    # skip the nodes health check tests.
+    $skipFlag = $mesosAuth
 
-    ### TODO(ibalutoiu):
-    #   Enable metrics tests once dcos-metrics is running properly with Mesos
-    #   flag 'authenticate_agents' enabled.
-    #
-    # It "Are all nodes metric service running fine" {
-    #     AllMetricsGood($RG_NAME) |  Should be $true
-    # }
+    It "Are all nodes healthy" -Skip:$skipFlag {
+        Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+    }
+
+    It "Are all nodes metric service running fine" -Skip:$skipFlag {
+        Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+    }
 }
