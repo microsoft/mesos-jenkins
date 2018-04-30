@@ -251,52 +251,6 @@ Describe "DCOS UI" {
     }  
 }
 
-Describe "DCOS cli cluster" {
-
-    It "Can list the clusters" {
-        $clusters = $(dcos cluster list --json | ConvertFrom-Json)
-        $? | Should be $True
-
-        $masterFQDN = getMasterFQDN($RG_NAME)
-        $thisCluster = $clusters | Where-Object {$_.url -eq "http://$masterFQDN"}
-
-        # Only setup cluster if it not already setup or cli returns an error
-        if ($thisCluster -eq $null){
-            Write-Host "Adding DCOS cluster: $masterFQDN"
-            dcos cluster setup "http://$masterFQDN"
-            $? | Should be $True
-        }
-    }
-}
-
-Describe "DCOS service" {
-    It "Has service definition file" {
-        $path = "$here/python-server.json"
-        Test-Path $path -PathType Leaf | Should be $True
-    }
-
-
-    It "Can schedule a service" {
-        $path = "$here/python-server.json"
-        dcos marathon app add "$path"
-        $? | Should be $true
-    }
-
-}
-
-Describe "DCOS service progress" {
-
-    It "Can get the deployment" {
-        dcos marathon deployment list --json
-        $? | Should be $true
-    }
-
-    It "Can get the service" {
-        dcos marathon app list --json
-        $? | Should be $true
-    }
-}
-
 Describe "ScaleDown" {
     $TestCases = @()
     $scaleSets = Get-AzureRmVmss -ResourceGroupName $RG_NAME
