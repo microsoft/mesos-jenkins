@@ -22,12 +22,15 @@ import os
 import sys
 import uuid
 import time
+import datetime
+import urllib
 
 sys.path.append(os.getcwd())
 
 from common import ReviewBoardHandler, GearmanClient, ReviewError, REVIEWBOARD_URL # noqa
 
 DEFAULT_GEARMAN_PORT = 4730
+MESOS_REPOSITORY_ID = 122
 
 
 def parse_parameters():
@@ -40,10 +43,16 @@ def parse_parameters():
     parser.add_argument("-r", "--reviews", type=int, required=False,
                         default=-1, help="The number of reviews to fetch, "
                                          "that will need verification")
+    default_hours_behind = 8
+    datetime_before = datetime.datetime.now() - datetime.timedelta(hours=default_hours_behind)
+    datetime_before_string = datetime_before.isoformat()
+    default_query = {"status": "pending",
+                     "repository": MESOS_REPOSITORY_ID}
+    default_query["last-updated-from"] = datetime_before_string.split(".")[0]
     parser.add_argument("-q", "--query", type=str, required=False,
-                        help="Query parameters",
-                        default="?to-groups=mesos&status=pending&"
-                                "last-updated-from=2017-01-01T00:00:00")
+                        help="Query parameters, passed as string in JSON format. "
+                             "Example: '%s'" % json.dumps(default_query),
+                        default=json.dumps(default_query))
 
     subparsers = parser.add_subparsers(title="The script plug-in type")
 
@@ -117,8 +126,11 @@ def main():
     parameters = parse_parameters()
     print "\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
                                  os.path.abspath(__file__))
-    review_requests_url = "%s/api/review-requests/%s" % (REVIEWBOARD_URL,
-                                                         parameters.query)
+    # The colon from timestamp gets encoded and we don't want it to be encoded.
+    # Replacing %3A with colon.
+    query_string = urllib.urlencode(json.loads(parameters.query)).replace("%3A", ":")
+    review_requests_url = "%s/api/review-requests/?%s" % (REVIEWBOARD_URL,
+                                                          query_string)
     handler = ReviewBoardHandler(parameters.user, parameters.password)
     num_reviews = 0
     review_ids = []
@@ -136,7 +148,8 @@ def main():
                            "Error:\n%s" % (err.args[0]))
                 handler.post_review(review_request, message)
                 continue
-            except Exception:
+            except Exception as err:
+                print("Error occured: %s" % err)
                 needs_verification = False
                 print("WARNING: Cannot find if review %s needs "
                       "verification" % (review_request["id"]))
