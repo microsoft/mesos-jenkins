@@ -301,7 +301,7 @@ test_windows_marathon_app() {
     }
     PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" || {
-        echo "EROR: Port $PORT is not open for the application: $APP_NAME"
+        echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
@@ -338,7 +338,7 @@ test_iis() {
         return 1
     }
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
-        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
@@ -397,7 +397,7 @@ test_iis_docker_private_image() {
         return 1
     }
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
-        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
