@@ -2,6 +2,9 @@
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+$ciUtils = (Resolve-Path "$here\..\..\Modules\CIUtils").Path
+Import-Module $ciUtils
+
 
 function Set-CredentialsFromEnvFile {
     if (Test-Path "${here}\env.ps1") {
@@ -240,7 +243,8 @@ Describe "Scale up check" {
 
         # Scale up
         $scaleset.Sku.capacity = 4
-        $res = Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore
+        $res = Start-ExecuteWithRetry -ScriptBlock { Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore } `
+                                      -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Update-AzureRmVmss failed. Retrying"
         $res | Should not be $null
         $res.Sku.Capacity | Should be 4
 
@@ -300,7 +304,8 @@ Describe "Scale down check" {
 
         # Scale down to 2
         $scaleset.Sku.capacity = 2
-        $res = Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore
+        $res = Start-ExecuteWithRetry -ScriptBlock { Update-AzureRmVmss -ResourceGroupName $env:RESOURCE_GROUP -Name $scaleset.Name -VirtualMachineScaleSet $scaleset -WarningAction Ignore } `
+                                      -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Update-AzureRmVmss failed. Retrying"
         $res | Should not be $null
         $res.Sku.Capacity | Should be 2
 
