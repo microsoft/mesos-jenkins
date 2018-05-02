@@ -33,8 +33,7 @@ Describe "Fluentd sanity check" {
 Describe "Fluentd logging" {
 
     It "Can modify conf file" {
-        Copy-Item $newConfigPath $(Get-ServiceConfPath) -force
-        $LASTEXITCODE | Should -Be 0
+        { Copy-Item $newConfigPath $(Get-ServiceConfPath) -force } | Should Not Throw
     }
 
     It "Can restart service to update config" {
@@ -47,15 +46,20 @@ Describe "Fluentd logging" {
     It "Can see changes to file in dynamic directory" {
         [String] $DateStamp = get-date -Format yyyyMMddTHHmmss
         $folderpath = "$env:SystemDrive/DCOS/mesos/$DateStamp"
-        $folder = md $folderpath
+        $folder = mkdir $folderpath
+        $folder | Should Not Be $null
         "Hello at $DateStamp" | Out-File -FilePath "$folderpath/stdout" -Encoding ascii
 
-        # Leave time for fluentd to detect change
-        Sleep 2 
-
-        $strings = Select-String -Path "$env:SystemDrive/DCOS/*.log" -Pattern "$DateStamp"
-        $strings | Should -Not -Be $null
-        # Remove-Item $folder -Recurse -Force
+        # Retry to Leave time for fluentd to detect change
+        $retry = 30
+        $found = $null
+        while ($retry -gt 0 -and $found -eq $null) {
+            $found = Select-String -Path "$env:SystemDrive/DCOS/*.log" -Pattern "$DateStamp"
+            Start-Sleep 1
+            $retry -= 1
+            Write-Host "Retries left : $retry"
+        }
+        $found | Should -Not -Be $null
     }
 
 }
