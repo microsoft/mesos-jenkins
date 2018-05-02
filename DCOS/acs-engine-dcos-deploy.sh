@@ -5,8 +5,9 @@ CI_WEB_ROOT="http://dcos-win.westus.cloudapp.azure.com"
 
 
 validate_simple_deployment_params() {
-    if [[ -z $AZURE_USER ]]; then echo "ERROR: Parameter AZURE_USER is not set"; exit 1; fi
-    if [[ -z $AZURE_USER_PASSWORD ]]; then echo "ERROR: Parameter AZURE_USER_PASSWORD is not set"; exit 1; fi
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_ID ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_ID is not set"; exit 1; fi
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_PASSWORD ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_PASSWORD is not set"; exit 1; fi
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_TENAT ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_TENAT is not set"; exit 1; fi
     if [[ -z $AZURE_REGION ]]; then echo "ERROR: Parameter AZURE_REGION is not set"; exit 1; fi
     if [[ -z $AZURE_RESOURCE_GROUP ]]; then echo "ERROR: Parameter AZURE_RESOURCE_GROUP is not set"; exit 1; fi
 
@@ -93,8 +94,11 @@ install_azure_cli_2() {
 }
 
 azure_cli_login() {
-    az account list --output json | grep -q "\"name\": \"$AZURE_USER\",$" && echo "Account is already logged" && return || echo "Logging with the user: $AZURE_USER"
-    az login -u $AZURE_USER -p $AZURE_USER_PASSWORD
+    if az account list --output json | jq -r '.[0]["user"]["name"]' | grep -q "^${AZURE_SERVICE_PRINCIPAL_ID}$"; then
+        echo "Account is already logged"
+        return
+    fi
+    az login --output table --service-principal -u $AZURE_SERVICE_PRINCIPAL_ID -p $AZURE_SERVICE_PRINCIPAL_PASSWORD --tenant $AZURE_SERVICE_PRINCIPAL_TENAT
 }
 
 # Check if all parameters are set
@@ -117,7 +121,11 @@ if [[ ! -z $DCOS_VERSION ]]; then
 else
     ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/testing/${DCOS_DEPLOYMENT_TYPE}.json"
 fi
-DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
+if [[ -z $DCOS_DEPLOY_DIR ]]; then
+    DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
+else
+    mkdir -p $DCOS_DEPLOY_DIR
+fi
 ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
 eval "cat << EOF
 $(cat $ACS_TEMPLATE)
@@ -130,16 +138,21 @@ rm -rf ./translations # Left-over after running 'acs-engine generate'
 DEPLOY_TEMPLATE_FILE="$DCOS_DEPLOY_DIR/azuredeploy.json"
 DEPLOY_PARAMS_FILE="$DCOS_DEPLOY_DIR/azuredeploy.parameters.json"
 
-# TODO(ibalutoiu): Remove these sed calls once the Windows version can be directly 
-#                  specified in the ACS template. This is temporary workaround
-#                  to enable RS3 deployments.
-sed -i 's|    "agentWindowsOffer": "WindowsServer",|    "agentWindowsOffer": "WindowsServerSemiAnnual",|g' $DEPLOY_TEMPLATE_FILE
-sed -i 's|    "agentWindowsSku": "2016-Datacenter-with-Containers",|    "agentWindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk",|g' $DEPLOY_TEMPLATE_FILE
-
 azure_cli_login
-az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table
+EXTRA_PARAMS=""
+if [[ "$DEBUG" = "true" ]]; then
+    EXTRA_PARAMS="$EXTRA_PARAMS --debug"
+fi
+if [[ "$VERBOSE" = "true" ]]; then
+    EXTRA_PARAMS="$EXTRA_PARAMS --verbose"
+fi
+CLEANUP_TAG=""
+if [[ "$SET_CLEANUP_TAG" = "true" ]]; then
+    CLEANUP_TAG="--tags now=$(date +%s)"
+fi
+az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table $TAGS $EXTRA_PARAMS $CLEANUP_TAG
 echo "Validating the DC/OS ARM deployment templates"
-az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
+az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table $EXTRA_PARAMS
 echo "Started the DC/OS deployment"
-az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table
+az group deployment create -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table $EXTRA_PARAMS
 rm -rf $DCOS_DEPLOY_DIR

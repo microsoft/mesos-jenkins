@@ -35,6 +35,7 @@ class ReviewBoardHandler(object):
     def __init__(self, user=None, password=None):
         self.user = user
         self.password = password
+        self._opener_installed = False
 
     def _review_ids(self, review_request, review_ids=[]):
         """Helper function for the 'get_review_ids' method"""
@@ -56,14 +57,16 @@ class ReviewBoardHandler(object):
     def api(self, url, data=None):
         """Call the ReviewBoard API."""
         try:
-            auth_handler = urllib2.HTTPBasicAuthHandler()
-            auth_handler.add_password(
-                realm="Web API",
-                uri="reviews.apache.org",
-                user=self.user,
-                passwd=self.password)
-            opener = urllib2.build_opener(auth_handler)
-            urllib2.install_opener(opener)
+            if self._opener_installed == False:
+                auth_handler = urllib2.HTTPBasicAuthHandler()
+                auth_handler.add_password(
+                    realm="Web API",
+                    uri="reviews.apache.org",
+                    user=self.user,
+                    passwd=self.password)
+                opener = urllib2.build_opener(auth_handler)
+                urllib2.install_opener(opener)
+                self._opener_installed = True
             return json.loads(urllib2.urlopen(url, data=data).read())
         except urllib2.HTTPError as err:
             print "Error handling URL %s: %s (%s)" % (url,
@@ -103,6 +106,7 @@ class ReviewBoardHandler(object):
         """Return True if this review request needs to be verified."""
         print "Checking if review: %s needs verification" % (
             review_request["id"])
+        rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
 
         # Now apply this review if not yet submitted.
         if review_request["status"] == "submitted":
@@ -114,19 +118,6 @@ class ReviewBoardHandler(object):
             print "Skipping blocking review %s" % review_request["id"]
             return False
 
-        diffs_url = review_request["links"]["diffs"]["href"]
-        diffs = self.api(diffs_url)
-        if len(diffs["diffs"]) == 0:  # No diffs attached!
-            print "Skipping review %s as it has no diffs" % (
-                review_request["id"])
-            return False
-
-        # Get the timestamp of the latest diff.
-        timestamp = diffs["diffs"][-1]["timestamp"]
-        rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
-        diff_time = datetime.strptime(timestamp, rb_date_format)
-        print "Latest diff timestamp: %s" % diff_time
-
         # Get the timestamp of the latest review from this script.
         reviews_url = review_request["links"]["reviews"]["href"]
         reviews = self.api(reviews_url + "?max-results=200")
@@ -137,6 +128,23 @@ class ReviewBoardHandler(object):
                 review_time = datetime.strptime(timestamp, rb_date_format)
                 print "Latest review timestamp: %s" % review_time
                 break
+        if not review_time:
+            # Never reviewed, the review request needs to be verified
+            print "Patch never verified, needs verification"
+            return True
+
+        # Every patch must have a diff
+        latest_diff_url = review_request["links"]["latest_diff"]["href"]
+        latest_diff = self.api(latest_diff_url)
+
+        # Get the timestamp of the latest diff.
+        timestamp = latest_diff["diff"]["timestamp"]
+        diff_time = datetime.strptime(timestamp, rb_date_format)
+        print "Latest diff timestamp: %s" % diff_time
+        if review_time < diff_time:
+            # There is a new diff, needs verification
+            print "There is a new diff, needs verification"
+            return True
 
         # TODO: Apply this check recursively up the dependency chain.
         changes_url = review_request["links"]["changes"]["href"]
@@ -152,8 +160,7 @@ class ReviewBoardHandler(object):
 
         # Needs verification if there is a new diff, or if the
         # dependencies changed, after the last time it was verified.
-        return (not review_time or review_time < diff_time or
-                (dependency_time and review_time < dependency_time))
+        return dependency_time and review_time < dependency_time
 
 
 class GearmanClient(object):

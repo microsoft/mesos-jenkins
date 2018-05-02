@@ -45,8 +45,7 @@ mount_smb_share() {
     local HOST=$1
     local USER=$2
     local PASS=$3
-    MOUNTED=$(df -h | grep -E "\/\/$HOST\/C\\$\s*")
-    if [[ "$MOUNTED" != "" ]]; then
+    if mount | awk '{print $3}' | grep -q "^\/mnt\/${HOST}$"; then
         return 0
     fi
     sudo mkdir -p /mnt/$HOST || return 1

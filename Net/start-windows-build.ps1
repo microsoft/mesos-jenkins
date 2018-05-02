@@ -206,6 +206,59 @@ function Start-EUnitTests {
     Write-Output "Successfully finished dcos-net eunit tests run"
 }
 
+function Start-XrefTests {
+    Push-Location $DCOS_NET_GIT_REPO_DIR
+    Write-Output "Starting the dcos-net xref tests"
+    try {
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "xref") `
+                               -BuildErrorMessage "dcos-net xref tests run was not successful" `
+                               -StdoutFileName "dcos-net-xref-tests-stdout.log" -StderrFileName "dcos-net-xref-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished dcos-net xref tests run"
+}
+
+function Start-CoverTests {
+    Push-Location $DCOS_NET_GIT_REPO_DIR
+    Write-Output "Starting the dcos-net coverage tests"
+    try {
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "cover") `
+                               -BuildErrorMessage "dcos-net coverage tests run was not successful" `
+                               -StdoutFileName "dcos-net-cover-tests-stdout.log" -StderrFileName "dcos-net-cover-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished dcos-net coverage tests run"
+}
+
+function Start-DialyzerTests {
+    Push-Location $DCOS_NET_GIT_REPO_DIR
+    Write-Output "Starting the dcos-net dialyzer tests"
+    try {
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "dialyzer") `
+                               -BuildErrorMessage "dcos-net coverage tests run was not successful" `
+                               -StdoutFileName "dcos-net-dialyzer-tests-stdout.log" -StderrFileName "dcos-net-dialyzer-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished dcos-net dialyzer tests run"
+}
+
+
+function Start-EdocTests {
+    Push-Location $DCOS_NET_GIT_REPO_DIR
+    Write-Output "Starting the dcos-net edoc tests"
+    try {
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "edoc") `
+                               -BuildErrorMessage "dcos-net edoc tests run was not successful" `
+                               -StdoutFileName "dcos-net-edoc-tests-stdout.log" -StderrFileName "dcos-net-edoc-tests-stderr.log"
+    } finally {
+        Pop-Location
+    }
+    Write-Output "Successfully finished dcos-net edoc tests run"
+}
+
 function New-DCOSNetPackage {
     Copy-Item -Recurse "$DCOS_NET_GIT_REPO_DIR\_build\windows\rel\dcos-net\*" "${DCOS_NET_BUILD_RELEASE_DIR}\"
     Copy-Item "$DCOS_NET_LIBSODIUM_GIT_DIR\bin\x64\Release\v141\dynamic\libsodium.dll" "${DCOS_NET_BUILD_RELEASE_DIR}\bin\"
@@ -301,6 +354,10 @@ try {
     Start-DCOSNetBuild
     Start-EUnitTests
     Start-CommonTests
+    Start-XrefTests
+    Start-CoverTests
+    Start-DialyzerTests
+    Start-EdocTests
     New-DCOSNetPackage
     $global:PARAMETERS["BUILD_STATUS"] = 'PASS'
     $global:PARAMETERS["MESSAGE"] = "dcos-net build and testing were successful."

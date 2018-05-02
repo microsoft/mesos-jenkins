@@ -10,20 +10,29 @@ export LINUX_MASTER_DNS_PREFIX="dcos-testing-lin-master-${BUILD_ID}"
 export WIN_AGENT_DNS_PREFIX="dcos-testing-win-agent-${BUILD_ID}"
 export LINUX_AGENT_DNS_PREFIX="dcos-testing-lin-agent-${BUILD_ID}"
 export WIN_AGENT_ADMIN="azureuser"
-if [[ -z $LINUX_PUBLIC_SSH_KEY ]]; then
-    PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
-    if [[ ! -e $PUB_KEY_FILE ]]; then
-        echo "ERROR: LINUX_PUBLIC_SSH_KEY was not set and the default $PUB_KEY_FILE doesn't exist"
-        exit 1
-    fi
-    export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
+if [[ ! -z $LINUX_PUBLIC_SSH_KEY ]]; then
+    USER_LINUX_PUBLIC_SSH_KEY="$LINUX_PUBLIC_SSH_KEY"
 fi
+PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
+if [[ ! -e $PUB_KEY_FILE ]]; then
+    echo "ERROR: The CI machine doesn't have a ssh key generated. Please generate one via 'ssh-keygen'"
+    exit 1
+fi
+export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
 fi
 if [[ $(echo "$AZURE_REGION" | grep "\s") ]]; then
     echo "ERROR: The AZURE_REGION parameter must not contain any spaces"
+fi
+if [[ -z $DOCKER_HUB_USER ]]; then
+    echo "ERROR: Parameter DOCKER_HUB_USER is not set"
+    exit 1
+fi
+if [[ -z $DOCKER_HUB_USER_PASSWORD ]]; then
+    echo "ERROR: Parameter DOCKER_HUB_USER_PASSWORD is not set"
+    exit 1
 fi
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
     export DCOS_AZURE_PROVIDER_PACKAGE_ID="5a6b7b92820dc4a7825c84f0a96e012e0fcc8a6b"
@@ -55,6 +64,7 @@ MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
+PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
 WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
@@ -65,13 +75,70 @@ LOG_SERVER_ADDRESS="10.3.1.6"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
+JENKINS_SERVER="http://10.3.1.4:8080"
 JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
 TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
+JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
+
+copy_ssh_key_to_proxy_master() {
+    #
+    # Upload the authorized SSH private key to the first master. We'll use
+    # this one as a proxy node to execute remote CI commands against all the
+    # Linux slaves.
+    #
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
+        echo "ERROR: Failed to create remote .ssh directory"
+        return 1
+    }
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
+        echo "ERROR: Failed to copy the id_rsa private ssh key"
+        return 1
+    }
+}
+
+authorize_user_ssh_key() {
+    if [[ -z $USER_LINUX_PUBLIC_SSH_KEY ]]; then
+        return 0
+    fi
+    REMOTE_CMD=' if [[ ! -e $HOME/.ssh ]]; then mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh || exit 1; fi ;'
+    REMOTE_CMD+='touch $HOME/.ssh/authorized_keys && chmod 600 $HOME/.ssh/authorized_keys || exit 1 ;'
+    REMOTE_CMD+="echo -e '\n${USER_LINUX_PUBLIC_SSH_KEY}' >> \$HOME/.ssh/authorized_keys || exit 1"
+    # Authorize ssh key on all the Linux masters
+    for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
+        MASTER_SSH_PORT="220$i"
+        echo "Authorizing user ssh key on master $i"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "$REMOTE_CMD" || {
+            echo "ERROR: Failed to authorize ssh key on master $i"
+            return 1
+        }
+    done
+    copy_ssh_key_to_proxy_master
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to upload utils.sh"
+        return 1
+    }
+    # Authorize ssh key on all the Linux agents
+    IPS=$(linux_agents_private_ips) || {
+        echo "ERROR: Failed to get the Linux agents private addresses"
+        return 1
+    }
+    if [[ -z $IPS ]]; then
+        return 0
+    fi
+    for IP in $IPS; do
+        echo "Authorizing user ssh key on agent $IP"
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 \"$REMOTE_CMD\"" || {
+            echo "ERROR: Failed to authorize the user ssh key on agent: $IP"
+            return 1
+        }
+    done
+    echo "Finished authorizing the user SSH key on all the Linux machines"
+}
 
 job_cleanup() {
     #
@@ -80,18 +147,33 @@ job_cleanup() {
     echo "Cleanup in progress for the current Azure DC/OS deployment"
     if [[ ! -z $DCOS_CLUSTER_ID ]]; then
         dcos cluster remove $DCOS_CLUSTER_ID || {
-            echo "WARNING: Failed to remove the DC/OS cluster: $DCOS_CLUSTER_ID"
+            echo "WARNING: Failed to remove the DC/OS cluster session for cluster ID: $DCOS_CLUSTER_ID"
         }
         rm -rf $DCOS_DIR || return 1
     fi
-    RESOURCE_GROUP_CLEANUP="true"
-    if [[ "$STATUS" = "FAIL" ]] && [[ "$AUTOCLEAN" = "false" ]]; then
-        RESOURCE_GROUP_CLEANUP="false"
+    if [[ "$SET_CLEANUP_TAG" = "true" ]]; then
+        if [[ "$STATUS" = "PASS" ]]; then
+            RESOURCE_GROUP_CLEANUP="true"
+        else
+            RESOURCE_GROUP_CLEANUP="false"
+        fi
+    fi
+    if [[ -z $RESOURCE_GROUP_CLEANUP ]]; then
+        if [[ "$AUTOCLEAN" = "true" ]]; then
+            RESOURCE_GROUP_CLEANUP="true"
+        else
+            RESOURCE_GROUP_CLEANUP="false"
+        fi
     fi
     if [[ "$RESOURCE_GROUP_CLEANUP" = "true" ]]; then
         echo "Deleting resource group: $AZURE_RESOURCE_GROUP"
-        az group delete --yes --name $AZURE_RESOURCE_GROUP --output table || {
+        az group delete --yes --no-wait --name $AZURE_RESOURCE_GROUP --output table || {
             echo "ERROR: Failed to delete the resource group"
+            return 1
+        }
+    else
+        authorize_user_ssh_key || {
+            echo "ERROR: Failed to authorize the user SSH key"
             return 1
         }
     fi
@@ -103,7 +185,7 @@ upload_logs() {
     # Uploads the logs to the log server
     #
     # Copy the Jenkins console as well
-    wget --no-check-certificate "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -O $TEMP_LOGS_DIR/jenkins-console.log || return 1
+    curl "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
     upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
@@ -219,7 +301,7 @@ test_windows_marathon_app() {
     }
     PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" || {
-        echo "EROR: Port $PORT is not open for the application: $APP_NAME"
+        echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
@@ -256,12 +338,72 @@ test_iis() {
         return 1
     }
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
-        echo "EROR: Port 80 is not open for the application: $APP_NAME"
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
+}
+
+test_iis_docker_private_image() {
+    #
+    # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
+    #
+    echo "Testing marathon applications with Docker private images"
+
+    # Login to create the docker config file with credentials
+    echo $DOCKER_HUB_USER_PASSWORD | docker --config $WORKSPACE/.docker/ login -u $DOCKER_HUB_USER --password-stdin || return 1
+
+    # Create the zip archive
+    pushd $WORKSPACE && zip -r docker.zip .docker && rm -rf .docker && popd || return 1
+
+    # Upload docker.zip to master
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/docker.zip" "$WORKSPACE/docker.zip" || {
+        echo "ERROR: Failed to scp docker.zip"
+        return 1
+    }
+
+    rm $WORKSPACE/docker.zip || {
+        echo "ERROR: Failed to clean up docker.zip"
+        return 1
+    }
+
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to scp utils.sh"
+        return 1
+    }
+    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
+        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+        return 1
+    }
+    # Download the config file with creds locally to all the targeted nodes
+    for IP in $WIN_PUBLIC_IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
+            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
+            return 1
+        }
+    done
+
+    echo "Deploying IIS application from private image on DC/OS"
+    dcos marathon app add $PRIVATE_IIS_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application from private image"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+    echo "Successfully tested marathon applications with Docker private images"
 }
 
 test_custom_attributes() {
@@ -443,6 +585,7 @@ run_functional_tests() {
     test_dcos_dns || return 1
     test_windows_marathon_app || return 1
     test_iis || return 1
+    test_iis_docker_private_image || return 1
     test_mesos_fetcher_local || return 1
     test_mesos_fetcher_remote_http || return 1
     test_mesos_fetcher_remote_https || return 1
@@ -564,10 +707,7 @@ collect_dcos_nodes_logs() {
     mkdir -p $MASTERS_LOGS_DIR || return 1
     collect_linux_masters_logs "$MASTERS_LOGS_DIR" || return 1
 
-    # From now on, use the first Linux master as a proxy node to collect logs
-    # from all the other Linux machines.
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || return 1
+    copy_ssh_key_to_proxy_master || return 1
 
     IPS=$(linux_agents_private_ips)
     if [[ ! -z $IPS ]]; then
@@ -597,28 +737,29 @@ check_exit_code() {
     upload_logs || echo "ERROR: Failed to upload logs to log server"
     MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
-    echo "STATUS=FAIL" >> $PARAMETERS_FILE
-    echo "EMAIL_TITLE=[${JOB_NAME}] FAIL" >> $PARAMETERS_FILE
+    export STATUS="FAIL"
+    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
-    export STATUS="FAIL"
     job_cleanup
+
+    # - Delete $PARAMETERS_FILE and skip e-mail notifications if the parameter EMAIL_NOTIFICATIONS is false
+    if [[ "$EMAIL_NOTIFICATIONS" = "false" ]]; then
+        rm -f $PARAMETERS_FILE
+    fi
+
     exit 1
 }
 
 create_testing_environment() {
     #
-    # - Install the required dependencies
     # - Create the python3 virtual environment and activate it
     # - Installs the DC/OS client packages
     # - Configures the DC/OS clients for the current cluster and export the
     #   cluster ID as the DCOS_CLUSTER_ID environment variable
     #
-    sudo apt-get update -y &>/dev/null && sudo apt-get install jq python3-pip python3-virtualenv -y &>/dev/null || {
-        echo "ERROR: Failed to install dependencies for the testing environment"
-        return 1
-    }
-    virtualenv -p python3 $VENV_DIR && . $VENV_DIR/bin/activate || {
+    python3 -m venv $VENV_DIR && . $VENV_DIR/bin/activate || {
         echo "ERROR: Failed to create the python3 virtualenv"
         return 1
     }
@@ -633,4 +774,79 @@ create_testing_environment() {
         echo "ERROR: Cannot find any cluster with the ID: $DCOS_CLUSTER_ID"
         return 1
     }
+}
+
+disable_linux_agents_dcos_metrics() {
+    #
+    # - Disable dcos-metrics on all the Linux agents
+    #
+    echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
+    copy_ssh_key_to_proxy_master || return 1
+    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+        echo "ERROR: Failed to upload utils.sh"
+        return 1
+    }
+    REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
+    REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
+    REMOTE_CMD+="sudo systemctl stop dcos-checks-poststart.timer && sudo systemctl stop dcos-checks-poststart.service && "
+    REMOTE_CMD+="sudo systemctl disable dcos-checks-poststart.timer && sudo systemctl disable dcos-checks-poststart.service || exit 1"
+    IPS=$(linux_agents_private_ips) || {
+        echo "ERROR: Failed to get the Linux agents private addresses"
+        return 1
+    }
+    if [[ -z $IPS ]]; then
+        return 0
+    fi
+    for IP in $IPS; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '$REMOTE_CMD'" || {
+            echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
+            return 1
+        }
+    done
+    echo "Successfully disabled dcos-metrics and dcos-checks-poststart on all the Linux agents"
+}
+
+run_dcos_autoscale_job() {
+    curl "${JENKINS_SERVER}/jnlpJars/jenkins-cli.jar" -o $JENKINS_CLI || {
+        echo "ERROR: Failed to download jenkins-cli.jar from ${JENKINS_SERVER}"
+        return 1
+    }
+    AUTOSCALE_JOB_NAME="dcos-testing-autoscale"
+    echo "Triggering ${AUTOSCALE_JOB_NAME} job for the current DC/OS cluster"
+
+    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_SERVER build $AUTOSCALE_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
+    AUTOSCALE_EXIT_CODE=$?
+    AUTOSCALE_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
+
+    echo "You can check the Jenkins console at: ${JENKINS_SERVER_URL}/job/${AUTOSCALE_JOB_NAME}/${AUTOSCALE_JOB_NUMBER}/console"
+
+    if [[ $AUTOSCALE_EXIT_CODE -ne 0 ]]; then
+        echo "DC/OS autoscale testing job failed"
+        return 1
+    fi
+
+    echo "DC/OS autoscale testing job succeeded"
+    return 0
+}
+
+successfully_exit_dcos_testing_job() {
+    # - Collect all the logs in the DC/OS deployments
+    collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
+    upload_logs || echo "ERROR: Failed to upload logs to log server"
+    MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+    MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
+    export STATUS="PASS"
+    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
+    echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
+    echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
+
+    # - Do the final cleanup
+    job_cleanup
+
+    # - Delete $PARAMETERS_FILE and skip e-mail notifications if the parameter EMAIL_NOTIFICATIONS is false
+    if [[ "$EMAIL_NOTIFICATIONS" = "false" ]]; then
+        rm -f $PARAMETERS_FILE
+    fi
+
+    echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
 }
