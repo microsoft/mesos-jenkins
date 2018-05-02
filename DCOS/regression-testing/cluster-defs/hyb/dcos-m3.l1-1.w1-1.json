@@ -6,19 +6,19 @@
       "orchestratorRelease": ""
     },
     "masterProfile": {
-      "count": 1,
+      "count": 3,
       "dnsPrefix": "",
       "vmSize": "Standard_D2_v2"
     },
     "agentPoolProfiles": [
       {
         "name": "lnxpri",
-        "count": 2,
+        "count": 1,
         "vmSize": "Standard_D2s_v3"
       },
       {
         "name": "lnxpub",
-        "count": 2,
+        "count": 1,
         "vmSize": "Standard_D2s_v3",
         "dnsPrefix": "",
         "ports": [
@@ -29,13 +29,13 @@
       },
       {
         "name": "winpri",
-        "count": 2,
+        "count": 1,
         "vmSize": "Standard_D2s_v3",
         "osType": "Windows"
       },
       {
         "name": "winpub",
-        "count": 2,
+        "count": 1,
         "vmSize": "Standard_D2s_v3",
         "osType": "Windows",
         "dnsPrefix": "",
