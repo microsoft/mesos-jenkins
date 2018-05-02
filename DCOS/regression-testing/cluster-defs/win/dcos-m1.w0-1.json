@@ -8,31 +8,31 @@
     "masterProfile": {
       "count": 1,
       "dnsPrefix": "",
-      "vmSize": "Standard_D2s_v3",
-      "storageProfile": "StorageAccount"
+      "vmSize": "Standard_D2s_v3"
     },
     "agentPoolProfiles": [
       {
-        "name": "lnxpri",
-        "count": 2,
+        "name": "winpub",
+        "count": 1,
         "vmSize": "Standard_D2s_v3",
-        "availabilityProfile": "AvailabilitySet",
-        "storageProfile": "ManagedDisks"
-      },
-      {
-        "name": "lnxpub",
-        "count": 2,
-        "vmSize": "Standard_D2s_v3",
-        "availabilityProfile": "AvailabilitySet",
+        "osType": "Windows",
         "storageProfile": "StorageAccount",
         "dnsPrefix": "",
         "ports": [
           80,
           443,
-          8080
+          8080,
+          3389
         ]
       }
     ],
+    "windowsProfile": {
+      "adminUsername": "azureuser",
+      "adminPassword": "",
+      "WindowsPublisher": "MicrosoftWindowsServer",
+      "WindowsOffer": "WindowsServerSemiAnnual",
+      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
+    },
     "linuxProfile": {
       "adminUsername": "azureuser",
       "ssh": {
@@ -45,3 +45,4 @@
     }
   }
 }
+
