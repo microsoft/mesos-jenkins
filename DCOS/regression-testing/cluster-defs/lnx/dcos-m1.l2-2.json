@@ -8,7 +8,7 @@
     "masterProfile": {
       "count": 1,
       "dnsPrefix": "",
-      "vmSize": "Standard_D2_v2"
+      "vmSize": "Standard_D2s_v3"
     },
     "agentPoolProfiles": [
       {
@@ -26,34 +26,8 @@
           443,
           8080
         ]
-      },
-      {
-        "name": "winpri",
-        "count": 2,
-        "vmSize": "Standard_D2s_v3",
-        "osType": "Windows"
-      },
-      {
-        "name": "winpub",
-        "count": 2,
-        "vmSize": "Standard_D2s_v3",
-        "osType": "Windows",
-        "dnsPrefix": "",
-        "ports": [
-          80,
-          443,
-          8080,
-          3389
-        ]
       }
     ],
-    "windowsProfile": {
-      "adminUsername": "azureuser",
-      "adminPassword": "",
-      "WindowsPublisher": "MicrosoftWindowsServer",
-      "WindowsOffer": "WindowsServerSemiAnnual",
-      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
-    },
     "linuxProfile": {
       "adminUsername": "azureuser",
       "ssh": {
@@ -66,4 +40,3 @@
     }
   }
 }
-
