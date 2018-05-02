@@ -8,20 +8,18 @@
     "masterProfile": {
       "count": 1,
       "dnsPrefix": "",
-      "vmSize": "Standard_D2s_v3"
+      "vmSize": "Standard_D2_v2"
     },
     "agentPoolProfiles": [
       {
         "name": "lnxpri",
         "count": 2,
-        "vmSize": "Standard_D2s_v3",
-        "storageProfile": "ManagedDisks"
+        "vmSize": "Standard_D2s_v3"
       },
       {
         "name": "lnxpub",
         "count": 2,
         "vmSize": "Standard_D2s_v3",
-        "storageProfile": "StorageAccount",
         "dnsPrefix": "",
         "ports": [
           80,
@@ -33,15 +31,13 @@
         "name": "winpri",
         "count": 2,
         "vmSize": "Standard_D2s_v3",
-        "osType": "Windows",
-        "storageProfile": "ManagedDisks"
+        "osType": "Windows"
       },
       {
         "name": "winpub",
         "count": 2,
         "vmSize": "Standard_D2s_v3",
         "osType": "Windows",
-        "storageProfile": "StorageAccount",
         "dnsPrefix": "",
         "ports": [
           80,

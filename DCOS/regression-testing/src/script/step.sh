@@ -69,7 +69,6 @@ validate)
   export OUTPUT="${ROOT}/_output/${INSTANCE_NAME}"
   export SSH_KEY="${OUTPUT}/id_rsa"
   set +e
-  set -x
   validate
 ;;
 

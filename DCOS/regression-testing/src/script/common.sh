@@ -231,7 +231,7 @@ function validate_agents {
 	if [[ $retval -ne 0 ]]; then echo "Error: gave up waiting for marathon to be added"; exit 1; fi
 
 	# only need to teardown if app added successfully
-	#trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
+	trap "${remote_exec} ./dcos marathon app remove $appID" EXIT
 
 	echo $(date +%H:%M:%S) "Validating marathon app"
 	count=50
