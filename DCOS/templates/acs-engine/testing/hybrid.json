@@ -133,7 +133,7 @@
         "name": "preprovision-agent-windows",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
+        "rootURL": "https://files.nimbus.mcapsali.eu/testing/preprovision/",
         "script": "preprovision-agent-windows.ps1"
       }
     ]
