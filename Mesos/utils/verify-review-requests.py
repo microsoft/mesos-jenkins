@@ -23,11 +23,9 @@ import sys
 import uuid
 import time
 import datetime
-import urllib
-
-sys.path.append(os.getcwd())
 
 from common import ReviewBoardHandler, GearmanClient, ReviewError, REVIEWBOARD_URL # noqa
+from python_compatibility_utils import urlencode
 
 DEFAULT_GEARMAN_PORT = 4730
 MESOS_REPOSITORY_ID = 122
@@ -82,7 +80,7 @@ def parse_parameters():
 
 def verify_reviews(review_ids, parameters):
     nr_reviews = len(review_ids)
-    print "There are %s review requests that need verification" % nr_reviews
+    print("There are %s review requests that need verification" % nr_reviews)
     if hasattr(parameters, 'out_file'):
         # Using file plug-in
         with open(parameters.out_file, 'w') as f:
@@ -105,7 +103,7 @@ def verify_reviews(review_ids, parameters):
     jobs = []
     task_name = "build:%s" % parameters.job
     for review_id in review_ids:
-        print "Preparing build job with review id: %s" % review_id
+        print("Preparing build job with review id: %s" % review_id)
         job_params = {
             'REVIEW_ID': review_id,
             "OFFLINE_NODE_WHEN_COMPLETE": "false"
@@ -124,11 +122,11 @@ def verify_reviews(review_ids, parameters):
 def main():
     """Main function to verify the submitted reviews."""
     parameters = parse_parameters()
-    print "\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
-                                 os.path.abspath(__file__))
+    print("\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
+                                 os.path.abspath(__file__)))
     # The colon from timestamp gets encoded and we don't want it to be encoded.
     # Replacing %3A with colon.
-    query_string = urllib.urlencode(json.loads(parameters.query)).replace("%3A", ":")
+    query_string = urlencode(json.loads(parameters.query)).replace("%3A", ":")
     review_requests_url = "%s/api/review-requests/?%s" % (REVIEWBOARD_URL,
                                                           query_string)
     handler = ReviewBoardHandler(parameters.user, parameters.password)
