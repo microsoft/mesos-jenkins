@@ -66,8 +66,8 @@ get_orchestrator_release)
 ;;
 
 validate)
-  export OUTPUT="${ROOT}/_output/${INSTANCE_NAME}"
-  export SSH_KEY="${OUTPUT}/id_rsa"
+  export OUTPUT=${OUTPUT:-"${ROOT}/_output/${INSTANCE_NAME}"}
+  export SSH_KEY=${SSH_KEY:-"${OUTPUT}/id_rsa"}
   set +e
   validate
 ;;
