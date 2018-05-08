@@ -31,14 +31,15 @@ create_resource_group)
 predeploy)
   ACSE_PREDEPLOY=${ACSE_PREDEPLOY:-}
   if [ ! -z "${ACSE_PREDEPLOY}" ] && [ -x "${ACSE_PREDEPLOY}" ]; then
-      "${ACSE_PREDEPLOY}"
+    "${ACSE_PREDEPLOY}"
   fi
 ;;
 
 postdeploy)
   ACSE_POSTDEPLOY=${ACSE_POSTDEPLOY:-}
   if [ ! -z "${ACSE_POSTDEPLOY}" ] && [ -x "${ACSE_POSTDEPLOY}" ]; then
-      "${ACSE_POSTDEPLOY}"
+    export OUTPUT=${OUTPUT:-"${ROOT}/_output/${INSTANCE_NAME}"}
+    "${ACSE_POSTDEPLOY}"
   fi
 ;;
 

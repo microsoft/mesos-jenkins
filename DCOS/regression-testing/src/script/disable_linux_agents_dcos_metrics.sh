@@ -1,8 +1,13 @@
 #!/bin/bash
 
-set -xe
+set -x
+set -e
+set -u
+set -o pipefail
 
 echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
+
+SSH_KEY=${SSH_KEY:-"${OUTPUT}/id_rsa"}
 
 VMSS_NAMES=$(az vmss list --resource-group ${RESOURCE_GROUP} | jq -r ".[] | select(.virtualMachineProfile.osProfile.linuxConfiguration != null) | .name")
 
