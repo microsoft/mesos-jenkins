@@ -26,7 +26,11 @@ declare -a cmds=(
   "sudo systemctl stop dcos-metrics-agent.service || echo skipped"
   "sudo systemctl stop dcos-metrics-agent.socket || echo skipped"
   "sudo systemctl disable dcos-metrics-agent.service || echo skipped"
-  "sudo systemctl disable dcos-metrics-agent.socket || echo skipped")
+  "sudo systemctl disable dcos-metrics-agent.socket || echo skipped"
+  "sudo systemctl stop dcos-checks-poststart.timer || echo skipped"
+  "sudo systemctl stop dcos-checks-poststart.service || echo skipped"
+  "sudo systemctl disable dcos-checks-poststart.timer || echo skipped"
+  "sudo systemctl disable dcos-checks-poststart.service || echo skipped")
 
 scp -i ${SSH_KEY} -o ConnectTimeout=30 -o StrictHostKeyChecking=no -P 2200 ${SSH_KEY} azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:/tmp/id_rsa
 
