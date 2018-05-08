@@ -8,12 +8,12 @@
     {
       "cluster_definition": "lnx/dcos-m3.l2-2.json",
       "orchestratorRelease": "1.8",
-      "location": "westus2"
+      "location": "centralus"
     },
     {
       "cluster_definition": "lnx/dcos-m3.l2-2.vnet.json",
       "orchestratorRelease": "1.8",
-      "location": "westus2"
+      "location": "centralus"
     }
   ]
 }
