@@ -287,7 +287,7 @@ function validate() {
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
 		sleep 30; count=$((count-1))
 	done
-#	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Error: unhealthy nodes: $unhealthy_nodes"; exit 1; fi
+	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Error: unhealthy nodes: $unhealthy_nodes"; exit 1; fi
 
 	echo $(date +%H:%M:%S) "Downloading dcos"
 	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
