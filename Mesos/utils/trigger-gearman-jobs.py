@@ -23,8 +23,6 @@ import sys
 import uuid
 import time
 
-sys.path.append(os.getcwd())
-
 from common import GearmanClient # noqa
 
 DEFAULT_GEARMAN_PORT = 4730
@@ -48,8 +46,8 @@ def parse_parameters():
 def main():
     """Main function to verify the submitted reviews."""
     parameters = parse_parameters()
-    print "\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
-                                 os.path.abspath(__file__))
+    print("\n%s - Running %s" % (time.strftime('%m-%d-%y_%T'),
+                                 os.path.abspath(__file__)))
     servers = []
     for server in parameters.servers.split(","):
         server = server.strip()
@@ -65,7 +63,7 @@ def main():
     }
     if parameters.params is not None:
         job_params.update(json.loads(parameters.params))
-    print "Triggering %s" % (parameters.job)
+    print("Triggering %s" % (parameters.job))
     task_name = "build:%s" % parameters.job
     jobs = [dict(unique=uuid.uuid4().hex,
                  task=task_name,
