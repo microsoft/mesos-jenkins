@@ -37,9 +37,24 @@ function generate_template() {
 	cp "${CLUSTER_DEFINITION}" "${FINAL_CLUSTER_DEFINITION}"
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.dnsPrefix = \"${INSTANCE_NAME}\""
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.linuxProfile.ssh.publicKeys[0].keyData = \"${SSH_KEY_DATA}\""
+
 	if [ "$(jq -r '.properties.windowsProfile' ${FINAL_CLUSTER_DEFINITION})" != "null" ]; then
 		winpwd="Wp@1$(date +%s | sha256sum | base64 | head -c 32)"
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.adminPassword = \"$winpwd\""
+
+		if [[ ! -z "${WIN_IMG:-}" ]]; then
+			if [[ $WIN_IMG == http* ]]; then
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsImageSourceUrl = \"$WIN_IMG\""
+			elif if [[ ! $WIN_IMG =~ .+,.+,.+ ]]; then
+				IFS=',' read -a arr <<< "${WIN_IMG}"
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsPublisher = \"${arr[0]}\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[0]}\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsSku = \"${arr[0]}\""
+			else
+				echo "Unsupported WIN_IMG format: $WIN_IMG"
+				exit -1
+			fi
+		fi
 	fi
 
 	orchestratorRelease=$(jq -r '.properties.orchestratorProfile.orchestratorRelease' ${FINAL_CLUSTER_DEFINITION})
@@ -304,7 +319,9 @@ function validate() {
 	fi
 
 	if (( ${EXPECTED_WINDOWS_AGENTS} > 0 )); then
-		validate_agents "iis-marathon-template.json"
+		if [[ ! -z "${WIN_MARATHON_APP:-}" ]]; then
+			validate_agents "${WIN_MARATHON_APP}"
+		fi
 	fi
 }
 
