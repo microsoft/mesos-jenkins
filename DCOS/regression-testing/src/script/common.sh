@@ -45,7 +45,7 @@ function generate_template() {
 		if [[ ! -z "${WIN_IMG:-}" ]]; then
 			if [[ $WIN_IMG == http* ]]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsImageSourceUrl = \"$WIN_IMG\""
-			elif if [[ ! $WIN_IMG =~ .+,.+,.+ ]]; then
+			elif [[ ! $WIN_IMG =~ .+,.+,.+ ]]; then
 				IFS=',' read -a arr <<< "${WIN_IMG}"
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsPublisher = \"${arr[0]}\""
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[1]}\""
