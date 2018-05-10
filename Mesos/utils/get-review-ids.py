@@ -17,12 +17,8 @@
 # limitations under the License.
 
 import argparse
-import os
-import sys
 
-sys.path.append(os.getcwd())
-
-from common import ReviewBoardHandler, REVIEWBOARD_URL # noqa
+from common import ReviewBoardHandler, REVIEWBOARD_URL  # noqa
 
 
 def parse_parameters():
