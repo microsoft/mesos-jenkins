@@ -24,8 +24,8 @@ if sys.version_info.major == 3:
     from urllib.parse import urlencode
 else:
     # for Python 2
-    import urllib2
-    from urllib import urlencode
+    import urllib2  # noqa
+    from urllib import urlencode  # noqa
 
 
 def decode_response(data):

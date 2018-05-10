@@ -19,15 +19,12 @@
 import argparse
 import json
 import os
-import sys
-import uuid
 import time
 import datetime
 
-from common import ReviewBoardHandler, GearmanClient, ReviewError, REVIEWBOARD_URL # noqa
+from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL  # noqa
 from python_compatibility_utils import urlencode
 
-DEFAULT_GEARMAN_PORT = 4730
 MESOS_REPOSITORY_ID = 122
 
 
@@ -42,14 +39,16 @@ def parse_parameters():
                         default=-1, help="The number of reviews to fetch, "
                                          "that will need verification")
     default_hours_behind = 8
-    datetime_before = datetime.datetime.now() - datetime.timedelta(hours=default_hours_behind)
+    datetime_before = (datetime.datetime.now() -
+                       datetime.timedelta(hours=default_hours_behind))
     datetime_before_string = datetime_before.isoformat()
     default_query = {"status": "pending",
                      "repository": MESOS_REPOSITORY_ID}
     default_query["last-updated-from"] = datetime_before_string.split(".")[0]
     parser.add_argument("-q", "--query", type=str, required=False,
-                        help="Query parameters, passed as string in JSON format. "
-                             "Example: '%s'" % json.dumps(default_query),
+                        help="Query parameters, passed as string in JSON "
+                             "format. Example: '%s'" % json.dumps(
+                                 default_query),
                         default=json.dumps(default_query))
 
     subparsers = parser.add_subparsers(title="The script plug-in type")
@@ -61,62 +60,20 @@ def parse_parameters():
                              help="The out file with the reviews IDs that "
                                   "need verification")
 
-    gearman_parser = subparsers.add_parser(
-        "gearman", description="Gearman plug-in is used to connect to "
-                               "a gearman server to trigger jobs to "
-                               "registered Jenkins servers")
-    gearman_parser.add_argument("-s", "--servers", type=str, required=False,
-                                default="127.0.0.1",
-                                help="The gearman servers' addresses")
-    gearman_parser.add_argument("-j", "--job", type=str, required=True,
-                                help="The Jenkins build job name")
-    gearman_parser.add_argument("--params",
-                                type=str, required=False, default=None,
-                                help="Extra parameters to pass to every build "
-                                     "(must be given as JSON encoded string)")
-
     return parser.parse_args()
 
 
 def verify_reviews(review_ids, parameters):
     nr_reviews = len(review_ids)
     print("There are %s review requests that need verification" % nr_reviews)
-    if hasattr(parameters, 'out_file'):
+    # out_file parameter is mandatory to be passed
+    try:
         # Using file plug-in
         with open(parameters.out_file, 'w') as f:
             f.write('\n'.join(review_ids))
-        return
-    servers = []
-    for server in parameters.servers.split(","):
-        server = server.strip()
-        s_split = server.split(":")
-        address = s_split[0]
-        if len(s_split) == 2:
-            port = s_split[1]
-        else:
-            port = DEFAULT_GEARMAN_PORT
-        servers.append("%s:%s" % (address, port))
-    # Using the Gearman plug-in
-    if len(review_ids) == 0:
-        # We don't need to trigger any jobs
-        return
-    jobs = []
-    task_name = "build:%s" % parameters.job
-    for review_id in review_ids:
-        print("Preparing build job with review id: %s" % review_id)
-        job_params = {
-            'REVIEW_ID': review_id,
-            "OFFLINE_NODE_WHEN_COMPLETE": "false"
-        }
-        if parameters.params is not None:
-            job_params.update(json.loads(parameters.params))
-        jobs.append(dict(
-            unique=uuid.uuid4().hex,
-            task=task_name,
-            data=json.dumps(job_params)
-        ))
-    client = GearmanClient(servers=servers, jobs=jobs)
-    client.trigger_gearman_jobs()
+    except Exception:
+        print("Failed opening file '%s' for writing" % parameters.out_file)
+        raise
 
 
 def main():

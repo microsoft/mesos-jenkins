@@ -17,7 +17,6 @@
 # limitations under the License.
 
 import json
-import sys
 from datetime import datetime
 
 from python_compatibility_utils import urllib2, urlencode, decode_response
@@ -56,18 +55,19 @@ class ReviewBoardHandler(object):
 
     def api(self, url, data=None):
         """Call the ReviewBoard API."""
+        if self._opener_installed is False:
+            auth_handler = urllib2.HTTPBasicAuthHandler()
+            auth_handler.add_password(
+                realm="Web API",
+                uri="reviews.apache.org",
+                user=self.user,
+                passwd=self.password)
+            opener = urllib2.build_opener(auth_handler)
+            urllib2.install_opener(opener)
+            self._opener_installed = True
         try:
-            if self._opener_installed == False:
-                auth_handler = urllib2.HTTPBasicAuthHandler()
-                auth_handler.add_password(
-                    realm="Web API",
-                    uri="reviews.apache.org",
-                    user=self.user,
-                    passwd=self.password)
-                opener = urllib2.build_opener(auth_handler)
-                urllib2.install_opener(opener)
-                self._opener_installed = True
-            return json.loads(decode_response(urllib2.urlopen(url, data=data).read()))
+            return json.loads(
+                decode_response(urllib2.urlopen(url, data=data).read()))
         except Exception as err:
             print("Error handling URL %s: %s" % (url, err))
             # raise the error after printing the message
@@ -96,8 +96,8 @@ class ReviewBoardHandler(object):
                                                      message))
         review_url = review_request["links"]["reviews"]["href"]
         data = urlencode({'body_top': message,
-                                 'body_top_text_type': text_type,
-                                 'public': 'true'})
+                          'body_top_text_type': text_type,
+                          'public': 'true'})
         self.api(review_url, data)
 
     def needs_verification(self, review_request):
@@ -153,39 +153,9 @@ class ReviewBoardHandler(object):
                 timestamp = change["timestamp"]
                 dependency_time = datetime.strptime(timestamp, rb_date_format)
                 print("Latest dependency change timestamp: %s" %
-                    dependency_time)
+                      dependency_time)
                 break
 
         # Needs verification if there is a new diff, or if the
         # dependencies changed, after the last time it was verified.
         return dependency_time and review_time < dependency_time
-
-
-class GearmanClient(object):
-
-    def __init__(self, servers, jobs):
-        self.servers = servers
-        self.jobs = jobs
-
-    def check_gearman_request_status(self, job_request):
-        import gearman
-        if job_request.complete:
-            print("Job %s finished!\n%s" % (job_request.job.unique,
-                                            job_request.result))
-        elif job_request.timed_out:
-            print("Job %s timed out!" % job_request.job.unique)
-        elif job_request.state == gearman.JOB_UNKNOWN:
-            print("Job %s connection failed!" % job_request.unique)
-
-    def trigger_gearman_jobs(self):
-        import gearman
-        if len(self.servers) == 0:
-            raise Exception("No gearman servers to trigger the jobs")
-        print("Using the following Gearman servers: %s" % self.servers)
-        client = gearman.GearmanClient(self.servers)
-        print("Triggered all the jobs and waiting them to finish")
-        completed_job_requests = client.submit_multiple_jobs(
-            jobs_to_submit=self.jobs, wait_until_complete=True,
-            max_retries=0, poll_timeout=None)
-        for job_request in completed_job_requests:
-            self.check_gearman_request_status(job_request)
