@@ -48,8 +48,8 @@ function generate_template() {
 			elif if [[ ! $WIN_IMG =~ .+,.+,.+ ]]; then
 				IFS=',' read -a arr <<< "${WIN_IMG}"
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsPublisher = \"${arr[0]}\""
-				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[0]}\""
-				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsSku = \"${arr[0]}\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[1]}\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsSku = \"${arr[2]}\""
 			else
 				echo "Unsupported WIN_IMG format: $WIN_IMG"
 				exit -1
