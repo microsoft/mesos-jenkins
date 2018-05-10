@@ -1,6 +1,5 @@
 {
   "id": "test-fetcher-http",
-  "cmd": "powershell -Command while($true){Start-Sleep -Seconds 5}",
   "cpus": 1,
   "mem": 512,
   "disk": 0,
