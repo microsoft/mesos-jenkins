@@ -17,13 +17,9 @@
 # limitations under the License.
 
 import argparse
-import os
-import sys
-import urllib2
 
-sys.path.append(os.getcwd())
-
-from common import ReviewBoardHandler, REVIEWBOARD_URL # noqa
+from common import ReviewBoardHandler, REVIEWBOARD_URL  # noqa
+from python_compatibility_utils import urllib2
 
 LOG_TAIL_LIMIT = 30
 

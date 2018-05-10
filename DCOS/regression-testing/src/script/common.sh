@@ -208,8 +208,8 @@ function validate_agents {
 	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 	remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
 
-	appID="/$(jq -r .id ${MARATHON_JSON})"
-	instances="$(jq -r .instances ${MARATHON_JSON})"
+	appID="/$(jq -r .id ${ROOT}/${MARATHON_JSON})"
+	instances="$(jq -r .instances ${ROOT}/${MARATHON_JSON})"
 
 	echo $(date +%H:%M:%S) "Copying ${MARATHON_JSON} id:$appID instances:$instances"
 

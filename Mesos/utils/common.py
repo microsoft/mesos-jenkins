@@ -17,10 +17,9 @@
 # limitations under the License.
 
 import json
-import urllib
-import urllib2
-
 from datetime import datetime
+
+from python_compatibility_utils import urllib2, urlencode, decode_response
 
 REVIEWBOARD_URL = "https://reviews.apache.org"
 
@@ -42,11 +41,11 @@ class ReviewBoardHandler(object):
         if review_request["status"] != "submitted":
             review_ids.append(review_request["id"])
         else:
-            print ("The review request %s is already "
-                   "submitted" % (review_request["id"]))
+            print("The review request %s is already "
+                  "submitted" % (review_request["id"]))
         for review in review_request["depends_on"]:
             review_url = review["href"]
-            print "Dependent review: %s " % review_url
+            print("Dependent review: %s " % review_url)
             dependent_review = self.api(review_url)["review_request"]
             if dependent_review["id"] in review_ids:
                 raise ReviewError("Circular dependency detected for "
@@ -56,24 +55,23 @@ class ReviewBoardHandler(object):
 
     def api(self, url, data=None):
         """Call the ReviewBoard API."""
+        if self._opener_installed is False:
+            auth_handler = urllib2.HTTPBasicAuthHandler()
+            auth_handler.add_password(
+                realm="Web API",
+                uri="reviews.apache.org",
+                user=self.user,
+                passwd=self.password)
+            opener = urllib2.build_opener(auth_handler)
+            urllib2.install_opener(opener)
+            self._opener_installed = True
         try:
-            if self._opener_installed == False:
-                auth_handler = urllib2.HTTPBasicAuthHandler()
-                auth_handler.add_password(
-                    realm="Web API",
-                    uri="reviews.apache.org",
-                    user=self.user,
-                    passwd=self.password)
-                opener = urllib2.build_opener(auth_handler)
-                urllib2.install_opener(opener)
-                self._opener_installed = True
-            return json.loads(urllib2.urlopen(url, data=data).read())
-        except urllib2.HTTPError as err:
-            print "Error handling URL %s: %s (%s)" % (url,
-                                                      err.reason,
-                                                      err.read())
-        except urllib2.URLError as err:
-            print "Error handling URL %s: %s" % (url, err.reason)
+            return json.loads(
+                decode_response(urllib2.urlopen(url, data=data).read()))
+        except Exception as err:
+            print("Error handling URL %s: %s" % (url, err))
+            # raise the error after printing the message
+            raise
 
     def get_review_ids(self, review_request):
         """Returns the review requests' ids (together with any potential
@@ -94,28 +92,28 @@ class ReviewBoardHandler(object):
                             "types are: %s" % (text_type, valid_text_types))
         review_request_url = "%s/r/%s" % (REVIEWBOARD_URL,
                                           review_request['id'])
-        print "Posting to review request: %s\n%s" % (review_request_url,
-                                                     message)
+        print("Posting to review request: %s\n%s" % (review_request_url,
+                                                     message))
         review_url = review_request["links"]["reviews"]["href"]
-        data = urllib.urlencode({'body_top': message,
-                                 'body_top_text_type': text_type,
-                                 'public': 'true'})
+        data = urlencode({'body_top': message,
+                          'body_top_text_type': text_type,
+                          'public': 'true'})
         self.api(review_url, data)
 
     def needs_verification(self, review_request):
         """Return True if this review request needs to be verified."""
-        print "Checking if review: %s needs verification" % (
-            review_request["id"])
+        print("Checking if review: %s needs verification" % (
+            review_request["id"]))
         rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
 
         # Now apply this review if not yet submitted.
         if review_request["status"] == "submitted":
-            print "The review is already already submitted"
+            print("The review is already already submitted")
             return False
 
         # Skip if the review blocks another review.
         if review_request["blocks"]:
-            print "Skipping blocking review %s" % review_request["id"]
+            print("Skipping blocking review %s" % review_request["id"])
             return False
 
         # Get the timestamp of the latest review from this script.
@@ -126,11 +124,11 @@ class ReviewBoardHandler(object):
             if review["links"]["user"]["title"] == self.user:
                 timestamp = review["timestamp"]
                 review_time = datetime.strptime(timestamp, rb_date_format)
-                print "Latest review timestamp: %s" % review_time
+                print("Latest review timestamp: %s" % review_time)
                 break
         if not review_time:
             # Never reviewed, the review request needs to be verified
-            print "Patch never verified, needs verification"
+            print("Patch never verified, needs verification")
             return True
 
         # Every patch must have a diff
@@ -140,10 +138,10 @@ class ReviewBoardHandler(object):
         # Get the timestamp of the latest diff.
         timestamp = latest_diff["diff"]["timestamp"]
         diff_time = datetime.strptime(timestamp, rb_date_format)
-        print "Latest diff timestamp: %s" % diff_time
+        print("Latest diff timestamp: %s" % diff_time)
         if review_time < diff_time:
             # There is a new diff, needs verification
-            print "There is a new diff, needs verification"
+            print("There is a new diff, needs verification")
             return True
 
         # TODO: Apply this check recursively up the dependency chain.
@@ -154,40 +152,10 @@ class ReviewBoardHandler(object):
             if "depends_on" in change["fields_changed"]:
                 timestamp = change["timestamp"]
                 dependency_time = datetime.strptime(timestamp, rb_date_format)
-                print "Latest dependency change timestamp: %s" % (
-                    dependency_time)
+                print("Latest dependency change timestamp: %s" %
+                      dependency_time)
                 break
 
         # Needs verification if there is a new diff, or if the
         # dependencies changed, after the last time it was verified.
         return dependency_time and review_time < dependency_time
-
-
-class GearmanClient(object):
-
-    def __init__(self, servers, jobs):
-        self.servers = servers
-        self.jobs = jobs
-
-    def check_gearman_request_status(self, job_request):
-        import gearman
-        if job_request.complete:
-            print "Job %s finished!\n%s" % (job_request.job.unique,
-                                            job_request.result)
-        elif job_request.timed_out:
-            print "Job %s timed out!" % job_request.job.unique
-        elif job_request.state == gearman.JOB_UNKNOWN:
-            print "Job %s connection failed!" % job_request.unique
-
-    def trigger_gearman_jobs(self):
-        import gearman
-        if len(self.servers) == 0:
-            raise Exception("No gearman servers to trigger the jobs")
-        print "Using the following Gearman servers: %s" % self.servers
-        client = gearman.GearmanClient(self.servers)
-        print "Triggered all the jobs and waiting them to finish"
-        completed_job_requests = client.submit_multiple_jobs(
-            jobs_to_submit=self.jobs, wait_until_complete=True,
-            max_retries=0, poll_timeout=None)
-        for job_request in completed_job_requests:
-            self.check_gearman_request_status(job_request)
