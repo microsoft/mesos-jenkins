@@ -854,7 +854,7 @@ start_fluentd_tests() {
     local AGENT_IP="$1"
     WIN_REMOTE_CLONE_DIR="C:\\mesos-jenkins"
     WIN_REMOTE_REPO_URL="https://github.com/Microsoft/mesos-jenkins"
-    WIN_REMOTE_CMD="if (Test-Path -Path $WIN_REMOTE_CLONE_DIR) { Remove-Item -Force -Recurse -Path $WIN_REMOTE_CLONE_DIR }; git clone $WIN_REMOTE_REPO_URL $WIN_REMOTE_CLONE_DIR; pushd ${WIN_REMOTE_CLONE_DIR}\\DCOS\\fluentd-testing; run_fluentd_tests.ps1; popd"
+    WIN_REMOTE_CMD="if (Test-Path -Path $WIN_REMOTE_CLONE_DIR) { Remove-Item -Force -Recurse -Path $WIN_REMOTE_CLONE_DIR }; git clone $WIN_REMOTE_REPO_URL $WIN_REMOTE_CLONE_DIR; ${WIN_REMOTE_CLONE_DIR}\\DCOS\\fluentd-testing\\run_fluentd_tests.ps1"
     JUMPHOST_REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$WIN_REMOTE_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
     run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$JUMPHOST_REMOTE_CMD" || {
         run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
