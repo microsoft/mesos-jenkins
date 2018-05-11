@@ -3,7 +3,7 @@
     {
       "cluster_definition": "win/dcos-m1.w2-2.json",
       "orchestratorRelease": "1.11",
-      "location": "centralus"
+      "location": "westus2"
     }
   ]
 }
