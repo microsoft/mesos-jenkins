@@ -25,7 +25,7 @@ foreach($script in $SCRIPTS.Keys) {
     Write-Output "Executing script with full path $($SCRIPTS[$script]["local_file"])"
     & $SCRIPTS[$script]["local_file"]
     if ($LASTEXITCODE) {
-        Write-Output "Script failed to finish"
+        Write-Output "The script $($SCRIPTS[$script]["local_file"]) didn't finish succesfully"
         exit 1
     }
 }

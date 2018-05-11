@@ -861,7 +861,7 @@ start_fluentd_tests() {
         echo "ERROR: Fluentd tests failed on $AGENT_IP"
         return 1
     }
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout" || return 1
     echo -e "\n"
     echo -e "Successfully ran Fluentd tests on DC/OS Windows slave ${AGENT_IP}"
     echo -e "\n"
