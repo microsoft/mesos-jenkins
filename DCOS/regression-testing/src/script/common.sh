@@ -48,7 +48,7 @@ function generate_template() {
 		if [[ ! -z "${WINDOWS_IMAGE:-}" ]]; then
 			if [[ $WINDOWS_IMAGE == http* ]]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsImageSourceUrl = \"$WINDOWS_IMAGE\""
-			elif [[ ! $WINDOWS_IMAGE =~ .+,.+,.+ ]]; then
+			elif [[ $WINDOWS_IMAGE =~ .+,.+,.+ ]]; then
 				IFS=',' read -a arr <<< "${WINDOWS_IMAGE}"
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsPublisher = \"${arr[0]}\""
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[1]}\""
@@ -70,10 +70,9 @@ function generate_template() {
 	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${FINAL_CLUSTER_DEFINITION})
 	oArr=( $osTypes )
 	indx=0
-	for n in "${oArr[@]}"; do
-		echo "-->Agent $n"
+	for os in "${oArr[@]}"; do
 		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${FINAL_CLUSTER_DEFINITION})
-		if [ "${oArr[$indx]}" = "Windows" ]; then
+		if [ "$os" = "Windows" ]; then
 			if [[ ! -z "${WINDOWS_VMSIZE:-}" ]]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].vmSize = \"${WINDOWS_VMSIZE}\""
 			fi
