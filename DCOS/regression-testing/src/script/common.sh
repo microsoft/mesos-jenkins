@@ -35,6 +35,9 @@ function generate_template() {
 	# Form the final cluster_definition file
 	export FINAL_CLUSTER_DEFINITION="${OUTPUT}/clusterdefinition.json"
 	cp "${CLUSTER_DEFINITION}" "${FINAL_CLUSTER_DEFINITION}"
+	if [[ ! -z "${LINUX_VMSIZE:-}" ]]; then
+		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.vmSize = \"${LINUX_VMSIZE}\""
+	fi
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.dnsPrefix = \"${INSTANCE_NAME}\""
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.linuxProfile.ssh.publicKeys[0].keyData = \"${SSH_KEY_DATA}\""
 
@@ -42,16 +45,16 @@ function generate_template() {
 		winpwd="Wp@1$(date +%s | sha256sum | base64 | head -c 32)"
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.adminPassword = \"$winpwd\""
 
-		if [[ ! -z "${WIN_IMG:-}" ]]; then
-			if [[ $WIN_IMG == http* ]]; then
-				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsImageSourceUrl = \"$WIN_IMG\""
-			elif [[ ! $WIN_IMG =~ .+,.+,.+ ]]; then
-				IFS=',' read -a arr <<< "${WIN_IMG}"
+		if [[ ! -z "${WINDOWS_IMAGE:-}" ]]; then
+			if [[ $WINDOWS_IMAGE == http* ]]; then
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsImageSourceUrl = \"$WINDOWS_IMAGE\""
+			elif [[ $WINDOWS_IMAGE =~ .+,.+,.+ ]]; then
+				IFS=',' read -a arr <<< "${WINDOWS_IMAGE}"
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsPublisher = \"${arr[0]}\""
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsOffer = \"${arr[1]}\""
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.WindowsSku = \"${arr[2]}\""
 			else
-				echo "Unsupported WIN_IMG format: $WIN_IMG"
+				echo "Unsupported WINDOWS_IMAGE format: $WINDOWS_IMAGE"
 				exit -1
 			fi
 		fi
@@ -63,16 +66,24 @@ function generate_template() {
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.orchestratorProfile.orchestratorRelease = \"${ORCHESTRATOR_RELEASE}\""
 	fi
 
-	# Set dnsPrefix
+	# Set agents
 	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${FINAL_CLUSTER_DEFINITION})
 	oArr=( $osTypes )
 	indx=0
-	for n in "${oArr[@]}"; do
+	for os in "${oArr[@]}"; do
 		dnsPrefix=$(jq -r ".properties.agentPoolProfiles[$indx].dnsPrefix" ${FINAL_CLUSTER_DEFINITION})
-		if [ "$dnsPrefix" != "null" ]; then
-			if [ "${oArr[$indx]}" = "Windows" ]; then
+		if [ "$os" = "Windows" ]; then
+			if [[ ! -z "${WINDOWS_VMSIZE:-}" ]]; then
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].vmSize = \"${WINDOWS_VMSIZE}\""
+			fi
+			if [ "$dnsPrefix" != "null" ]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-w$indx\""
-			else
+			fi
+		else
+			if [[ ! -z "${LINUX_VMSIZE:-}" ]]; then
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].vmSize = \"${LINUX_VMSIZE}\""
+			fi
+			if [ "$dnsPrefix" != "null" ]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-l$indx\""
 			fi
 		fi
@@ -319,8 +330,8 @@ function validate() {
 	fi
 
 	if (( ${EXPECTED_WINDOWS_AGENTS} > 0 )); then
-		if [[ ! -z "${WIN_MARATHON_APP:-}" ]]; then
-			validate_agents "${WIN_MARATHON_APP}"
+		if [[ ! -z "${WINDOWS_MARATHON_APP:-}" ]]; then
+			validate_agents "${WINDOWS_MARATHON_APP}"
 		fi
 	fi
 }
