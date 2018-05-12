@@ -39,7 +39,7 @@ for IP in $IPS; do
   $master_scp $tmpfile azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:$tmpfile
   $master_ssh "scp -i /tmp/id_rsa -o ConnectTimeout=30 -o StrictHostKeyChecking=no $tmpfile azureuser@$IP:$tmpfile"
   $master_ssh "$agent_ssh azureuser@$IP sudo cp $tmpfile /opt/mesosphere/etc/dcos-diagnostics-runner-config.json"
-  $master_ssh "$agent_ssh azureuser@$IP sudo systemctl restart dcos-checks-poststart.service"
+  $master_ssh "$agent_ssh azureuser@$IP sudo systemctl restart dcos-checks-poststart.service || echo skipped"
   rm $tmpfile
 done
 echo "Successfully disabled dcos-metrics on all the Linux agents"
