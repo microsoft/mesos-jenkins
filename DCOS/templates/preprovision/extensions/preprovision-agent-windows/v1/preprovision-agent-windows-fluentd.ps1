@@ -6,13 +6,13 @@ $fluentPath = "$env:SystemDrive\opt\td-agent\embedded\bin"
 $env:Path = "$fluentPath;" + $env:Path.Replace("$fluentPath;", "")
 
 function Get-Fluentd () {
-    Write-Host "Downloading fluentd/td-agent..."
+    Write-Output "Downloading fluentd/td-agent..."
     $wc = New-Object System.Net.WebClient
     $wc.DownloadFile($url, $MSI_PATH)
 }
 
 function Install-Fluentd () {
-    Write-Host "Installing fluentd..."
+    Write-Output "Installing fluentd..."
     
     [System.IO.FileSystemInfo] $file = Get-Item $MSI_PATH
     [String] $DataStamp = get-date -Format yyyyMMddTHHmmss
@@ -34,7 +34,7 @@ function Install-Fluentd () {
 }
 
 function Register-FluentdService () {
-    Write-Host "Registering fluentd service..."
+    Write-Output "Registering fluentd service..."
     fluentd --reg-winsvc i
     if ($LASTEXITCODE) {
         Throw "Failed to register fluentd Windows service. ExitCode = $LASTEXITCODE"
@@ -47,7 +47,7 @@ function Register-FluentdService () {
 }
 
 function Start-FluentdService () {
-    Write-Host "Starting fluentd service..."
+    Write-Output "Starting fluentd service..."
     Start-Service fluentdwinsvc
 }
 

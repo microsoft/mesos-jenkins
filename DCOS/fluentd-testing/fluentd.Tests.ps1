@@ -12,20 +12,20 @@ Describe "Fluentd sanity check" {
 
     It "Service can be found" {
         $service = Get-Service "fluentdwinsvc"
-        $service | Should -Not -Be $null
+        $service | Should Not Be $null
     }
 
     It "Service is running" {
         $service = Get-Service "fluentdwinsvc"
-        $service.Status | Should -Be "Running"
+        $service.Status | Should Be "Running"
     }
 
     It "Can find custom config in current directory" {
-        Test-Path $newConfigPath -PathType Leaf | Should -Be $true
+        Test-Path $newConfigPath -PathType Leaf | Should Be $true
     }
 
     It "Can get get service opts" {
-        Get-ServiceConfPath | Should -Not -Be $null
+        Get-ServiceConfPath | Should Not Be $null
     }
 }
 
@@ -40,7 +40,7 @@ Describe "Fluentd logging" {
         # Requires Admin rights
         Restart-Service -Name fluentdwinsvc
         $service = Get-Service fluentdwinsvc
-        $service.Status | Should -Be "Running"
+        $service.Status | Should Be "Running"
     }
 
     It "Can see changes to file in dynamic directory" {
@@ -59,7 +59,7 @@ Describe "Fluentd logging" {
             $retry -= 1
             Write-Host "Retries left : $retry"
         }
-        $found | Should -Not -Be $null
+        $found | Should Not Be $null
     }
 
 }

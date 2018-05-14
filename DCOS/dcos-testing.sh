@@ -829,6 +829,44 @@ run_dcos_autoscale_job() {
     return 0
 }
 
+run_fluentd_tests() {
+    echo "Checking if jumphost has all the required packages for winrm connection"
+    setup_remote_winrm_client || return 1
+    if [[ $WIN_PRIVATE_AGENT_COUNT -gt 0 ]]; then
+        echo "Looking for Windows private agents"
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+        for IP in $IPS; do
+            echo "Running Fluentd Pester tests on Windows private agent: $IP"
+            start_fluentd_tests "$IP" || return 1
+        done
+    fi
+    if [[ $WIN_PUBLIC_AGENT_COUNT -gt 0 ]]; then
+        echo "Looking for Windows public agents"
+        IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+        for IP in $IPS; do
+            echo "Running Fluentd Pester tests on Windows public agent: $IP"
+            start_fluentd_tests "$IP" || return 1
+        done
+    fi
+}
+
+start_fluentd_tests() {
+    local AGENT_IP="$1"
+    WIN_REMOTE_CLONE_DIR="C:\\mesos-jenkins"
+    WIN_REMOTE_REPO_URL="https://github.com/Microsoft/mesos-jenkins"
+    WIN_REMOTE_CMD="if (Test-Path -Path $WIN_REMOTE_CLONE_DIR) { Remove-Item -Force -Recurse -Path $WIN_REMOTE_CLONE_DIR }; git clone $WIN_REMOTE_REPO_URL $WIN_REMOTE_CLONE_DIR; ${WIN_REMOTE_CLONE_DIR}\\DCOS\\fluentd-testing\\run_fluentd_tests.ps1"
+    JUMPHOST_REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$WIN_REMOTE_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$JUMPHOST_REMOTE_CMD" || {
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+        echo "ERROR: Fluentd tests failed on $AGENT_IP"
+        return 1
+    }
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout" || return 1
+    echo -e "\n"
+    echo -e "Successfully ran Fluentd tests on DC/OS Windows slave ${AGENT_IP}"
+    echo -e "\n"
+}
+
 successfully_exit_dcos_testing_job() {
     # - Collect all the logs in the DC/OS deployments
     collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
