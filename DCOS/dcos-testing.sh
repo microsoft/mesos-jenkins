@@ -71,11 +71,10 @@ FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
-LOG_SERVER_ADDRESS="10.3.1.6"
+LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
 LOG_SERVER_USER="logs"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
-JENKINS_SERVER="http://10.3.1.4:8080"
 JENKINS_SERVER_URL="https://mesos-jenkins.westus.cloudapp.azure.com"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
@@ -807,14 +806,14 @@ disable_linux_agents_dcos_metrics() {
 }
 
 run_dcos_autoscale_job() {
-    curl "${JENKINS_SERVER}/jnlpJars/jenkins-cli.jar" -o $JENKINS_CLI || {
-        echo "ERROR: Failed to download jenkins-cli.jar from ${JENKINS_SERVER}"
+    curl "${JENKINS_URL}/jnlpJars/jenkins-cli.jar" -o $JENKINS_CLI || {
+        echo "ERROR: Failed to download jenkins-cli.jar from ${JENKINS_URL}"
         return 1
     }
     AUTOSCALE_JOB_NAME="dcos-testing-autoscale"
     echo "Triggering ${AUTOSCALE_JOB_NAME} job for the current DC/OS cluster"
 
-    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_SERVER build $AUTOSCALE_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
+    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_URL build $AUTOSCALE_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
     AUTOSCALE_EXIT_CODE=$?
     AUTOSCALE_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
 
