@@ -49,48 +49,13 @@ validate_extra_hybrid_deployment_params() {
     if [[ -z $WIN_AGENT_PRIVATE_POOL ]]; then echo "ERROR: Parameter WIN_AGENT_PRIVATE_POOL is not set"; exit 1; fi
 }
 
-install_go_1_8() {
-    which go > /dev/null && echo "Go is already installed" && return || echo "Installing Go 1.8"
-    OUT_FILE="/tmp/go-1.8.tgz"
-    GO_1_8_TGZ_URL="https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz"
-    wget $GO_1_8_TGZ_URL -O $OUT_FILE
-    pushd $(dirname $OUT_FILE)
-    tar xzf $OUT_FILE
-    sudo mv go /usr/local
-    popd
-    rm -rf $OUT_FILE
-    cat ~/.bashrc | grep -q '^export GOPATH=~/golang$' || (echo 'export GOPATH=~/golang' >> ~/.bashrc)
-    cat ~/.bashrc | grep -q '^export PATH="\$PATH:/usr/local/go/bin:\$GOPATH/bin"$' || (echo 'export PATH="$PATH:/usr/local/go/bin:$GOPATH/bin"' >> ~/.bashrc)
-    source ~/.bashrc
-    mkdir -p $GOPATH
-}
-
-install_acs_engine_requirements() {
-    which git > /dev/null && echo "Git is already installed" || sudo apt install git -y
-    install_go_1_8
-}
-
-install_acs_engine_from_src() {
-    which acs-engine > /dev/null && echo "ACS Engine is already installed" && return || echo "Installing ACS Engine from source"
-    install_acs_engine_requirements
-    go get -v github.com/Azure/acs-engine
-    pushd $GOPATH/src/github.com/Azure/acs-engine
-    make bootstrap
-    make build
-    if [[ ! -e ~/bin ]]; then
-        mkdir -p ~/bin
-        PATH="$HOME/bin:$PATH"
-    fi
-    cp $GOPATH/src/github.com/Azure/acs-engine/bin/acs-engine ~/bin/
-    popd
-}
-
-install_azure_cli_2() {
-    which az > /dev/null && echo "Azure CLI is already installed" && return || echo "Installing Azure CLI"
-    echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
-    sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-    sudo apt-get install apt-transport-https
-    sudo apt-get update && sudo apt-get install azure-cli
+validate_prerequisites() {
+    for TOOL in az acs-engine; do
+        which $TOOL > /dev/null || {
+            echo "ERROR: Couldn't find $TOOL in PATH"
+            exit 1
+        }
+    done
 }
 
 azure_cli_login() {
@@ -108,12 +73,12 @@ if [[ "$DCOS_DEPLOYMENT_TYPE" = "hybrid" ]]; then
     validate_extra_hybrid_deployment_params
 fi
 
+# Check if all the prerequisites are installed
+validate_prerequisites
+
 BASE_DIR=$(dirname $0)
 TEMPLATES_DIR="$BASE_DIR/templates"
 
-# Install ACS Engine from the 'dcos-windows' branch and Azure CLI 2.0
-install_acs_engine_from_src
-install_azure_cli_2
 
 # Generate the Azure ARM deploy files
 if [[ ! -z $DCOS_VERSION ]]; then
