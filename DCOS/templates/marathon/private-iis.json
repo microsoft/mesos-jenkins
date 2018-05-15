@@ -16,7 +16,7 @@
     "type": "DOCKER",
     "volumes": [],
     "docker": {
-      "image": "dcoswindowsci/private-iis:17623",
+      "image": "dcoswindowsci/private-iis:17134",
       "privileged": false,
       "parameters": [
         {
