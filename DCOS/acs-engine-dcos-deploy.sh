@@ -30,13 +30,7 @@ validate_simple_deployment_params() {
         export DCOS_WINDOWS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos-windows/testing"
     fi
     if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
-        export DCOS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos/bootstrap/latest.bootstrap.tar.xz"
-    fi
-    if [[ -z $DCOS_REPOSITORY_URL ]]; then
-        export DCOS_REPOSITORY_URL="$CI_WEB_ROOT/dcos"
-    fi
-    if [[ -z $DCOS_CLUSTER_PACKAGE_LIST_ID ]]; then
-        export DCOS_CLUSTER_PACKAGE_LIST_ID=$(curl -L $CI_WEB_ROOT/dcos/cluster-package-list.latest)
+        export DCOS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos/builds/latest/dcos_generate_config.sh"
     fi
 }
 

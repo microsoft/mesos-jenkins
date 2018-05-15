@@ -5,9 +5,6 @@
       "orchestratorType": "DCOS",
       "orchestratorVersion": "1.11.0",
       "dcosConfig": {
-          "dcosRepositoryURL": "${DCOS_REPOSITORY_URL}",
-          "dcosClusterPackageListID": "${DCOS_CLUSTER_PACKAGE_LIST_ID}",
-          "dcosProviderPackageID": "${DCOS_AZURE_PROVIDER_PACKAGE_ID}",
           "dcosBootstrapURL": "${DCOS_BOOTSTRAP_URL}",
           "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
       }
