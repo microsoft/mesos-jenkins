@@ -513,17 +513,25 @@ test_windows_agent_dcos_dns() {
     #
     local AGENT_IP="$1"
     local DNS_RECORD="$2"
-    echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
-    REMOTE_PS_CMD="\$s = Get-Date; while (\$true) { if(((Get-Date) - \$s).Minutes -ge 5) { Throw 'Cannot resolve $DNS_RECORD' }; try { Resolve-DnsName $DNS_RECORD -ErrorAction Stop; break; } catch { Write-Output 'Retrying' }; Start-Sleep 1}"
-    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_PS_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
-        echo "ERROR: Failed to resolve $DNS_RECORD from $AGENT_IP"
-        return 1
-    }
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
-    echo -e "\n"
-    echo -e "Successfully resolved $DNS_RECORD from DC/OS Windows slave ${AGENT_IP}"
+    echo -e "Trying to resolve $DNS_RECORD on Windows agent $AGENT_IP"
+    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    MAX_RETRIES=10
+    RETRIES=0
+    while [[ $RETRIES -le $MAX_RETRIES ]]; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
+            echo -e "WARNING: Failed to resolve $DNS_RECORD"
+            RETRIES=$(($RETRIES + 1))
+            continue
+        }
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
+        echo ""
+        echo "Successfully resolved $DNS_RECORD"
+        return 0
+    done
+    echo "ERROR: Failed to resolve $DNS_RECORD"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+    echo ""
+    return 1
 }
 
 test_dcos_dns() {
