@@ -513,17 +513,25 @@ test_windows_agent_dcos_dns() {
     #
     local AGENT_IP="$1"
     local DNS_RECORD="$2"
-    echo -e "Trying to resolve $DNS_RECORD on Windows agent: $AGENT_IP"
-    REMOTE_PS_CMD="\$s = Get-Date; while (\$true) { if(((Get-Date) - \$s).Minutes -ge 5) { Throw 'Cannot resolve $DNS_RECORD' }; try { Resolve-DnsName $DNS_RECORD -ErrorAction Stop; break; } catch { Write-Output 'Retrying' }; Start-Sleep 1}"
-    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_PS_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
-        echo "ERROR: Failed to resolve $DNS_RECORD from $AGENT_IP"
-        return 1
-    }
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
-    echo -e "\n"
-    echo -e "Successfully resolved $DNS_RECORD from DC/OS Windows slave ${AGENT_IP}"
+    echo -e "Trying to resolve $DNS_RECORD on Windows agent $AGENT_IP"
+    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    MAX_RETRIES=10
+    RETRIES=0
+    while [[ $RETRIES -le $MAX_RETRIES ]]; do
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
+            echo -e "WARNING: Failed to resolve $DNS_RECORD"
+            RETRIES=$(($RETRIES + 1))
+            continue
+        }
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
+        echo ""
+        echo "Successfully resolved $DNS_RECORD"
+        return 0
+    done
+    echo "ERROR: Failed to resolve $DNS_RECORD"
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+    echo ""
+    return 1
 }
 
 test_dcos_dns() {
@@ -779,7 +787,7 @@ disable_linux_agents_dcos_metrics() {
     #
     # - Disable dcos-metrics on all the Linux agents
     #
-    echo "Disabling dcos-metrics and dcos-checks-poststart on all the Linux agents"
+    echo "Disabling dcos-metrics on all the Linux agents"
     copy_ssh_key_to_proxy_master || return 1
     upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to upload utils.sh"
@@ -787,8 +795,10 @@ disable_linux_agents_dcos_metrics() {
     }
     REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
-    REMOTE_CMD+="sudo systemctl stop dcos-checks-poststart.timer && sudo systemctl stop dcos-checks-poststart.service && "
-    REMOTE_CMD+="sudo systemctl disable dcos-checks-poststart.timer && sudo systemctl disable dcos-checks-poststart.service || exit 1"
+    REMOTE_CMD+="sudo apt-get install jq -y && "
+    REMOTE_CMD+="cat /opt/mesosphere/etc/dcos-diagnostics-runner-config.json | jq 'del(.node_checks.checks.mesos_agent_registered_with_masters)' > /tmp/dcos-diagnostics-runner-config.json && "
+    REMOTE_CMD+="sudo cp /tmp/dcos-diagnostics-runner-config.json /opt/mesosphere/etc/dcos-diagnostics-runner-config.json && rm /tmp/dcos-diagnostics-runner-config.json && "
+    REMOTE_CMD+="sudo systemctl restart dcos-checks-poststart.service || exit 1"
     IPS=$(linux_agents_private_ips) || {
         echo "ERROR: Failed to get the Linux agents private addresses"
         return 1
@@ -797,12 +807,12 @@ disable_linux_agents_dcos_metrics() {
         return 0
     fi
     for IP in $IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '$REMOTE_CMD'" || {
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 \"$REMOTE_CMD\"" || {
             echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
             return 1
         }
     done
-    echo "Successfully disabled dcos-metrics and dcos-checks-poststart on all the Linux agents"
+    echo "Successfully disabled dcos-metrics on all the Linux agents"
 }
 
 run_dcos_autoscale_job() {
