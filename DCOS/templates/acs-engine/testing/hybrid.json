@@ -92,7 +92,7 @@
     "windowsProfile": {
       "adminUsername": "${WIN_AGENT_ADMIN}",
       "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
-      "WindowsImageSourceUrl": "https://mesosdcosci.blob.core.windows.net/windows-images/windows_server_insider_preview_latest.vhd"
+      "WindowsImageSourceUrl": "https://mesosdcosci.blob.core.windows.net/windows-images/AzureWindows1803Servercore.vhd"
     },
     "linuxProfile": {
       "adminUsername": "${LINUX_ADMIN}",
