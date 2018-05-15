@@ -19,7 +19,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "cmake.msi"
     }
     "patch" = @{
-        "url" = "https://10gbps-io.dl.sourceforge.net/project/gnuwin32/patch/2.5.9-7/patch-2.5.9-7-setup.exe"
+        "url" = "https://github.com/mesos/3rdparty/raw/master/patch-2.5.9-7-setup.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "patch.exe"
     }
     "python27" = @{
@@ -71,7 +71,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "maven.zip"
     }
     "openssl" = @{
-        "url" = "https://slproweb.com/download/Win64OpenSSL-1_0_2n.exe"
+        "url" = "https://slproweb.com/download/Win64OpenSSL-1_0_2o.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "openssl.exe"
     }
 }
