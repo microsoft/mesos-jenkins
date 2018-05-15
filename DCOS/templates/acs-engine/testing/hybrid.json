@@ -3,11 +3,8 @@
   "properties": {
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
-      "orchestratorVersion": "1.11.0",
+      "orchestratorRelease": "1.11",
       "dcosConfig": {
-          "dcosRepositoryURL": "${DCOS_REPOSITORY_URL}",
-          "dcosClusterPackageListID": "${DCOS_CLUSTER_PACKAGE_LIST_ID}",
-          "dcosProviderPackageID": "${DCOS_AZURE_PROVIDER_PACKAGE_ID}",
           "dcosBootstrapURL": "${DCOS_BOOTSTRAP_URL}",
           "dcosWindowsBootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
       }
@@ -95,7 +92,7 @@
     "windowsProfile": {
       "adminUsername": "${WIN_AGENT_ADMIN}",
       "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
-      "WindowsImageSourceUrl": "https://mesosdcosci.blob.core.windows.net/windows-images/windows_server_insider_preview_latest.vhd"
+      "WindowsImageSourceUrl": "https://mesosdcosci.blob.core.windows.net/windows-images/AzureWindows1803Servercore.vhd"
     },
     "linuxProfile": {
       "adminUsername": "${LINUX_ADMIN}",
