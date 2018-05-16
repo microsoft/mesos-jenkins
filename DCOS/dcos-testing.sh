@@ -745,7 +745,6 @@ check_exit_code() {
     MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
     export STATUS="FAIL"
-    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
     echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
     echo "LOGS_URLS=$BUILD_OUTPUTS_URL/jenkins-console.log" >> $PARAMETERS_FILE
@@ -883,7 +882,6 @@ successfully_exit_dcos_testing_job() {
     MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
     export STATUS="PASS"
-    echo "STATUS=${STATUS}" >> $PARAMETERS_FILE
     echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
     echo "MESSAGE=$MSG" >> $PARAMETERS_FILE
 
