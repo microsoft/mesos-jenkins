@@ -1,7 +1,5 @@
 ## Diagnostics Windows agent building and testing
 
-These scripts are written to be used as [Jenkins](https://jenkins.io/) jobs in an automated CI. Some variables will be taken from the `$env`, passed down from either a [Gearman](http://gearman.org/) or another upstream Jenkins job.
-
 The process of testing the Diagnostics builds is done with the `start-windows-build.ps1` script and it can be broken into the following parts:
 
 * Install all the prerequisites necessary for the Windows Diagnostics build: Golang, git, and 7Zip
