@@ -178,6 +178,12 @@ authorize_user_ssh_key() {
 
 job_cleanup() {
     #
+    # First clear the generated SSH keypair from the defaults
+    #
+    ssh-add -d ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa || {
+        echo "ERROR: Failed to remove generated ssh keypair from defaults"
+        return 1
+    }
     # Deletes the Azure resource group used for the deployment
     #
     echo "Cleanup in progress for the current Azure DC/OS deployment"
