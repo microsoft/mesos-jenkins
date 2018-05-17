@@ -49,21 +49,21 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
-if [[ -z $BUILDS_ARTEFACTS_DIR ]]; then
-    echo "ERROR: BUILDS_ARTEFACTS_DIR is not set"
+if [[ -z $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "ERROR: BUILDS_ARTIFACTS_DIR is not set"
     exit 1
 fi
-if [[ ! -d $BUILDS_ARTEFACTS_DIR ]]; then
-    echo "Builds artefacts directory does not exist. Creating it"
-    mkdir -p $BUILDS_ARTEFACTS_DIR
+if [[ ! -d $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "Builds artifacts directory does not exist. Creating it"
+    mkdir -p $BUILDS_ARTIFACTS_DIR
 fi
-export CURRENT_BUILD_ARTEFACTS_DIR="${BUILDS_ARTEFACTS_DIR}/${BUILD_ID}"
-if [[ -e $CURRENT_BUILD_ARTEFACTS_DIR ]]; then
-    echo "Artefacts directory for current build exists. Deleting it"
-    rm -rf $CURRENT_BUILD_ARTEFACTS_DIR
+export CURRENT_BUILD_ARTIFACTS_DIR="${BUILDS_ARTIFACTS_DIR}/${BUILD_ID}"
+if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
+    echo "ArtIfacts directory for current build exists. Deleting it"
+    rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
 fi
-echo "Creating artefacts directory for this build"
-mkdir -p $CURRENT_BUILD_ARTEFACTS_DIR
+echo "Creating artifacts directory for this build"
+mkdir -p $CURRENT_BUILD_ARTIFACTS_DIR
 
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
@@ -98,12 +98,12 @@ rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && s
 
 create_linux_ssh_keypair() {
     echo "Generating a random ssh public/private keypair"
-    ssh-keygen -b 2048 -t rsa -f ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa -q -N "" || {
+    ssh-keygen -b 2048 -t rsa -f ${CURRENT_BUILD_ARTIFACTS_DIR}/id_rsa -q -N "" || {
         echo "ERROR: Failed to generate ssh keypair"
         return 1
     }
     # Add the new ssh key as default
-    ssh-add ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa || {
+    ssh-add ${CURRENT_BUILD_ARTIFACTS_DIR}/id_rsa || {
         echo "ERROR: Failed to add the new ssh key as default"
         return 1
     }
@@ -111,13 +111,17 @@ create_linux_ssh_keypair() {
 }
 
 generate_windows_password() {
+    if [[ ! -z $WIN_AGENT_ADMIN_PASSWORD ]]; then
+        echo "Windows password is set from upstream"
+        return 0
+    fi
     echo "Generating random Windows password"
     WIN_PASSWD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
     if [[ -z $WIN_PASSWD ]]; then
         echo "ERROR: Failed to generate a random Windows password"
         return 1
     fi
-    echo "$WIN_PASSWD" > ${CURRENT_BUILD_ARTEFACTS_DIR}/win_passwd
+    echo "$WIN_PASSWD" > ${CURRENT_BUILD_ARTIFACTS_DIR}/win_passwd
     export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
 }
 
@@ -180,7 +184,7 @@ job_cleanup() {
     #
     # First clear the generated SSH keypair from the defaults
     #
-    ssh-add -d ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa || {
+    ssh-add -d ${CURRENT_BUILD_ARTIFACTS_DIR}/id_rsa || {
         echo "ERROR: Failed to remove generated ssh keypair from defaults"
         return 1
     }

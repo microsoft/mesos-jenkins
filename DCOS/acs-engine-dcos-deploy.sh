@@ -93,8 +93,8 @@ EOF
 acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
 rm -rf ./translations # Left-over after running 'acs-engine generate'
 
-if [[ ! -z $CURRENT_BUILD_ARTEFACTS_DIR ]] && [[ -d $CURRENT_BUILD_ARTEFACTS_DIR ]]; then
-    cp -rf $DCOS_DEPLOY_DIR ${CURRENT_BUILD_ARTEFACTS_DIR}/
+if [[ ! -z $CURRENT_BUILD_ARTIFACTS_DIR ]] && [[ -d $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
+    cp -rf $DCOS_DEPLOY_DIR ${CURRENT_BUILD_ARTIFACTS_DIR}/
 fi
 
 # Deploy the DC/OS with Mesos environment
