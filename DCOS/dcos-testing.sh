@@ -13,12 +13,6 @@ export WIN_AGENT_ADMIN="azureuser"
 if [[ ! -z $LINUX_PUBLIC_SSH_KEY ]]; then
     USER_LINUX_PUBLIC_SSH_KEY="$LINUX_PUBLIC_SSH_KEY"
 fi
-PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
-if [[ ! -e $PUB_KEY_FILE ]]; then
-    echo "ERROR: The CI machine doesn't have a ssh key generated. Please generate one via 'ssh-keygen'"
-    exit 1
-fi
-export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -55,6 +49,22 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
+if [[ -z $BUILDS_ARTEFACTS_DIR ]]; then
+    echo "ERROR: BUILDS_ARTEFACTS_DIR is not set"
+    exit 1
+fi
+if [[ ! -d $BUILDS_ARTEFACTS_DIR ]]; then
+    echo "Builds artefacts directory does not exist. Creating it"
+    mkdir -p $BUILDS_ARTEFACTS_DIR
+fi
+export CURRENT_BUILD_ARTEFACTS_DIR="${BUILDS_ARTEFACTS_DIR}/${BUILD_ID}"
+if [[ -e $CURRENT_BUILD_ARTEFACTS_DIR ]]; then
+    echo "Artefacts directory for current build exists. Deleting it"
+    rm -rf $CURRENT_BUILD_ARTEFACTS_DIR
+fi
+echo "Creating artefacts directory for this build"
+mkdir -p $CURRENT_BUILD_ARTEFACTS_DIR
+
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
@@ -83,6 +93,20 @@ TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
 JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
+
+create_linux_ssh_keypair() {
+    echo "Generating a random ssh public/private keypair"
+    ssh-keygen -b 2048 -t rsa -f ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa -q -N "" || {
+        echo "ERROR: Failed to generate ssh keypair"
+        return 1
+    }
+    # Add the new ssh key as default
+    ssh-add ${CURRENT_BUILD_ARTEFACTS_DIR}/id_rsa || {
+        echo "ERROR: Failed to add the new ssh key as default"
+        return 1
+    }
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${WORKSPACE}/id_rsa.pub)
+}
 
 copy_ssh_key_to_proxy_master() {
     #
