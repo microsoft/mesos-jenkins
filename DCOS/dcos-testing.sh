@@ -108,6 +108,17 @@ create_linux_ssh_keypair() {
     export LINUX_PUBLIC_SSH_KEY=$(cat ${WORKSPACE}/id_rsa.pub)
 }
 
+generate_windows_password() {
+    echo "Generating random Windows password"
+    WIN_PASSWD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
+    if [[ -z $WIN_PASSWD ]]; then
+        echo "ERROR: Failed to generate a random Windows password"
+        return 1
+    fi
+    echo "$WIN_PASSWD" > ${CURRENT_BUILD_ARTEFACTS_DIR}/win_passwd
+    export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
+}
+
 copy_ssh_key_to_proxy_master() {
     #
     # Upload the authorized SSH private key to the first master. We'll use
