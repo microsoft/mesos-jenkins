@@ -107,7 +107,7 @@ create_linux_ssh_keypair() {
         echo "ERROR: Failed to add the new ssh key as default"
         return 1
     }
-    export LINUX_PUBLIC_SSH_KEY=$(cat ${WORKSPACE}/id_rsa.pub)
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${CURRENT_BUILD_ARTIFACTS_DIR}/id_rsa.pub)
 }
 
 generate_windows_password() {
