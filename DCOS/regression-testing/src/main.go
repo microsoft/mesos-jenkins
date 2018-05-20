@@ -25,6 +25,7 @@ const (
 	script = "script/step.sh"
 
 	stepInitAzure        = "set_azure_account"
+	stepGetSecrets       = "get_secrets"
 	stepCreateRG         = "create_resource_group"
 	stepPredeploy        = "predeploy"
 	stepGenerateTemplate = "generate_template"
@@ -105,6 +106,16 @@ func (m *TestManager) Run() error {
 	if txt, _, err := m.runStep("init", stepInitAzure, os.Environ(), timeout); err != nil {
 		return fmt.Errorf("Error [%s] %v : %s", stepInitAzure, err, txt)
 	}
+
+	// get secrets
+	dataDir := filepath.Join(m.workDir, "_data")
+	os.MkdirAll(dataDir, os.FileMode(0755))
+	os.Setenv("DATA_DIR", dataDir)
+	if txt, _, err := m.runStep("secrets", stepGetSecrets, os.Environ(), timeout); err != nil {
+		return fmt.Errorf("Error [%s] %v : %s", stepGetSecrets, err, txt)
+	}
+	os.Setenv("SSH_KEY", filepath.Join(dataDir, "id_rsa"))
+	os.Setenv("WIN_PWD", filepath.Join(dataDir, "win.pwd"))
 
 	// return values for tests
 	success := make([]bool, n)
@@ -224,7 +235,7 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 			cmd.Env = env
 			out, err := cmd.Output()
 			if err != nil {
-				wrileLog(logFile, "Error [%s:%s] %v", "get_orchestrator_version", resourceGroup, err)
+				wrileLog(logFile, "Error [%s:%s] %v\nOutput: %s", "get_orchestrator_version", resourceGroup, err, string(out))
 				errorInfo = report.NewErrorInfo(testName, step, "OrchestratorVersionParsingError", "PreRun", d.Location)
 				break
 			}
@@ -427,6 +438,7 @@ func mainInternal() error {
 	if os.Getenv("ENABLE_METRICS") == "y" {
 		enableMetrics = true
 	}
+
 	// initialize report manager
 	testManager.Manager = report.New(os.Getenv("JOB_BASE_NAME"), os.Getenv("BUILD_NUMBER"), len(testManager.config.Deployments), logErrorFile)
 

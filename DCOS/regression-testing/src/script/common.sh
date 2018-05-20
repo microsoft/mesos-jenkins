@@ -19,18 +19,13 @@ function generate_template() {
 	# Check pre-requisites
 	[[ ! -z "${INSTANCE_NAME:-}" ]]      || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${CLUSTER_DEFINITION:-}" ]] || (echo "Must specify CLUSTER_DEFINITION" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]            || (echo "Must specify SSH_KEY" && exit -1)
 	[[ ! -z "${OUTPUT:-}" ]]             || (echo "Must specify OUTPUT" && exit -1)
 
 	# Set output directory
 	mkdir -p "${OUTPUT}"
 
-	# Prep SSH Key
-	if [[ -z "${SSH_KEY_DATA:-}" ]]; then
-		ssh-keygen -b 2048 -t rsa -f "${OUTPUT}/id_rsa" -q -N ""
-		ssh-keygen -y -f "${OUTPUT}/id_rsa" > "${OUTPUT}/id_rsa.pub"
-		export SSH_KEY_DATA="$(cat "${OUTPUT}/id_rsa.pub")"
-		export SSH_KEY="${OUTPUT}/id_rsa"
-	fi
+	SSH_PUBLIC_KEY="$(cat ${SSH_KEY}.pub)"
 
 	# Form the final cluster_definition file
 	export FINAL_CLUSTER_DEFINITION="${OUTPUT}/clusterdefinition.json"
@@ -39,10 +34,11 @@ function generate_template() {
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.vmSize = \"${LINUX_VMSIZE}\""
 	fi
 	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.masterProfile.dnsPrefix = \"${INSTANCE_NAME}\""
-	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.linuxProfile.ssh.publicKeys[0].keyData = \"${SSH_KEY_DATA}\""
+	jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.linuxProfile.ssh.publicKeys[0].keyData = \"${SSH_PUBLIC_KEY}\""
 
 	if [ "$(jq -r '.properties.windowsProfile' ${FINAL_CLUSTER_DEFINITION})" != "null" ]; then
-		winpwd="Wp@1$(date +%s | sha256sum | base64 | head -c 32)"
+		[[ ! -z "${WIN_PWD:-}" ]] || (echo "Must specify WIN_PWD" && exit -1)
+		winpwd="$(cat "${WIN_PWD}")"
 		jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.windowsProfile.adminPassword = \"$winpwd\""
 
 		if [[ ! -z "${WINDOWS_IMAGE:-}" ]]; then
@@ -109,6 +105,38 @@ function set_azure_account() {
 		--tenant "${TENANT_ID}" &>/dev/null
 
 	az account set --subscription "${SUBSCRIPTION_ID}"
+}
+
+function get_secrets() {
+	[[ ! -z "${DATA_DIR:-}" ]] || (echo "Must specify DATA_DIR" && exit -1)
+
+	if [[ ! -z "${KEYVAULT_NAME:-}" ]]; then
+		if [[ ! -z "${SSH_KEY_SECRET_NAME:-}" ]]; then
+			echo "Retrieving SSH key pair from keyvault"
+			az keyvault secret download --vault-name ${KEYVAULT_NAME} --name ${SSH_KEY_SECRET_NAME} --file ${DATA_DIR}/id_rsa.b64 && \
+				base64 -d ${DATA_DIR}/id_rsa.b64 > ${DATA_DIR}/id_rsa && \
+				chmod 600 ${DATA_DIR}/id_rsa
+
+			az keyvault secret download --vault-name ${KEYVAULT_NAME} --name "${SSH_KEY_SECRET_NAME}-pub" --file ${DATA_DIR}/id_rsa.pub && \
+				chmod 600 ${DATA_DIR}/id_rsa.pub
+		fi
+		if [[ ! -z "${WINDOWS_PASSWORD_SECRET_NAME:-}" ]]; then
+			echo "Retrieving Windows password from keyvault"
+			az keyvault secret download --vault-name ${KEYVAULT_NAME} --name ${WINDOWS_PASSWORD_SECRET_NAME} --file ${DATA_DIR}/win.pwd
+		fi
+	fi
+
+	if [ ! -e "${DATA_DIR}/id_rsa" ]; then
+		echo "Generate SSH key pair"
+		ssh-keygen -b 2048 -t rsa -f "${DATA_DIR}/id_rsa" -q -N ""
+		ssh-keygen -y -f "${DATA_DIR}/id_rsa" > "${DATA_DIR}/id_rsa.pub"
+	fi
+
+	if [ ! -e "${DATA_DIR}/win.pwd" ]; then
+		echo "Generate Windows Password"
+		winpwd="Wp@1$(date +%s | sha256sum | base64 | head -c 32)"
+		echo "$winpwd" > ${DATA_DIR}/win.pwd
+	fi
 }
 
 function create_resource_group() {
