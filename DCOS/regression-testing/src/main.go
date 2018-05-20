@@ -114,7 +114,7 @@ func (m *TestManager) Run() error {
 	if txt, _, err := m.runStep("secrets", stepGetSecrets, os.Environ(), timeout); err != nil {
 		return fmt.Errorf("Error [%s] %v : %s", stepGetSecrets, err, txt)
 	}
-	os.Setenv("SSH_KEY", filepath.Join(dataDir, "id_rsa.pub"))
+	os.Setenv("SSH_KEY", filepath.Join(dataDir, "id_rsa"))
 	os.Setenv("WIN_PWD", filepath.Join(dataDir, "win.pwd"))
 
 	// return values for tests
