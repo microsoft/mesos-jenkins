@@ -63,7 +63,7 @@
             "name": "preprovision-agent-linux-public",
             "singleOrAll": "All"
         },
-        "osType": "linux",
+        "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
         "customNodeLabels": {
           "infrastructure": "ci"
@@ -82,7 +82,7 @@
             "name": "preprovision-agent-linux-private",
             "singleOrAll": "All"
         },
-        "osType": "linux",
+        "osType": "Linux",
         "dnsPrefix": "",
         "customNodeLabels": {
           "infrastructure": "ci"
