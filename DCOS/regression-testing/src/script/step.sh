@@ -24,6 +24,10 @@ set_azure_account)
   set_azure_account
 ;;
 
+get_secrets)
+  get_secrets
+;;
+
 create_resource_group)
   create_resource_group
 ;;
@@ -62,13 +66,13 @@ get_orchestrator_type)
   get_orchestrator_type
 ;;
 
-get_orchestrator_release)
-  get_orchestrator_release
+get_orchestrator_version)
+  export OUTPUT="${ROOT}/_output/${INSTANCE_NAME}"
+  get_orchestrator_version
 ;;
 
 validate)
   export OUTPUT=${OUTPUT:-"${ROOT}/_output/${INSTANCE_NAME}"}
-  export SSH_KEY=${SSH_KEY:-"${OUTPUT}/id_rsa"}
   set +e
   validate
 ;;
@@ -76,5 +80,10 @@ validate)
 cleanup)
   export CLEANUP="${CLEANUP:-true}"
   cleanup
+;;
+
+*)
+  echo "unsupported command $1"
+  exit 1
 ;;
 esac

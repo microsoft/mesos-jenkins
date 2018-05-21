@@ -148,7 +148,7 @@ function Set-WindowsSDK {
 function Start-LibsodiumBuild {
     Set-VCVariables "15.0"
     Push-Location $DCOS_NET_LIBSODIUM_GIT_DIR
-    Set-WindowsSDK -VCXProjFile "$DCOS_NET_LIBSODIUM_GIT_DIR\builds\msvc\vs2017\libsodium\libsodium.vcxproj" -Version "10.0.16299.0"
+    Set-WindowsSDK -VCXProjFile "$DCOS_NET_LIBSODIUM_GIT_DIR\builds\msvc\vs2017\libsodium\libsodium.vcxproj" -Version "10.0.17134.0"
     Write-Output "Starting the libsodium build"
     try {
         Start-DCOSNetCIProcess -ProcessPath "MSBuild.exe" `
