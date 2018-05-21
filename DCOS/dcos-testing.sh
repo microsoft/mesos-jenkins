@@ -4,7 +4,7 @@ export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
 export AZURE_KEYVAULT_NAME="ci-key-vault"
 export LINUX_SSH_KEY_NAME="dcos-testing-private-key-${BUILD_ID}"
 export LINUX_SSH_KEY_PATH="${WORKSPACE}/${LINUX_SSH_KEY_NAME}"
-export WIN_PASS_SECRET_NAME="$dcos-testing-win-password-${BUILD_ID}"
+export WIN_PASS_SECRET_NAME="dcos-testing-win-password-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -189,7 +189,7 @@ upload_logs() {
     # Copy the Jenkins console as well
     curl "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
-    upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f $TEMP_LOGS_DIR "${REMOTE_LOGS_DIR}/" || return 1
+    upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f "$TEMP_LOGS_DIR" "${REMOTE_LOGS_DIR}/" || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
     echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
     rm -rf $TEMP_LOGS_DIR || return 1

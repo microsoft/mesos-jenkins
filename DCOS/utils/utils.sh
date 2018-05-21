@@ -22,7 +22,7 @@ run_ssh_command() {
             -c)
                 COMMAND=$2
                 shift;;
-            *)
+            -*)
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -c COMMAND"
@@ -68,7 +68,7 @@ upload_files_via_scp() {
                 LOCAL_PATH=$2
                 REMOTE_PATH=$3
                 shift;;
-            *)
+            -*)
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f LOCAL_PATH REMOTE_PATH"
@@ -114,7 +114,7 @@ download_files_via_scp() {
                 LOCAL_PATH=$2
                 REMOTE_PATH=$3
                 shift;;
-            *)
+            -*)
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f LOCAL_PATH REMOTE_PATH"
