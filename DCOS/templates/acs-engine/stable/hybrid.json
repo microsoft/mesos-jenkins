@@ -61,7 +61,7 @@
             "name": "preprovision-agent-linux-public",
             "singleOrAll": "All"
         },
-        "osType": "linux",
+        "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
         "customNodeLabels": {
           "infrastructure": "ci"
@@ -80,7 +80,7 @@
             "name": "preprovision-agent-linux-private",
             "singleOrAll": "All"
         },
-        "osType": "linux",
+        "osType": "Linux",
         "dnsPrefix": "",
         "customNodeLabels": {
           "infrastructure": "ci"
@@ -92,7 +92,7 @@
       "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
       "WindowsPublisher": "MicrosoftWindowsServer",
       "WindowsOffer": "WindowsServerSemiAnnual",
-      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
+      "WindowsSku": "Datacenter-Core-1803-with-Containers-smalldisk"
     },
     "linuxProfile": {
       "adminUsername": "${LINUX_ADMIN}",
