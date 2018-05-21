@@ -37,7 +37,7 @@
       "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
       "WindowsPublisher": "MicrosoftWindowsServer",
       "WindowsOffer": "WindowsServerSemiAnnual",
-      "WindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk"
+      "WindowsSku": "Datacenter-Core-1803-with-Containers-smalldisk"
     },
     "linuxProfile": {
       "adminUsername": "${LINUX_ADMIN}",
