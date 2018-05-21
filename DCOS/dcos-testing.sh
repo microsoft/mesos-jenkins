@@ -228,12 +228,12 @@ open_dcos_port() {
     NAT_RULE_NAME="DCOS_Port_80"
     echo "Create inbound NAT rule for DC/OS port 80"
     az network lb inbound-nat-rule create --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME \
-                                          --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table > /dev/null || {
+                                          --name $NAT_RULE_NAME --protocol Tcp --frontend-port 80 --backend-port 80 --output table || {
         echo "ERROR: Failed to create load balancer inbound NAT rule"
         return 1
     }
     az network nic ip-config inbound-nat-rule add --resource-group $AZURE_RESOURCE_GROUP --lb-name $MASTER_LB_NAME --nic-name $MASTER_NIC_NAME \
-                                                  --inbound-nat-rule $NAT_RULE_NAME --ip-config-name ipConfigNode --output table > /dev/null || {
+                                                  --inbound-nat-rule $NAT_RULE_NAME --ip-config-name ipConfigNode --output table || {
         echo "ERROR: Failed to create ip-config inbound-nat-rule"
         return 1
     }
@@ -243,7 +243,7 @@ open_dcos_port() {
         return 1
     }
     az network nsg rule create --resource-group $AZURE_RESOURCE_GROUP --nsg-name $MASTER_SG_NAME --name $NAT_RULE_NAME \
-                               --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table > /dev/null || {
+                               --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table || {
         echo "ERROR: Failed to create the DC/OS port security group rule for the master node"
         return 1
     }
@@ -251,7 +251,7 @@ open_dcos_port() {
 }
 
 setup_remote_winrm_client() {
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" &>/dev/null || {
+    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" || {
         echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
     }
@@ -566,7 +566,14 @@ test_dcos_dns() {
 test_master_agent_authentication() {
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
-        AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y &>/dev/null && curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || return 1
+        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y' || {
+            echo "ERROR: Failed to install jq on the master $i"
+            return 1
+        }
+        AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || {
+            echo "ERROR: Failed to find the Mesos flags on the master $i"
+            return 1
+        }
         if [[ "$AUTH_ENABLED" != "true" ]]; then
             echo "ERROR: Master $i doesn't have 'authenticate_agents' flag enabled"
             return 1
@@ -769,7 +776,7 @@ create_testing_environment() {
         echo "ERROR: Failed to create the python3 virtualenv"
         return 1
     }
-    pip3 install -U dcos dcoscli &> /dev/null || {
+    pip3 install -U dcos dcoscli || {
         echo "ERROR: Failed to install the DC/OS pip client packages"
         return 1
     }
