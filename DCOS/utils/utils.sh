@@ -4,38 +4,140 @@ run_ssh_command() {
     #
     # Run an SSH command
     #
-    local USER="$1"
-    local ADDRESS="$2"
-    local PORT="$3"
-    local CMD="$4"
-    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -p "$PORT" $USER@$ADDRESS "$CMD"
+    while [ $# -gt 0 ];
+    do
+        case $1 in
+            -i)
+                SSH_KEY=$2
+                shift;;
+            -u)
+                USER=$2
+                shift;;
+            -h)
+                HOST=$2
+                shift;;
+            -p)
+                PORT=$2
+                shift;;
+            -c)
+                COMMAND=$2
+                shift;;
+            *)
+                PARAM=$1
+                echo "unknown parameter $PARAM"
+                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -c COMMAND"
+                exit 1;;
+        esac
+        shift
+    done
+    if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $COMMAND ]]; then
+        echo "USER, HOST and COMMAND are mandatory"
+        exit 1
+    fi
+    if [ -z $PORT ]; then
+        PORT="22"
+    fi
+    if [ -z $SSH_KEY ]; then
+        KEY_PATH=""
+    else
+        KEY_PATH="-i $SSH_KEY"
+    fi
+    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PATH -p "$PORT" ${USER}@${HOST} "$COMMAND"
 }
 
 upload_files_via_scp() {
     #
     # Upload files via SCP
     #
-    local USER="$1"
-    local ADDRESS="$2"
-    local PORT="$3"
-    local REMOTE_PATH="$4"
-    local LOCAL_PATH="$5"
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $LOCAL_PATH $USER@$ADDRESS:$REMOTE_PATH
+    while [ $# -gt 0 ];
+    do
+        case $1 in
+            -i)
+                SSH_KEY=$2
+                shift;;
+            -u)
+                USER=$2
+                shift;;
+            -h)
+                HOST=$2
+                shift;;
+            -p)
+                PORT=$2
+                shift;;
+            -f)
+                LOCAL_PATH=$2
+                REMOTE_PATH=$3
+                shift;;
+            *)
+                PARAM=$1
+                echo "unknown parameter $PARAM"
+                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f LOCAL_PATH REMOTE_PATH"
+                exit 1;;
+        esac
+        shift
+    done
+    if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
+        echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
+        exit 1
+    fi
+    if [ -z $PORT ]; then
+        PORT="22"
+    fi
+    if [ -z $SSH_KEY ]; then
+        KEY_PARAM=""
+    else
+        KEY_PARAM="-i $SSH_KEY"
+    fi
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PARAM $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
 }
 
 download_files_via_scp() {
     #
     # Download files via SCP
     #
-    local ADDRESS="$1"
-    local PORT="$2"
-    local REMOTE_PATH="$3"
-    local LOCAL_PATH="$4"
-    local USER="$5"
+    while [ $# -gt 0 ];
+    do
+        case $1 in
+            -i)
+                SSH_KEY=$2
+                shift;;
+            -u)
+                USER=$2
+                shift;;
+            -h)
+                HOST=$2
+                shift;;
+            -p)
+                PORT=$2
+                shift;;
+            -f)
+                LOCAL_PATH=$2
+                REMOTE_PATH=$3
+                shift;;
+            *)
+                PARAM=$1
+                echo "unknown parameter $PARAM"
+                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f LOCAL_PATH REMOTE_PATH"
+                exit 1;;
+        esac
+        shift
+    done
+    if [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
+        echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
+        exit 1
+    fi
+    if [ -z $PORT ]; then
+        PORT="22"
+    fi
+    if [ -z $SSH_KEY ]; then
+        KEY_PARAM=""
+    else
+        KEY_PARAM="-i $SSH_KEY"
+    fi
     if [[ -z $USER ]]; then
         USER="azureuser"
     fi
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $USER@$ADDRESS:$REMOTE_PATH $LOCAL_PATH
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PARAM ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
 }
 
 mount_smb_share() {
