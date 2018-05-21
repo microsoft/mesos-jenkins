@@ -2,6 +2,9 @@
 
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
 export AZURE_KEYVAULT_NAME="ci-key-vault"
+export LINUX_SSH_KEY_NAME="dcos-testing-private-key-${BUILD_ID}"
+export LINUX_SSH_KEY_PATH="${WORKSPACE}/${LINUX_SSH_KEY_NAME}"
+export WIN_PASS_SECRET_NAME="$dcos-testing-win-password-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -99,22 +102,19 @@ rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && s
 
 create_linux_ssh_keypair() {
     echo "Generating a random ssh public/private keypair"
-    ssh-keygen -b 2048 -t rsa -f ${WORKSPACE}/id_rsa -q -N "" || {
+    ssh-keygen -b 2048 -t rsa -f ${WORKSPACE}/${LINUX_SSH_KEY_NAME} -q -N "" || {
         echo "ERROR: Failed to generate ssh keypair"
         return 1
     }
-    # Initialize ssh-agent first for ssh-add to work
-    eval $(ssh-agent -s)
-    # Add the new ssh key as default
-    ssh-add ${WORKSPACE}/id_rsa || {
-        echo "ERROR: Failed to add the new ssh key as default"
-        return 1
-    }
-    # Upload private key as secret to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "dcos-testing-private-key-${BUILD_ID}" --file "${WORKSPACE}/id_rsa" &>/dev/null || {
+    base64  "$LINUX_SSH_KEY_PATH" | tr -d '\n' >  "${LINUX_SSH_KEY_PATH}.b64"
+    # Upload private/public keys as secrets to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$LINUX_SSH_KEY_NAME" --file "${LINUX_SSH_KEY_PATH}.b64" &>/dev/null || {
         echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
     }
-    export LINUX_PUBLIC_SSH_KEY=$(cat ${WORKSPACE}/id_rsa.pub)
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "${LINUX_SSH_KEY_NAME}-pub" --file "${LINUX_SSH_KEY_PATH}.pub" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${LINUX_SSH_KEY_PATH}.pub)
 }
 
 generate_windows_password() {
@@ -129,7 +129,7 @@ generate_windows_password() {
         return 1
     fi
     # Upload Windows password to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "dcos-testing-win-password-${BUILD_ID}" --value "$WIN_PASSWD" &>/dev/null || {
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_PASSWD" &>/dev/null || {
         echo "ERROR: Failed to upload Windows password to Azure key vault $AZURE_KEYVAULT_NAME"
     }
     export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
@@ -191,13 +191,6 @@ authorize_user_ssh_key() {
 }
 
 job_cleanup() {
-    #
-    # First clear the generated SSH keypair from the defaults
-    #
-    ssh-add -d ${CURRENT_BUILD_ARTIFACTS_DIR}/id_rsa || {
-        echo "ERROR: Failed to remove generated ssh keypair from defaults"
-        return 1
-    }
     # Deletes the Azure resource group used for the deployment
     #
     echo "Cleanup in progress for the current Azure DC/OS deployment"
