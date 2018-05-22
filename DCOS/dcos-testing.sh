@@ -55,6 +55,21 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
+if [[ -z $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "ERROR: BUILDS_ARTIFACTS_DIR is not set"
+    exit 1
+fi
+if [[ ! -d $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "Builds artifacts directory does not exist. Creating it"
+    mkdir -p $BUILDS_ARTIFACTS_DIR
+fi
+export CURRENT_BUILD_ARTIFACTS_DIR="${BUILDS_ARTIFACTS_DIR}/${BUILD_ID}"
+if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
+    echo "ArtIfacts directory for current build exists. Deleting it"
+    rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
+fi
+echo "Creating artifacts directory for this build"
+mkdir -p $CURRENT_BUILD_ARTIFACTS_DIR
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
