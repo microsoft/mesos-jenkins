@@ -200,9 +200,10 @@ function scale_agent_pool() {
 function get_node_count() {
 	[[ ! -z "${CLUSTER_DEFINITION:-}" ]] || (echo "Must specify CLUSTER_DEFINITION" && exit -1)
 
-	count=$(jq '.properties.masterProfile.count' ${CLUSTER_DEFINITION})
+	masters=$(jq '.properties.masterProfile.count' ${CLUSTER_DEFINITION})
 	linux_agents=0
 	windows_agents=0
+	count=$masters
 
 	nodes=$(jq -r '.properties.agentPoolProfiles[].count' ${CLUSTER_DEFINITION})
 	osTypes=$(jq -r '.properties.agentPoolProfiles[].osType' ${CLUSTER_DEFINITION})
@@ -219,7 +220,7 @@ function get_node_count() {
 		fi
 		indx=$((indx+1))
 	done
-	echo "${count}:${linux_agents}:${windows_agents}"
+	echo "${count}:$masters:${linux_agents}:${windows_agents}"
 }
 
 function get_orchestrator_type() {
@@ -309,6 +310,30 @@ function validate_agents {
 	fi
 }
 
+function validate_master_agent_authentication() {
+	echo $(date +%H:%M:%S) "Validating master-agent authentication"
+
+	[[ ! -z "${INSTANCE_NAME:-}" ]]         || (echo "Must specify INSTANCE_NAME" && exit -1)
+	[[ ! -z "${LOCATION:-}" ]]              || (echo "Must specify LOCATION" && exit -1)
+	[[ ! -z "${EXPECTED_MASTER_COUNT:-}" ]] || (echo "Must specify EXPECTED_MASTER_COUNT" && exit -1)
+	[[ ! -z "${SSH_KEY:-}" ]]               || (echo "Must specify SSH_KEY" && exit -1)
+
+    for i in `seq 0 $(($EXPECTED_MASTER_COUNT - 1))`; do
+        SSH_PORT=$((i+2200))
+		remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p ${SSH_PORT}"
+
+        AUTH_ENABLED=$(${remote_exec} 'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags' | jq -r ".flags.authenticate_agents") || {
+            echo "Error: failed to find the Mesos flags on the master $i"
+            exit 1
+        }
+        if [[ "$AUTH_ENABLED" != "true" ]]; then
+            echo "Error: master $i doesn't have 'authenticate_agents' flag enabled"
+            exit 1
+        fi
+    done
+    echo $(date +%H:%M:%S) "All masters have the authenticate_agents flag enabled"
+}
+
 function validate() {
 	[[ ! -z "${INSTANCE_NAME:-}" ]]           || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${LOCATION:-}" ]]                || (echo "Must specify LOCATION" && exit -1)
@@ -342,6 +367,10 @@ function validate() {
 		sleep 30; count=$((count-1))
 	done
 	if [[ ! -z "$unhealthy_nodes" ]]; then echo "Error: unhealthy nodes: $unhealthy_nodes"; exit 1; fi
+
+	if [[ "${MASTER_AGENT_AUTHENTICATION:-}" == "true" ]]; then
+		validate_master_agent_authentication
+	fi
 
 	echo $(date +%H:%M:%S) "Downloading dcos"
 	${remote_exec} curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.10/dcos
