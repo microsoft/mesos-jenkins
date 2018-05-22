@@ -260,11 +260,11 @@ function validate_agents {
 	[[ ! -z "${LOCATION:-}" ]]      || (echo "Must specify LOCATION" && exit -1)
 	[[ ! -z "${SSH_KEY:-}" ]]       || (echo "Must specify SSH_KEY" && exit -1)
 
-	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
-	remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
+	local remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
+	local remote_cp="scp -i "${SSH_KEY}" -P 2200 -o StrictHostKeyChecking=no"
 
-	appID="/$(jq -r .id ${ROOT}/${MARATHON_JSON})"
-	instances="$(jq -r .instances ${ROOT}/${MARATHON_JSON})"
+	local appID="/$(jq -r .id ${ROOT}/${MARATHON_JSON})"
+	local instances="$(jq -r .instances ${ROOT}/${MARATHON_JSON})"
 
 	echo $(date +%H:%M:%S) "Copying ${MARATHON_JSON} id:$appID instances:$instances"
 
@@ -299,7 +299,8 @@ function validate_agents {
 			echo $(date +%H:%M:%S) "Found $instances running/healthy tasks"
 			break
 		fi
-		sleep 30; count=$((count-1))
+		sleep 30
+		count=$((count-1))
 	done
 
 	if [ "$running" != "$instances" ] || [ "$healthy" != "$instances" ]; then
@@ -318,20 +319,19 @@ function validate_master_agent_authentication() {
 	[[ ! -z "${EXPECTED_MASTER_COUNT:-}" ]] || (echo "Must specify EXPECTED_MASTER_COUNT" && exit -1)
 	[[ ! -z "${SSH_KEY:-}" ]]               || (echo "Must specify SSH_KEY" && exit -1)
 
-    for i in `seq 0 $(($EXPECTED_MASTER_COUNT - 1))`; do
-        SSH_PORT=$((i+2200))
-		remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p ${SSH_PORT}"
-
-        AUTH_ENABLED=$(${remote_exec} 'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags' | jq -r ".flags.authenticate_agents") || {
-            echo "Error: failed to find the Mesos flags on the master $i"
-            exit 1
-        }
-        if [[ "$AUTH_ENABLED" != "true" ]]; then
-            echo "Error: master $i doesn't have 'authenticate_agents' flag enabled"
-            exit 1
-        fi
-    done
-    echo $(date +%H:%M:%S) "All masters have the authenticate_agents flag enabled"
+	for i in `seq 0 $(($EXPECTED_MASTER_COUNT - 1))`; do
+		local port=$((i+2200))
+		local remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p $port"
+		local auth_enabled=$(${remote_exec} 'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags' | jq -r ".flags.authenticate_agents") || {
+			echo "Error: failed to find the Mesos flags on the master $i"
+			exit 1
+		}
+		if [[ "$auth_enabled" != "true" ]]; then
+			echo "Error: master $i doesn't have 'authenticate_agents' flag enabled"
+			exit 1
+		fi
+	done
+	echo $(date +%H:%M:%S) "All masters have the authenticate_agents flag enabled"
 }
 
 function validate() {
@@ -343,13 +343,13 @@ function validate() {
 	[[ ! -z "${EXPECTED_WINDOWS_AGENTS:-}" ]] || (echo "Must specify EXPECTED_WINDOWS_AGENTS" && exit -1)
 	[[ ! -z "${OUTPUT:-}" ]]                  || (echo "Must specify OUTPUT" && exit -1)
 
-	remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
+	local remote_exec="ssh -i "${SSH_KEY}" -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com -p2200"
 
 	echo $(date +%H:%M:%S) "Checking node count"
 	count=20
 	while (( $count > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
-		node_count=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes | length')
+		local node_count=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes | length')
 		[ $? -eq 0 ] && [ ! -z "$node_count" ] && [ $node_count -eq ${EXPECTED_NODE_COUNT} ] && echo "Successfully got $EXPECTED_NODE_COUNT nodes" && break
 		sleep 30
 		count=$((count-1))
@@ -363,7 +363,7 @@ function validate() {
 	count=20
 	while (( $count > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
-		unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
+		local unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
 		sleep 30; count=$((count-1))
 	done
