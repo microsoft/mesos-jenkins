@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
+export AZURE_KEYVAULT_NAME="ci-key-vault"
+export LINUX_SSH_KEY_NAME="dcos-testing-private-key-${BUILD_ID}"
+export LINUX_SSH_KEY_PATH="${WORKSPACE}/${LINUX_SSH_KEY_NAME}"
+export WIN_PASS_SECRET_NAME="dcos-testing-win-password-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -13,12 +17,6 @@ export WIN_AGENT_ADMIN="azureuser"
 if [[ ! -z $LINUX_PUBLIC_SSH_KEY ]]; then
     USER_LINUX_PUBLIC_SSH_KEY="$LINUX_PUBLIC_SSH_KEY"
 fi
-PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
-if [[ ! -e $PUB_KEY_FILE ]]; then
-    echo "ERROR: The CI machine doesn't have a ssh key generated. Please generate one via 'ssh-keygen'"
-    exit 1
-fi
-export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -98,6 +96,45 @@ TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
 JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
+
+create_linux_ssh_keypair() {
+    echo "Generating a random ssh public/private keypair"
+    ssh-keygen -b 2048 -t rsa -f $LINUX_SSH_KEY_PATH -q -N "" || {
+        echo "ERROR: Failed to generate ssh keypair"
+        return 1
+    }
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${LINUX_SSH_KEY_PATH}.pub)
+}
+
+generate_windows_password() {
+    if [[ ! -z $WIN_AGENT_ADMIN_PASSWORD ]]; then
+        echo "Windows password is set from upstream"
+        return 0
+    fi
+    echo "Generating random Windows password"
+    WIN_PASSWD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
+    if [[ -z $WIN_PASSWD ]]; then
+        echo "ERROR: Failed to generate a random Windows password"
+        return 1
+    fi
+    export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
+}
+
+upload_secrets_to_keyvault() {
+    # Convert ssh key to base64 first and remove newlines
+    base64  "$LINUX_SSH_KEY_PATH" | tr -d '\n' >  "${LINUX_SSH_KEY_PATH}.b64"
+    # Upload private/public keys as secrets to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$LINUX_SSH_KEY_NAME" --file "${LINUX_SSH_KEY_PATH}.b64" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "${LINUX_SSH_KEY_NAME}-pub" --file "${LINUX_SSH_KEY_PATH}.pub" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
+    # Upload Windows password to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_AGENT_ADMIN_PASSWORD" &>/dev/null || {
+        echo "ERROR: Failed to upload Windows password to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
+}
 
 copy_ssh_key_to_proxy_master() {
     #
