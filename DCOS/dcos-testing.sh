@@ -148,7 +148,7 @@ copy_ssh_key_to_proxy_master() {
         echo "ERROR: Failed to create remote .ssh directory"
         return 1
     }
-    upload_files_via_scp -i $LINUX_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
+    upload_files_via_scp -i $LINUX_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f '$HOME/.ssh/id_rsa' "$LINUX_SSH_KEY_PATH" || {
         echo "ERROR: Failed to copy the id_rsa private ssh key"
         return 1
     }
