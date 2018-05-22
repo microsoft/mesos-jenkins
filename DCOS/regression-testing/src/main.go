@@ -426,6 +426,8 @@ func mainInternal() error {
 		return err
 	}
 	os.Setenv("ACS_ENGINE_EXE", acsExePath)
+	// set AZURE CONFIG_DIR
+	os.Setenv("AZURE CONFIG_DIR", testManager.workDir)
 	// get test configuration
 	if configFile == "" {
 		return fmt.Errorf("test configuration is not provided")
