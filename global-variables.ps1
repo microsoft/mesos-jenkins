@@ -101,7 +101,8 @@ $DEVCON_CAB_URL = "https://download.microsoft.com/download/7/D/D/7DD48DE6-8BDA-4
 $GOLANG_URL = "https://dl.google.com/go/go1.10.windows-amd64.msi"
 $GOLANG_URL_1_94 = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows.git"
-$MESOS_JENKINS_GIT_URL = "https://github.com/Microsoft/mesos-jenkins.git"
+#$MESOS_JENKINS_GIT_URL = "https://github.com/Microsoft/mesos-jenkins.git"
+$MESOS_JENKINS_GIT_URL = "https://github.com/soccergb/mesos-jenkins.git"
 $LIBSODIUM_GIT_URL = "https://github.com/jedisct1/libsodium.git"
 
 # Tools installation directories
