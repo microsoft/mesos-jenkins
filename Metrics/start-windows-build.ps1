@@ -144,7 +144,6 @@ function New-TestingEnvironment {
     Start-GitClone -Path $METRICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMetricsCommit
     Start-GitClone -Path $METRICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-    Start-GitClone -Path $METRICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     $env:GOPATH = $METRICS_DIR
     $goBinPath = Join-Path $GOLANG_DIR "bin"
     [System.Environment]::SetEnvironmentVariable('GOBIN', $goBinPath)
@@ -184,8 +183,7 @@ function New-DCOSMetricsPackage {
     $clusterid | Set-Content $MetricsClusterIdFile
     Copy-Item -Path "$METRICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $METRICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$METRICS_GIT_REPO_DIR\*.exe" -Destination "$METRICS_BUILD_BINARIES_DIR\"
-    Copy-Item -Recurse -Path "$METRICS_MESOS_JENKINS_GIT_REPO_DIR\Metrics\config" -Destination "$METRICS_BUILD_BINARIES_DIR\config"
-     Compress-Files -FilesDirectory "$METRICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$METRICS_BUILD_BINARIES_DIR\metrics.zip"
+    Compress-Files -FilesDirectory "$METRICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$METRICS_BUILD_BINARIES_DIR\metrics.zip"
     Write-Output "DC/OS Metrics package was successfully generated at $METRICS_BUILD_BINARIES_DIR\metrics.zip"
 }
 
@@ -356,8 +354,8 @@ try {
     $global:PARAMETERS["MESSAGE"] = $_.ToString()
     exit 1
 } finally {
-  # Start-LogServerFilesUpload
+   Start-LogServerFilesUpload
    Write-ParametersFile -FilePath $ParametersFile
-   #Start-EnvironmentCleanup
+   Start-EnvironmentCleanup
 }
 exit 0
