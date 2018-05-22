@@ -96,6 +96,8 @@ TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
 JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
+
 
 create_linux_ssh_keypair() {
     echo "Generating a random ssh public/private keypair"
