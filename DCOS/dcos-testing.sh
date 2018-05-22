@@ -103,14 +103,6 @@ create_linux_ssh_keypair() {
         echo "ERROR: Failed to generate ssh keypair"
         return 1
     }
-    base64  "$LINUX_SSH_KEY_PATH" | tr -d '\n' >  "${LINUX_SSH_KEY_PATH}.b64"
-    # Upload private/public keys as secrets to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$LINUX_SSH_KEY_NAME" --file "${LINUX_SSH_KEY_PATH}.b64" &>/dev/null || {
-        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
-    }
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "${LINUX_SSH_KEY_NAME}-pub" --file "${LINUX_SSH_KEY_PATH}.pub" &>/dev/null || {
-        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
-    }
     export LINUX_PUBLIC_SSH_KEY=$(cat ${LINUX_SSH_KEY_PATH}.pub)
 }
 
@@ -125,11 +117,23 @@ generate_windows_password() {
         echo "ERROR: Failed to generate a random Windows password"
         return 1
     fi
+    export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
+}
+
+upload_secrets_to_keyvault() {
+    # Convert ssh key to base64 first and remove newlines
+    base64  "$LINUX_SSH_KEY_PATH" | tr -d '\n' >  "${LINUX_SSH_KEY_PATH}.b64"
+    # Upload private/public keys as secrets to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$LINUX_SSH_KEY_NAME" --file "${LINUX_SSH_KEY_PATH}.b64" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "${LINUX_SSH_KEY_NAME}-pub" --file "${LINUX_SSH_KEY_PATH}.pub" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    }
     # Upload Windows password to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_PASSWD" &>/dev/null || {
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_AGENT_ADMIN_PASSWORD" &>/dev/null || {
         echo "ERROR: Failed to upload Windows password to Azure key vault $AZURE_KEYVAULT_NAME"
     }
-    export WIN_AGENT_ADMIN_PASSWORD="$WIN_PASSWD"
 }
 
 copy_ssh_key_to_proxy_master() {
