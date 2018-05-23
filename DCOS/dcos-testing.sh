@@ -96,6 +96,14 @@ JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
 
 
+azure_cli_login() {
+    if az account list --output json | jq -r '.[0]["user"]["name"]' | grep -q "^${AZURE_SERVICE_PRINCIPAL_ID}$"; then
+        echo "Account is already logged"
+        return
+    fi
+    az login --output table --service-principal -u $AZURE_SERVICE_PRINCIPAL_ID -p $AZURE_SERVICE_PRINCIPAL_PASSWORD --tenant $AZURE_SERVICE_PRINCIPAL_TENAT
+}
+
 create_linux_ssh_keypair() {
     echo "Generating a random ssh public/private keypair"
     ssh-keygen -b 2048 -t rsa -f $LINUX_SSH_KEY_PATH -q -N "" || {
