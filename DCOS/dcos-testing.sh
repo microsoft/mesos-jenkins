@@ -106,10 +106,6 @@ create_linux_ssh_keypair() {
 }
 
 generate_windows_password() {
-    if [[ ! -z $WIN_AGENT_ADMIN_PASSWORD ]]; then
-        echo "Windows password is set from upstream"
-        return 0
-    fi
     echo "Generating random Windows password"
     WIN_PASSWD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
     if [[ -z $WIN_PASSWD ]]; then
