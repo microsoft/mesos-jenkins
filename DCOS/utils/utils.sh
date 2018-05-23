@@ -38,11 +38,9 @@ run_ssh_command() {
         PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        KEY_PARAM=""
-    else
-        KEY_PARAM="-i $SSH_KEY"
+        SSH_KEY="$HOME/.ssh/id_rsa"
     fi
-    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PARAM -p "$PORT" ${USER}@${HOST} "$COMMAND"
+    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${USER}@${HOST} "$COMMAND"
 }
 
 upload_files_via_scp() {
@@ -84,11 +82,9 @@ upload_files_via_scp() {
         PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        KEY_PARAM=""
-    else
-        KEY_PARAM="-i $SSH_KEY"
+        SSH_KEY="$HOME/.ssh/id_rsa"
     fi
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PARAM $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
 }
 
 download_files_via_scp() {
@@ -130,14 +126,12 @@ download_files_via_scp() {
         PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        KEY_PARAM=""
-    else
-        KEY_PARAM="-i $SSH_KEY"
+        SSH_KEY="$HOME/.ssh/id_rsa"
     fi
     if [[ -z $USER ]]; then
         USER="azureuser"
     fi
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' $KEY_PARAM ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
 }
 
 mount_smb_share() {
