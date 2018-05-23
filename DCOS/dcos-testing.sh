@@ -781,16 +781,11 @@ check_exit_code() {
 create_testing_environment() {
     #
     # - Create the python3 virtual environment and activate it
-    # - Installs the DC/OS client packages
     # - Configures the DC/OS clients for the current cluster and export the
     #   cluster ID as the DCOS_CLUSTER_ID environment variable
     #
-    python3 -m venv $VENV_DIR && . $VENV_DIR/bin/activate || {
+    python3 -m venv $VENV_DIR --system-site-packages && . $VENV_DIR/bin/activate || {
         echo "ERROR: Failed to create the python3 virtualenv"
-        return 1
-    }
-    pip3 install -U dcos dcoscli || {
-        echo "ERROR: Failed to install the DC/OS pip client packages"
         return 1
     }
     rm -rf $DCOS_DIR || return 1
