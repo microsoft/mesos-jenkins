@@ -27,7 +27,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "python-2.7.msi"
     }
     "python36" = @{
-        "url" = "https://www.python.org/ftp/python/3.6.4/python-3.6.4-amd64.exe"
+        "url" = "https://www.python.org/ftp/python/3.6.5/python-3.6.5-amd64.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "python-3.6.exe"
     }
     "putty" = @{
@@ -454,6 +454,9 @@ try {
     Install-OPT193
     Install-OPT202
     Install-PowerShellModules
+    # TODO: Configure git user and e-mail
+    # TODO: Generate SSH keypair
+    # TODO: Authorize Git SSH Keys
 } catch {
     Write-Output $_.ToString()
     Write-Output $_.ScriptStackTrace
