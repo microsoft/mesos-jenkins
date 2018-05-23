@@ -577,13 +577,10 @@ test_dcos_dns() {
 }
 
 test_master_agent_authentication() {
+    PYTHON_SCRIPT="import json,sys; input = json.load(sys.stdin); print(input['flags']['authenticate_agents'])"
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
-        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'sudo apt install jq -y' || {
-            echo "ERROR: Failed to install jq on the master $i"
-            return 1
-        }
-        AUTH_ENABLED=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || {
+        AUTH_ENABLED=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c "curl -s http://\$(/opt/mesosphere/bin/detect_ip):5050/flags | python -c \"${PYTHON_SCRIPT}\"") || {
             echo "ERROR: Failed to find the Mesos flags on the master $i"
             return 1
         }
