@@ -59,13 +59,14 @@ if [[ ! -d $JOB_ARTIFACTS_DIR ]]; then
     echo "The job artifacts directory $JOB_ARTIFACTS_DIR does not exist. Creating it"
     mkdir -p $JOB_ARTIFACTS_DIR
 fi
-export CURRENT_BUILD_ARTIFACTS_DIR="${JOB_ARTIFACTS_DIR}/${BUILD_ID}"
-if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
-    echo "ArtIfacts directory for current build exists. Deleting it"
-    rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
+export BUILD_ARTIFACTS_DIR="${JOB_ARTIFACTS_DIR}/${BUILD_ID}"
+if [[ -e $BUILD_ARTIFACTS_DIR ]]; then
+    echo "Build artifacts directory $BUILD_ARTIFACTS_DIR already exists. Deleting it and creating a new one"
+    rm -rf $BUILD_ARTIFACTS_DIR
 fi
-echo "Creating artifacts directory for this build"
-mkdir -p $CURRENT_BUILD_ARTIFACTS_DIR
+echo "Creating a new build artifacts directory at $BUILD_ARTIFACTS_DIR"
+mkdir -p $BUILD_ARTIFACTS_DIR
+
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
