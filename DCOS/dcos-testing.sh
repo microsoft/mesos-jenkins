@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
+export AZURE_KEYVAULT_NAME="ci-key-vault"
+export GENERATED_SSH_KEY_PATH="${WORKSPACE}/id_rsa"
+export PRIVATE_KEY_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-ssh-private-key"
+export PUBLIC_KEY_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-ssh-public-key"
+export WIN_PASS_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-win-pass"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -10,15 +15,6 @@ export LINUX_MASTER_DNS_PREFIX="dcos-testing-lin-master-${BUILD_ID}"
 export WIN_AGENT_DNS_PREFIX="dcos-testing-win-agent-${BUILD_ID}"
 export LINUX_AGENT_DNS_PREFIX="dcos-testing-lin-agent-${BUILD_ID}"
 export WIN_AGENT_ADMIN="azureuser"
-if [[ ! -z $LINUX_PUBLIC_SSH_KEY ]]; then
-    USER_LINUX_PUBLIC_SSH_KEY="$LINUX_PUBLIC_SSH_KEY"
-fi
-PUB_KEY_FILE="$HOME/.ssh/id_rsa.pub"
-if [[ ! -e $PUB_KEY_FILE ]]; then
-    echo "ERROR: The CI machine doesn't have a ssh key generated. Please generate one via 'ssh-keygen'"
-    exit 1
-fi
-export LINUX_PUBLIC_SSH_KEY=$(cat $PUB_KEY_FILE)
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -55,6 +51,21 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
+if [[ -z $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "ERROR: BUILDS_ARTIFACTS_DIR is not set"
+    exit 1
+fi
+if [[ ! -d $BUILDS_ARTIFACTS_DIR ]]; then
+    echo "Builds artifacts directory does not exist. Creating it"
+    mkdir -p $BUILDS_ARTIFACTS_DIR
+fi
+export CURRENT_BUILD_ARTIFACTS_DIR="${BUILDS_ARTIFACTS_DIR}/${BUILD_ID}"
+if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
+    echo "ArtIfacts directory for current build exists. Deleting it"
+    rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
+fi
+echo "Creating artifacts directory for this build"
+mkdir -p $CURRENT_BUILD_ARTIFACTS_DIR
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
@@ -83,6 +94,56 @@ TEMP_LOGS_DIR="$WORKSPACE/$BUILD_ID"
 VENV_DIR="$WORKSPACE/venv"
 JENKINS_CLI="$WORKSPACE/jenkins-cli.jar"
 
+rm -f $PARAMETERS_FILE && touch $PARAMETERS_FILE && mkdir -p $TEMP_LOGS_DIR && source $UTILS_FILE || exit 1
+
+
+azure_cli_login() {
+    # Validate that credential variables are set
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_ID ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_ID is not set"; exit 1; fi
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_PASSWORD ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_PASSWORD is not set"; exit 1; fi
+    if [[ -z $AZURE_SERVICE_PRINCIPAL_TENAT ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_TENAT is not set"; exit 1; fi
+    # Check if we are already logged in
+    if az account list --output json | jq -r '.[0]["user"]["name"]' | grep -q "^${AZURE_SERVICE_PRINCIPAL_ID}$"; then
+        echo "Account is already logged"
+        return 0
+    fi
+    # Login
+    az login --output table --service-principal -u $AZURE_SERVICE_PRINCIPAL_ID -p $AZURE_SERVICE_PRINCIPAL_PASSWORD --tenant $AZURE_SERVICE_PRINCIPAL_TENAT || {
+        echo "ERROR: Failed to login into Azure"
+        return 1
+    }
+}
+
+create_linux_ssh_keypair() {
+    echo "Generating a random ssh public/private keypair"
+    ssh-keygen -b 2048 -t rsa -f $GENERATED_SSH_KEY_PATH -q -N "" || {
+        echo "ERROR: Failed to generate ssh keypair"
+        return 1
+    }
+    # Convert ssh key to base64 first and remove newlines
+    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64"
+    # Upload private/public keys as secrets to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.b64" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+        return 1
+    }
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PUBLIC_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.pub" &>/dev/null || {
+        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+        return 1
+    }
+    # Export generated public key as variable
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${GENERATED_SSH_KEY_PATH}.pub)
+}
+
+generate_windows_password() {
+    echo "Generating random Windows password"
+    export WIN_AGENT_ADMIN_PASSWORD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
+    # Upload Windows password to Azure key vault
+    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_AGENT_ADMIN_PASSWORD" &>/dev/null || {
+        echo "ERROR: Failed to upload Windows password to Azure key vault $AZURE_KEYVAULT_NAME"
+        return 1
+    }
+}
 
 copy_ssh_key_to_proxy_master() {
     #
@@ -90,53 +151,14 @@ copy_ssh_key_to_proxy_master() {
     # this one as a proxy node to execute remote CI commands against all the
     # Linux slaves.
     #
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" 'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
+    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  'mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh' || {
         echo "ERROR: Failed to create remote .ssh directory"
         return 1
     }
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" '$HOME/.ssh/id_rsa' "$HOME/.ssh/id_rsa" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f '$HOME/.ssh/id_rsa' "$GENERATED_SSH_KEY_PATH" || {
         echo "ERROR: Failed to copy the id_rsa private ssh key"
         return 1
     }
-}
-
-authorize_user_ssh_key() {
-    if [[ -z $USER_LINUX_PUBLIC_SSH_KEY ]]; then
-        return 0
-    fi
-    REMOTE_CMD=' if [[ ! -e $HOME/.ssh ]]; then mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh || exit 1; fi ;'
-    REMOTE_CMD+='touch $HOME/.ssh/authorized_keys && chmod 600 $HOME/.ssh/authorized_keys || exit 1 ;'
-    REMOTE_CMD+="echo -e '\n${USER_LINUX_PUBLIC_SSH_KEY}' >> \$HOME/.ssh/authorized_keys || exit 1"
-    # Authorize ssh key on all the Linux masters
-    for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
-        MASTER_SSH_PORT="220$i"
-        echo "Authorizing user ssh key on master $i"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "$REMOTE_CMD" || {
-            echo "ERROR: Failed to authorize ssh key on master $i"
-            return 1
-        }
-    done
-    copy_ssh_key_to_proxy_master
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
-        echo "ERROR: Failed to upload utils.sh"
-        return 1
-    }
-    # Authorize ssh key on all the Linux agents
-    IPS=$(linux_agents_private_ips) || {
-        echo "ERROR: Failed to get the Linux agents private addresses"
-        return 1
-    }
-    if [[ -z $IPS ]]; then
-        return 0
-    fi
-    for IP in $IPS; do
-        echo "Authorizing user ssh key on agent $IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 \"$REMOTE_CMD\"" || {
-            echo "ERROR: Failed to authorize the user ssh key on agent: $IP"
-            return 1
-        }
-    done
-    echo "Finished authorizing the user SSH key on all the Linux machines"
 }
 
 job_cleanup() {
@@ -170,11 +192,6 @@ job_cleanup() {
             echo "ERROR: Failed to delete the resource group"
             return 1
         }
-    else
-        authorize_user_ssh_key || {
-            echo "ERROR: Failed to authorize the user SSH key"
-            return 1
-        }
     fi
     echo "Finished the environment cleanup"
 }
@@ -186,7 +203,7 @@ upload_logs() {
     # Copy the Jenkins console as well
     curl "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
-    upload_files_via_scp $LOG_SERVER_USER $LOG_SERVER_ADDRESS "22" "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
+    upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
     echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
     rm -rf $TEMP_LOGS_DIR || return 1
@@ -251,11 +268,11 @@ open_dcos_port() {
 }
 
 setup_remote_winrm_client() {
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" || {
+    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" || {
         echo "ERROR: Failed to install dependencies on the first master used as a proxy"
         return 1
     }
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
         echo "ERROR: Failed to copy wsmancmd.py to the proxy master node"
         return 1
     }
@@ -358,7 +375,7 @@ test_iis_docker_private_image() {
     pushd $WORKSPACE && zip -r docker.zip .docker && rm -rf .docker && popd || return 1
 
     # Upload docker.zip to master
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/docker.zip" "$WORKSPACE/docker.zip" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/docker.zip" "$WORKSPACE/docker.zip" || {
         echo "ERROR: Failed to scp docker.zip"
         return 1
     }
@@ -368,7 +385,7 @@ test_iis_docker_private_image() {
         return 1
     }
 
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
@@ -378,7 +395,7 @@ test_iis_docker_private_image() {
     }
     # Download the config file with creds locally to all the targeted nodes
     for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
             echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
             return 1
         }
@@ -419,7 +436,7 @@ test_mesos_fetcher() {
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
     REMOTE_CMD='docker ps | Where-Object { $_.Contains("microsoft/iis") -and $_.Contains("->80/tcp") } | ForEach-Object { $_.Split()[0] }'
-    DOCKER_CONTAINER_ID=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
+    DOCKER_CONTAINER_ID=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
         echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
         return 1
     }
@@ -428,7 +445,7 @@ test_mesos_fetcher() {
         return 1
     fi
     REMOTE_CMD="docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash"
-    MD5_CHECKSUM=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
+    MD5_CHECKSUM=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
     }
@@ -444,7 +461,7 @@ test_mesos_fetcher_local() {
     # Test Mesos fetcher with local resource
     #
     echo "Testing Mesos fetcher using local resource"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
@@ -454,7 +471,7 @@ test_mesos_fetcher_local() {
     }
     # Download the fetcher test file locally to all the targeted nodes
     for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$IP/fetcher-test.zip" || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$IP/fetcher-test.zip" || {
             echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
             return 1
         }
@@ -518,18 +535,18 @@ test_windows_agent_dcos_dns() {
     MAX_RETRIES=10
     RETRIES=0
     while [[ $RETRIES -le $MAX_RETRIES ]]; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$REMOTE_CMD" || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "$REMOTE_CMD" || {
             echo -e "WARNING: Failed to resolve $DNS_RECORD"
             RETRIES=$(($RETRIES + 1))
             continue
         }
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout"
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "cat /tmp/winrm.stdout"
         echo ""
         echo "Successfully resolved $DNS_RECORD"
         return 0
     done
     echo "ERROR: Failed to resolve $DNS_RECORD"
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
     echo ""
     return 1
 }
@@ -566,11 +583,11 @@ test_dcos_dns() {
 test_master_agent_authentication() {
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'sudo apt install jq -y' || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'sudo apt install jq -y' || {
             echo "ERROR: Failed to install jq on the master $i"
             return 1
         }
-        AUTH_ENABLED=$(run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT 'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || {
+        AUTH_ENABLED=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || {
             echo "ERROR: Failed to find the Mesos flags on the master $i"
             return 1
         }
@@ -615,9 +632,9 @@ collect_linux_masters_logs() {
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         TMP_LOGS_DIR="/tmp/master_$i"
         MASTER_SSH_PORT="220$i"
-        upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh" $COLLECT_LINUX_LOGS_SCRIPT || return 1
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT "/tmp/collect-logs.sh $TMP_LOGS_DIR" || return 1
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS $MASTER_SSH_PORT $TMP_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
+        upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -f "/tmp/collect-logs.sh" $COLLECT_LINUX_LOGS_SCRIPT || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  "/tmp/collect-logs.sh $TMP_LOGS_DIR" || return 1
+        download_files_via_scp -i $GENERATED_SSH_KEY_PATH -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -f $TMP_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -630,14 +647,14 @@ collect_linux_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/collect-logs.sh" "$DIR/utils/collect-linux-machine-logs.sh" || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/collect-logs.sh" "$DIR/utils/collect-linux-machine-logs.sh" || return 1
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && upload_files_via_scp $LINUX_ADMIN $IP 22 /tmp/collect-logs.sh /tmp/collect-logs.sh" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && upload_files_via_scp -u $LINUX_ADMIN -h $IP -p 22 -f /tmp/collect-logs.sh /tmp/collect-logs.sh" || return 1
         AGENT_LOGS_DIR="/tmp/$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 '/tmp/collect-logs.sh $AGENT_LOGS_DIR'" || return 1
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp $IP 22 $AGENT_LOGS_DIR $AGENT_LOGS_DIR" || return 1
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c '/tmp/collect-logs.sh $AGENT_LOGS_DIR'" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && rm -rf $AGENT_LOGS_DIR && download_files_via_scp -h $IP -p 22 -f $AGENT_LOGS_DIR $AGENT_LOGS_DIR" || return 1
+        download_files_via_scp -i $GENERATED_SSH_KEY_PATH -h $MASTER_PUBLIC_ADDRESS -p "2200" -f $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -650,17 +667,17 @@ collect_windows_agents_logs() {
     #
     local LOCAL_LOGS_DIR="$1"
     local AGENTS_IPS="$2"
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || return 1
     for IP in $AGENTS_IPS; do
         AGENT_LOGS_DIR="/tmp/$IP"
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
         for SERVICE in "epmd" "mesos" "spartan" "diagnostics" "dcos-net"; do
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
-            run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
+            run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
+            run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
         done
-        download_files_via_scp $MASTER_PUBLIC_ADDRESS "2200" $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
+        download_files_via_scp -i $GENERATED_SSH_KEY_PATH -h $MASTER_PUBLIC_ADDRESS -p "2200" -f $AGENT_LOGS_DIR "${LOCAL_LOGS_DIR}/" || return 1
     done
 }
 
@@ -795,7 +812,7 @@ disable_linux_agents_dcos_metrics() {
     #
     echo "Disabling dcos-metrics on all the Linux agents"
     copy_ssh_key_to_proxy_master || return 1
-    upload_files_via_scp $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to upload utils.sh"
         return 1
     }
@@ -813,7 +830,7 @@ disable_linux_agents_dcos_metrics() {
         return 0
     fi
     for IP in $IPS; do
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "source /tmp/utils.sh && run_ssh_command $LINUX_ADMIN $IP 22 \"$REMOTE_CMD\"" || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c \"$REMOTE_CMD\"" || {
             echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
             return 1
         }
@@ -871,12 +888,12 @@ start_fluentd_tests() {
     WIN_REMOTE_REPO_URL="https://github.com/Microsoft/mesos-jenkins"
     WIN_REMOTE_CMD="if (Test-Path -Path $WIN_REMOTE_CLONE_DIR) { Remove-Item -Force -Recurse -Path $WIN_REMOTE_CLONE_DIR }; git clone $WIN_REMOTE_REPO_URL $WIN_REMOTE_CLONE_DIR; ${WIN_REMOTE_CLONE_DIR}\\DCOS\\fluentd-testing\\run_fluentd_tests.ps1"
     JUMPHOST_REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$WIN_REMOTE_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "$JUMPHOST_REMOTE_CMD" || {
-        run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
+    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "$JUMPHOST_REMOTE_CMD" || {
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
         echo "ERROR: Fluentd tests failed on $AGENT_IP"
         return 1
     }
-    run_ssh_command $LINUX_ADMIN $MASTER_PUBLIC_ADDRESS "2200" "cat /tmp/winrm.stdout" || return 1
+    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "cat /tmp/winrm.stdout" || return 1
     echo -e "\n"
     echo -e "Successfully ran Fluentd tests on DC/OS Windows slave ${AGENT_IP}"
     echo -e "\n"
