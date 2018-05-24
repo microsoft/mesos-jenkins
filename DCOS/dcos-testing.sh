@@ -51,21 +51,22 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
-if [[ -z $BUILDS_ARTIFACTS_DIR ]]; then
-    echo "ERROR: BUILDS_ARTIFACTS_DIR is not set"
+if [[ -z $JOB_ARTIFACTS_DIR ]]; then
+    echo "ERROR: JOB_ARTIFACTS_DIR is not set"
     exit 1
 fi
-if [[ ! -d $BUILDS_ARTIFACTS_DIR ]]; then
-    echo "Builds artifacts directory does not exist. Creating it"
-    mkdir -p $BUILDS_ARTIFACTS_DIR
+if [[ ! -d $JOB_ARTIFACTS_DIR ]]; then
+    echo "The job artifacts directory $JOB_ARTIFACTS_DIR does not exist. Creating it"
+    mkdir -p $JOB_ARTIFACTS_DIR
 fi
-export CURRENT_BUILD_ARTIFACTS_DIR="${BUILDS_ARTIFACTS_DIR}/${BUILD_ID}"
-if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
-    echo "ArtIfacts directory for current build exists. Deleting it"
-    rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
+export BUILD_ARTIFACTS_DIR="${JOB_ARTIFACTS_DIR}/${BUILD_ID}"
+if [[ -e $BUILD_ARTIFACTS_DIR ]]; then
+    echo "Build artifacts directory $BUILD_ARTIFACTS_DIR already exists. Deleting it and creating a new one"
+    rm -rf $BUILD_ARTIFACTS_DIR
 fi
-echo "Creating artifacts directory for this build"
-mkdir -p $CURRENT_BUILD_ARTIFACTS_DIR
+echo "Creating a new build artifacts directory at $BUILD_ARTIFACTS_DIR"
+mkdir -p $BUILD_ARTIFACTS_DIR
+
 # LINUX_PRIVATE_IPS and WINDOWS_PRIVATE_IPS will be set later on in the script
 export LINUX_PRIVATE_IPS=""
 export WINDOWS_PRIVATE_IPS=""
@@ -121,7 +122,10 @@ create_linux_ssh_keypair() {
         return 1
     }
     # Convert ssh key to base64 first and remove newlines
-    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64"
+    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64" || {
+        echo "ERROR: Failed to create SSH key base64 file: ${GENERATED_SSH_KEY_PATH}.b64"
+        return 1
+    }
     # Upload private/public keys as secrets to Azure key vault
     az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.b64" &>/dev/null || {
         echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
@@ -268,12 +272,8 @@ open_dcos_port() {
 }
 
 setup_remote_winrm_client() {
-    run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "sudo apt-get update && sudo apt-get install python3-pip libssl-dev -y && sudo pip3 install -U pywinrm==0.2.1" || {
-        echo "ERROR: Failed to install dependencies on the first master used as a proxy"
-        return 1
-    }
-    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd.py" "$DIR/utils/wsmancmd.py" || {
-        echo "ERROR: Failed to copy wsmancmd.py to the proxy master node"
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd" "$DIR/utils/bin/wsmancmd" || {
+        echo "ERROR: Failed to copy wsmancmd binary to the proxy master node"
         return 1
     }
 }
@@ -436,7 +436,7 @@ test_mesos_fetcher() {
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
     REMOTE_CMD='docker ps | Where-Object { $_.Contains("microsoft/iis") -and $_.Contains("->80/tcp") } | ForEach-Object { $_.Split()[0] }'
-    DOCKER_CONTAINER_ID=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
+    DOCKER_CONTAINER_ID=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
         echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
         return 1
     }
@@ -445,7 +445,7 @@ test_mesos_fetcher() {
         return 1
     fi
     REMOTE_CMD="docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash"
-    MD5_CHECKSUM=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd.py -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
+    MD5_CHECKSUM=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
         echo "ERROR: Failed to get the fetcher file MD5 checksum"
         return 1
     }
@@ -531,7 +531,7 @@ test_windows_agent_dcos_dns() {
     local AGENT_IP="$1"
     local DNS_RECORD="$2"
     echo -e "Trying to resolve $DNS_RECORD on Windows agent $AGENT_IP"
-    REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
     MAX_RETRIES=10
     RETRIES=0
     while [[ $RETRIES -le $MAX_RETRIES ]]; do
@@ -581,13 +581,10 @@ test_dcos_dns() {
 }
 
 test_master_agent_authentication() {
+    PYTHON_SCRIPT="import json,sys; input = json.load(sys.stdin); print(input['flags']['authenticate_agents'])"
     for i in `seq 0 $(($LINUX_MASTER_COUNT - 1))`; do
         MASTER_SSH_PORT="220$i"
-        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'sudo apt install jq -y' || {
-            echo "ERROR: Failed to install jq on the master $i"
-            return 1
-        }
-        AUTH_ENABLED=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c  'curl -s http://$(/opt/mesosphere/bin/detect_ip):5050/flags | jq -r ".flags.authenticate_agents"') || {
+        AUTH_ENABLED=$(run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p $MASTER_SSH_PORT -c "curl -s http://\$(/opt/mesosphere/bin/detect_ip):5050/flags | python -c \"${PYTHON_SCRIPT}\"") || {
             echo "ERROR: Failed to find the Mesos flags on the master $i"
             return 1
         }
@@ -692,7 +689,7 @@ linux_agents_private_ips() {
     }
     PRIVATE_IPS=""
     for VMSS_NAME in $VMSS_NAMES; do
-        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | select(.virtualMachine != null) | .ipConfigurations[0].privateIpAddress") || {
             echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
             return 1
         }
@@ -713,7 +710,7 @@ windows_agents_private_ips() {
     }
     PRIVATE_IPS=""
     for VMSS_NAME in $VMSS_NAMES; do
-        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | select(.virtualMachine != null) | .ipConfigurations[0].privateIpAddress") || {
             echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
             return 1
         }
@@ -785,16 +782,11 @@ check_exit_code() {
 create_testing_environment() {
     #
     # - Create the python3 virtual environment and activate it
-    # - Installs the DC/OS client packages
     # - Configures the DC/OS clients for the current cluster and export the
     #   cluster ID as the DCOS_CLUSTER_ID environment variable
     #
-    python3 -m venv $VENV_DIR && . $VENV_DIR/bin/activate || {
+    python3 -m venv $VENV_DIR --system-site-packages && . $VENV_DIR/bin/activate || {
         echo "ERROR: Failed to create the python3 virtualenv"
-        return 1
-    }
-    pip3 install -U dcos dcoscli || {
-        echo "ERROR: Failed to install the DC/OS pip client packages"
         return 1
     }
     rm -rf $DCOS_DIR || return 1
@@ -813,13 +805,16 @@ disable_linux_agents_dcos_metrics() {
     echo "Disabling dcos-metrics on all the Linux agents"
     copy_ssh_key_to_proxy_master || return 1
     upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
-        echo "ERROR: Failed to upload utils.sh"
+        echo "ERROR: Failed to upload utils.sh on the master node"
+        return 1
+    }
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/update-dcos-diagnostics-runner-config.py" "$DIR/utils/update-dcos-diagnostics-runner-config.py" || {
+        echo "ERROR: Failed to upload update-dcos-diagnostics-runner-config.py on the master node"
         return 1
     }
     REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
-    REMOTE_CMD+="sudo apt-get install jq -y && "
-    REMOTE_CMD+="cat /opt/mesosphere/etc/dcos-diagnostics-runner-config.json | jq 'del(.node_checks.checks.mesos_agent_registered_with_masters)' > /tmp/dcos-diagnostics-runner-config.json && "
+    REMOTE_CMD+="sudo /tmp/update-dcos-diagnostics-runner-config.py > /tmp/dcos-diagnostics-runner-config.json && "
     REMOTE_CMD+="sudo cp /tmp/dcos-diagnostics-runner-config.json /opt/mesosphere/etc/dcos-diagnostics-runner-config.json && rm /tmp/dcos-diagnostics-runner-config.json && "
     REMOTE_CMD+="sudo systemctl restart dcos-checks-poststart.service || exit 1"
     IPS=$(linux_agents_private_ips) || {
@@ -830,7 +825,12 @@ disable_linux_agents_dcos_metrics() {
         return 0
     fi
     for IP in $IPS; do
-        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c \"$REMOTE_CMD\"" || {
+        REMOTE_SCP_CMD="upload_files_via_scp -u $LINUX_ADMIN -h $IP -p 22 -f /tmp/update-dcos-diagnostics-runner-config.py /tmp/update-dcos-diagnostics-runner-config.py"
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "source /tmp/utils.sh && $REMOTE_SCP_CMD" || {
+            echo "ERROR: Failed to upload update-dcos-diagnostics-runner-config.py on the agent: $IP"
+            return 1
+        }
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c \"$REMOTE_CMD\"" || {
             echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
             return 1
         }
@@ -887,7 +887,7 @@ start_fluentd_tests() {
     WIN_REMOTE_CLONE_DIR="C:\\mesos-jenkins"
     WIN_REMOTE_REPO_URL="https://github.com/Microsoft/mesos-jenkins"
     WIN_REMOTE_CMD="if (Test-Path -Path $WIN_REMOTE_CLONE_DIR) { Remove-Item -Force -Recurse -Path $WIN_REMOTE_CLONE_DIR }; git clone $WIN_REMOTE_REPO_URL $WIN_REMOTE_CLONE_DIR; ${WIN_REMOTE_CLONE_DIR}\\DCOS\\fluentd-testing\\run_fluentd_tests.ps1"
-    JUMPHOST_REMOTE_CMD="/tmp/wsmancmd.py -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$WIN_REMOTE_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    JUMPHOST_REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$WIN_REMOTE_CMD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
     run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "$JUMPHOST_REMOTE_CMD" || {
         run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "cat /tmp/winrm.stdout ; cat /tmp/winrm.stderr"
         echo "ERROR: Fluentd tests failed on $AGENT_IP"
