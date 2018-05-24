@@ -122,7 +122,10 @@ create_linux_ssh_keypair() {
         return 1
     }
     # Convert ssh key to base64 first and remove newlines
-    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64"
+    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64" || {
+        echo "ERROR: Failed to create SSH key base64 file: ${GENERATED_SSH_KEY_PATH}.b64"
+        return 1
+    }
     # Upload private/public keys as secrets to Azure key vault
     az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.b64" &>/dev/null || {
         echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
