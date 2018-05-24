@@ -51,15 +51,15 @@ fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
 fi
-if [[ -z $BUILDS_ARTIFACTS_DIR ]]; then
-    echo "ERROR: BUILDS_ARTIFACTS_DIR is not set"
+if [[ -z $JOB_ARTIFACTS_DIR ]]; then
+    echo "ERROR: JOB_ARTIFACTS_DIR is not set"
     exit 1
 fi
-if [[ ! -d $BUILDS_ARTIFACTS_DIR ]]; then
-    echo "Builds artifacts directory does not exist. Creating it"
-    mkdir -p $BUILDS_ARTIFACTS_DIR
+if [[ ! -d $JOB_ARTIFACTS_DIR ]]; then
+    echo "The job artifacts directory $JOB_ARTIFACTS_DIR does not exist. Creating it"
+    mkdir -p $JOB_ARTIFACTS_DIR
 fi
-export CURRENT_BUILD_ARTIFACTS_DIR="${BUILDS_ARTIFACTS_DIR}/${BUILD_ID}"
+export CURRENT_BUILD_ARTIFACTS_DIR="${JOB_ARTIFACTS_DIR}/${BUILD_ID}"
 if [[ -e $CURRENT_BUILD_ARTIFACTS_DIR ]]; then
     echo "ArtIfacts directory for current build exists. Deleting it"
     rm -rf $CURRENT_BUILD_ARTIFACTS_DIR
