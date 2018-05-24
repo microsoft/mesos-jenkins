@@ -801,13 +801,16 @@ disable_linux_agents_dcos_metrics() {
     echo "Disabling dcos-metrics on all the Linux agents"
     copy_ssh_key_to_proxy_master || return 1
     upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
-        echo "ERROR: Failed to upload utils.sh"
+        echo "ERROR: Failed to upload utils.sh on the master node"
+        return 1
+    }
+    upload_files_via_scp -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/update-dcos-diagnostics-runner-config.py" "$DIR/utils/update-dcos-diagnostics-runner-config.py" || {
+        echo "ERROR: Failed to upload update-dcos-diagnostics-runner-config.py on the master node"
         return 1
     }
     REMOTE_CMD=" sudo systemctl stop dcos-metrics-agent.service && sudo systemctl stop dcos-metrics-agent.socket && "
     REMOTE_CMD+="sudo systemctl disable dcos-metrics-agent.service && sudo systemctl disable dcos-metrics-agent.socket && "
-    REMOTE_CMD+="sudo apt-get install jq -y && "
-    REMOTE_CMD+="cat /opt/mesosphere/etc/dcos-diagnostics-runner-config.json | jq 'del(.node_checks.checks.mesos_agent_registered_with_masters)' > /tmp/dcos-diagnostics-runner-config.json && "
+    REMOTE_CMD+="sudo /tmp/update-dcos-diagnostics-runner-config.py > /tmp/dcos-diagnostics-runner-config.json && "
     REMOTE_CMD+="sudo cp /tmp/dcos-diagnostics-runner-config.json /opt/mesosphere/etc/dcos-diagnostics-runner-config.json && rm /tmp/dcos-diagnostics-runner-config.json && "
     REMOTE_CMD+="sudo systemctl restart dcos-checks-poststart.service || exit 1"
     IPS=$(linux_agents_private_ips) || {
@@ -818,7 +821,12 @@ disable_linux_agents_dcos_metrics() {
         return 0
     fi
     for IP in $IPS; do
-        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c \"$REMOTE_CMD\"" || {
+        REMOTE_SCP_CMD="upload_files_via_scp -u $LINUX_ADMIN -h $IP -p 22 -f /tmp/update-dcos-diagnostics-runner-config.py /tmp/update-dcos-diagnostics-runner-config.py"
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "source /tmp/utils.sh && $REMOTE_SCP_CMD" || {
+            echo "ERROR: Failed to upload update-dcos-diagnostics-runner-config.py on the agent: $IP"
+            return 1
+        }
+        run_ssh_command -i $GENERATED_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "source /tmp/utils.sh && run_ssh_command -u $LINUX_ADMIN -h $IP -p 22 -c \"$REMOTE_CMD\"" || {
             echo "ERROR: Failed to disable dcos-metrics on agent: $IP"
             return 1
         }
