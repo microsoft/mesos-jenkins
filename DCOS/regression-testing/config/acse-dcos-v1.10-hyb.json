@@ -8,7 +8,7 @@
     {
       "cluster_definition": "hyb/dcos-m3.l1-2.w1-2.preprov.json",
       "orchestratorRelease": "1.10",
-      "location": "centralus"
+      "location": "westus2"
     }
   ]
 }
