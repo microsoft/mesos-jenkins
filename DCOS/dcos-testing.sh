@@ -685,7 +685,7 @@ linux_agents_private_ips() {
     }
     PRIVATE_IPS=""
     for VMSS_NAME in $VMSS_NAMES; do
-        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | select(.virtualMachine != null) | .ipConfigurations[0].privateIpAddress") || {
             echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
             return 1
         }
@@ -706,7 +706,7 @@ windows_agents_private_ips() {
     }
     PRIVATE_IPS=""
     for VMSS_NAME in $VMSS_NAMES; do
-        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | .ipConfigurations[0].privateIpAddress") || {
+        IPS=$(az vmss nic list --resource-group $AZURE_RESOURCE_GROUP --vmss-name $VMSS_NAME | jq -r ".[] | select(.virtualMachine != null) | .ipConfigurations[0].privateIpAddress") || {
             echo "ERROR: Failed to get VMSS $VMSS_NAME private addresses"
             return 1
         }
