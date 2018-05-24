@@ -26,13 +26,13 @@ run_ssh_command() {
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -c COMMAND"
-                exit 1;;
+                return 1;;
         esac
         shift
     done
     if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $COMMAND ]]; then
         echo "USER, HOST and COMMAND are mandatory"
-        exit 1
+        return 1
     fi
     if [ -z $PORT ]; then
         PORT="22"
@@ -70,13 +70,13 @@ upload_files_via_scp() {
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
-                exit 1;;
+                return 1;;
         esac
         shift
     done
     if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
         echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
-        exit 1
+        return 1
     fi
     if [ -z $PORT ]; then
         PORT="22"
@@ -114,13 +114,13 @@ download_files_via_scp() {
                 PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
-                exit 1;;
+                return 1;;
         esac
         shift
     done
     if [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
         echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
-        exit 1
+        return 1
     fi
     if [ -z $PORT ]; then
         PORT="22"
