@@ -169,8 +169,9 @@ function Add-ReviewBoardPatch {
             } else {
                 $buildErrorMsg = "Failed to apply the dependent review: $id."
             }
+            # TODO(andschwa): Move this back to `support\apply-reviews.py` after the Python 2 deprecation is complete.
             Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "apply-review-${id}-stdout.log" -StderrFileName "apply-review-${id}-stderr.log" `
-                                 -ArgumentList @(".\support\apply-reviews.py", "-n", "-r", $id) -BuildErrorMessage $buildErrorMsg
+                                 -ArgumentList @(".\support\python3\apply-reviews.py", "-n", "-r", $id) -BuildErrorMessage $buildErrorMsg
         } finally {
             Pop-Location
         }
