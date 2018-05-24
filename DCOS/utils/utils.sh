@@ -8,22 +8,22 @@ run_ssh_command() {
     do
         case $1 in
             -i)
-                SSH_KEY=$2
+                local SSH_KEY=$2
                 shift;;
             -u)
-                USER=$2
+                local USER=$2
                 shift;;
             -h)
-                HOST=$2
+                local HOST=$2
                 shift;;
             -p)
-                PORT=$2
+                local PORT=$2
                 shift;;
             -c)
-                COMMAND=$2
+                local COMMAND=$2
                 shift;;
             -*)
-                PARAM=$1
+                local PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -c COMMAND"
                 return 1;;
@@ -35,10 +35,10 @@ run_ssh_command() {
         return 1
     fi
     if [ -z $PORT ]; then
-        PORT="22"
+        local PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        SSH_KEY="$HOME/.ssh/id_rsa"
+        local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
     ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${USER}@${HOST} "$COMMAND"
 }
@@ -51,23 +51,23 @@ upload_files_via_scp() {
     do
         case $1 in
             -i)
-                SSH_KEY=$2
+                local SSH_KEY=$2
                 shift;;
             -u)
-                USER=$2
+                local USER=$2
                 shift;;
             -h)
-                HOST=$2
+                local HOST=$2
                 shift;;
             -p)
-                PORT=$2
+                local PORT=$2
                 shift;;
             -f)
-                REMOTE_PATH=$2
-                LOCAL_PATH=$3
+                local REMOTE_PATH=$2
+                local LOCAL_PATH=$3
                 shift;;
             -*)
-                PARAM=$1
+                local PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
                 return 1;;
@@ -79,10 +79,10 @@ upload_files_via_scp() {
         return 1
     fi
     if [ -z $PORT ]; then
-        PORT="22"
+        local PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        SSH_KEY="$HOME/.ssh/id_rsa"
+        local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
     scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
 }
@@ -95,23 +95,23 @@ download_files_via_scp() {
     do
         case $1 in
             -i)
-                SSH_KEY=$2
+                local SSH_KEY=$2
                 shift;;
             -u)
-                USER=$2
+                local USER=$2
                 shift;;
             -h)
-                HOST=$2
+                local HOST=$2
                 shift;;
             -p)
-                PORT=$2
+                local PORT=$2
                 shift;;
             -f)
-                REMOTE_PATH=$2
-                LOCAL_PATH=$3
+                local REMOTE_PATH=$2
+                local LOCAL_PATH=$3
                 shift;;
             -*)
-                PARAM=$1
+                local PARAM=$1
                 echo "unknown parameter $PARAM"
                 echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
                 return 1;;
@@ -123,13 +123,13 @@ download_files_via_scp() {
         return 1
     fi
     if [ -z $PORT ]; then
-        PORT="22"
+        local PORT="22"
     fi
     if [ -z $SSH_KEY ]; then
-        SSH_KEY="$HOME/.ssh/id_rsa"
+        local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
     if [[ -z $USER ]]; then
-        USER="azureuser"
+        local USER="azureuser"
     fi
     scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
 }
