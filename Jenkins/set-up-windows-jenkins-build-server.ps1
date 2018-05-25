@@ -22,10 +22,6 @@ $PACKAGES = @{
         "url" = "https://github.com/mesos/3rdparty/raw/master/patch-2.5.9-7-setup.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "patch.exe"
     }
-    "python27" = @{
-        "url" = "https://www.python.org/ftp/python/2.7.14/python-2.7.14.amd64.msi"
-        "local_file" = Join-Path $PACKAGES_DIRECTORY "python-2.7.msi"
-    }
     "python36" = @{
         "url" = "https://www.python.org/ftp/python/3.6.5/python-3.6.5-amd64.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "python-3.6.exe"
@@ -271,15 +267,6 @@ function Install-Patch {
                    -EnvironmentPath @("$installDir\bin")
 }
 
-function Install-Python27 {
-    $installDir = Join-Path $env:ProgramFiles "Python27"
-    Install-CITool -InstallerPath $PACKAGES["python27"]["local_file"] `
-                   -InstallDirectory $installDir `
-                   -ArgumentList @("/quiet", "InstallAllUsers=1", "TargetDir=`"$installDir`"") `
-                   -EnvironmentPath @($installDir, "$installDir\Scripts")
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1
-}
-
 function Install-Python36 {
     $installDir = Join-Path $env:ProgramFiles "Python36"
     Install-CITool -InstallerPath $PACKAGES["python36"]["local_file"] `
@@ -441,7 +428,6 @@ try {
     Install-Git
     Install-CMake
     Install-Patch
-    Install-Python27
     Install-Python36
     Install-Putty
     Install-Golang
