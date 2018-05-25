@@ -73,14 +73,14 @@ function generate_template() {
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].vmSize = \"${WINDOWS_VMSIZE}\""
 			fi
 			if [ "$dnsPrefix" != "null" ]; then
-				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-w$indx\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-win\""
 			fi
 		else
 			if [[ ! -z "${LINUX_VMSIZE:-}" ]]; then
 				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].vmSize = \"${LINUX_VMSIZE}\""
 			fi
 			if [ "$dnsPrefix" != "null" ]; then
-				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-l$indx\""
+				jqi "${FINAL_CLUSTER_DEFINITION}" ".properties.agentPoolProfiles[$indx].dnsPrefix = \"${INSTANCE_NAME}-lnx\""
 			fi
 		fi
 		indx=$((indx+1))
@@ -254,7 +254,8 @@ function get_api_version() {
 }
 
 function validate_agents {
-	MARATHON_JSON=$1
+	OS=$1
+	MARATHON_JSON=$2
 	[[ ! -z "${MARATHON_JSON:-}" ]] || (echo "Marathon JSON filename is not passed" && exit -1)
 	[[ ! -z "${INSTANCE_NAME:-}" ]] || (echo "Must specify INSTANCE_NAME" && exit -1)
 	[[ ! -z "${LOCATION:-}" ]]      || (echo "Must specify LOCATION" && exit -1)
@@ -270,6 +271,15 @@ function validate_agents {
 
 	${remote_cp} "${ROOT}/${MARATHON_JSON}" azureuser@${INSTANCE_NAME}.${LOCATION}.cloudapp.azure.com:${MARATHON_JSON}
 	[ $? -eq 0 ] || (echo "Error: failed to copy ${MARATHON_JSON}" && exit 1)
+
+	if [[ "$OS" == "Linux" ]]; then
+		local agentFQDN="${INSTANCE_NAME}-lnx.${LOCATION}.cloudapp.azure.com"
+	else
+		local agentFQDN="${INSTANCE_NAME}-win.${LOCATION}.cloudapp.azure.com"
+	fi
+
+	${remote_exec} sed -i "s/{agentFQDN}/${agentFQDN}/g" ${MARATHON_JSON}
+	[ $? -eq 0 ] || (echo "Error: failed to configure ${MARATHON_JSON}" && exit 1)
 
 	echo $(date +%H:%M:%S) "Adding marathon app"
 	count=20
@@ -309,6 +319,25 @@ function validate_agents {
 		${remote_exec} ./dcos marathon app list
 		exit 1
 	fi
+
+	# install marathon-lb
+	${remote_exec} ./dcos package install marathon-lb --yes
+	[ $? -eq 0 ] || (echo "Error: failed to install marathon-lb" && exit 1)
+
+	# curl webserver through external haproxy
+	echo $(date +%H:%M:%S) "Checking Service"
+	count=20
+	while true; do
+		echo $(date +%H:%M:%S) "  ... counting down $count"
+		rc=$(curl -sI --max-time 60 "http://${agentFQDN}" | head -n1 | cut -d$' ' -f2)
+		[[ "$rc" -eq "200" ]] && echo "Successfully hitting simpleweb through external haproxy http://${agentFQDN}" && break
+		if [[ "${count}" -le 1 ]]; then
+			echo "failed to get expected response from nginx through the loadbalancer: Error $rc"
+			exit 1
+		fi
+		sleep 15
+		count=$((count-1))
+	done
 }
 
 function validate_master_agent_authentication() {
@@ -384,12 +413,12 @@ function validate() {
 	[ $? -eq 0 ] || (echo "Error: failed to configure dcos" && exit 1)
 
 	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
-		validate_agents "nginx-marathon-template.json"
+		validate_agents "Linux" "nginx-marathon-template.json"
 	fi
 
 	if (( ${EXPECTED_WINDOWS_AGENTS} > 0 )); then
 		if [[ ! -z "${WINDOWS_MARATHON_APP:-}" ]]; then
-			validate_agents "${WINDOWS_MARATHON_APP}"
+			validate_agents "Windows" "${WINDOWS_MARATHON_APP}"
 		fi
 	fi
 }
