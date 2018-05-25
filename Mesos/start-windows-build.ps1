@@ -28,84 +28,6 @@ $global:PARAMETERS = @{
 }
 
 
-function Install-Prerequisites {
-    $prerequisites = @{
-        'git'= @{
-            'url'= $GIT_URL
-            'install_args' = @("/SILENT")
-            'install_dir' = $GIT_DIR
-        }
-        'cmake'= @{
-            'url'= $CMAKE_URL
-            'install_args'= @("/quiet")
-            'install_dir'= $CMAKE_DIR
-        }
-        'gnuwin32'= @{
-            'url'= $GNU_WIN32_URL
-            'install_args'= @("/VERYSILENT","/SUPPRESSMSGBOXES","/SP-")
-            'install_dir'= $GNU_WIN32_DIR
-        }
-        'python27'= @{
-            'url'= $PYTHON_URL
-            'install_args'= @("/qn")
-            'install_dir'= $PYTHON_DIR
-        }
-        'putty'= @{
-            'url'= $PUTTY_URL
-            'install_args'= @("/q")
-            'install_dir'= $PUTTY_DIR
-        }
-        '7zip'= @{
-            'url'= $7ZIP_URL
-            'install_args'= @("/q")
-            'install_dir'= $7ZIP_DIR
-        }
-        'vs2017'= @{
-            'url'= $VS2017_URL
-            'install_args'= @(
-                "--quiet",
-                "--add", "Microsoft.VisualStudio.Component.CoreEditor",
-                "--add", "Microsoft.VisualStudio.Workload.NativeDesktop",
-                "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                "--add", "Microsoft.VisualStudio.Component.VC.DiagnosticTools",
-                "--add", "Microsoft.VisualStudio.Component.Windows10SDK.15063.Desktop",
-                "--add", "Microsoft.VisualStudio.Component.VC.CMake.Project",
-                "--add", "Microsoft.VisualStudio.Component.VC.ATL"
-            )
-            'install_dir'= $VS2017_DIR
-        }
-    }
-    foreach($program in $prerequisites.Keys) {
-        if(Test-Path $prerequisites[$program]['install_dir']) {
-            Write-Output "$program is already installed"
-            continue
-        }
-        Write-Output "Downloading $program from $($prerequisites[$program]['url'])"
-        $fileName = $prerequisites[$program]['url'].Split('/')[-1]
-        $programFile = Join-Path $env:TEMP $fileName
-        Invoke-WebRequest -UseBasicParsing -Uri $prerequisites[$program]['url'] -OutFile $programFile
-        $parameters = @{
-            'FilePath' = $programFile
-            'ArgumentList' = $prerequisites[$program]['install_args']
-            'Wait' = $true
-            'PassThru' = $true
-        }
-        if($programFile.EndsWith('.msi')) {
-            $parameters['FilePath'] = 'msiexec.exe'
-            $parameters['ArgumentList'] += @("/i", $programFile)
-        }
-        Write-Output "Installing $programFile"
-        $p = Start-Process @parameters
-        if($p.ExitCode -ne 0) {
-            Throw "Failed to install prerequisite $programFile during the environment setup"
-        }
-    }
-    # Add all the tools to PATH
-    $toolsDirs = @("$CMAKE_DIR\bin", "$GIT_DIR\cmd", "$GIT_DIR\bin", "$PYTHON_DIR",
-                   "$PYTHON_DIR\Scripts", "$7ZIP_DIR", "$GNU_WIN32_DIR\bin")
-    $env:PATH += ';' + ($toolsDirs -join ';')
-}
-
 function Start-MesosCIProcess {
     Param(
         [Parameter(Mandatory=$true)]
@@ -496,7 +418,6 @@ function Write-ParametersFile {
 try {
     Start-TempDirCleanup
     New-ParametersFile -FilePath $ParametersFile
-    Install-Prerequisites
     New-Environment
     Start-MesosBuild
     Start-MesosCITesting
