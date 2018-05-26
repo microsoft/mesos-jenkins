@@ -326,6 +326,11 @@ function validate_agents {
 		exit 1
 	fi
 
+	if [ "${MARATHON_JSON}" = "iis-rs3-marathon-template.json" ]; then
+		# skip marathon-lb for RS3 Windows image
+		return 0
+	fi
+
 	# curl webserver through external haproxy
 	echo $(date +%H:%M:%S) "Checking Service"
 	count=20
@@ -428,6 +433,8 @@ function validate() {
 			validate_agents "Windows" "${WINDOWS_MARATHON_APP}"
 		fi
 	fi
+
+	echo $(date +%H:%M:%S) "Validation completed!"
 }
 
 function cleanup() {
