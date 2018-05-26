@@ -37,5 +37,10 @@
   ],
   "acceptedResourceRoles": [
     "slave_public"
-  ]
+  ],
+  "labels":{
+    "HAPROXY_GROUP":"external",
+    "HAPROXY_1_VHOST":"{agentFQDN}",
+    "HAPROXY_1_MODE":"http"
+  }
 }
