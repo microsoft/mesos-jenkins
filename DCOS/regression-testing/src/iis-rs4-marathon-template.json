@@ -40,7 +40,7 @@
   ],
   "labels":{
     "HAPROXY_GROUP":"external",
-    "HAPROXY_1_VHOST":"{agentFQDN}",
-    "HAPROXY_1_MODE":"http"
+    "HAPROXY_0_VHOST":"{agentFQDN}",
+    "HAPROXY_0_MODE":"http"
   }
 }

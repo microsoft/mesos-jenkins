@@ -409,8 +409,15 @@ function validate() {
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to configure dcos"
 
 	echo $(date +%H:%M:%S) "Installing marathon-lb"
-	${remote_exec} ./dcos package install marathon-lb --yes
-	[ $? -eq 0 ] || exit_with_msg "Error: failed to install marathon-lb"
+	count=5
+	while (( $count > 0 )); do
+		echo $(date +%H:%M:%S) "  ... counting down $count"
+		${remote_exec} ./dcos package install marathon-lb --yes
+		[ $? -eq 0 ] && echo "Successfully installed marathon-lb" && break
+		sleep 20
+		count=$((count-1))
+	done
+	[ $count -gt 0 ] || exit_with_msg "Error: failed to install marathon-lb"
 
 	if (( ${EXPECTED_LINUX_AGENTS} > 0 )); then
 		validate_agents "Linux" "nginx-marathon-template.json"
