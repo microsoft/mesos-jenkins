@@ -6,7 +6,7 @@
       "location": "centralus"
     },
     {
-      "cluster_definition": "hyb/dcos-m3.l1-1.w1-1.json",
+      "cluster_definition": "hyb/dcos-m3.l1-2.w1-2.json",
       "orchestratorRelease": "1.11",
       "location": "centralus"
     },
