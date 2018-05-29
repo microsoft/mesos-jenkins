@@ -21,9 +21,9 @@ import json
 import os
 import time
 import datetime
+from urllib.parse import urlencode
 
 from common import ReviewBoardHandler, ReviewError, REVIEWBOARD_URL  # noqa
-from python_compatibility_utils import urlencode
 
 MESOS_REPOSITORY_ID = 122
 
