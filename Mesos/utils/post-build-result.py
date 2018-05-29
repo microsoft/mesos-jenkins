@@ -17,9 +17,10 @@
 # limitations under the License.
 
 import argparse
+import sys
+import urllib.request as urllib2
 
 from common import ReviewBoardHandler, REVIEWBOARD_URL  # noqa
-from python_compatibility_utils import urllib2
 
 LOG_TAIL_LIMIT = 30
 
@@ -61,7 +62,7 @@ def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
     logs_msg = ''
     for url in logs_urls:
         response = urllib2.urlopen(url)
-        log_content = response.read()
+        log_content = response.read().decode(sys.getdefaultencoding())
         if log_content == '':
             continue
         file_name = url.split('/')[-1]
@@ -73,7 +74,7 @@ def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
     if logs_msg == '':
         return build_msg
     build_msg += "Relevant logs:\n\n%s" % (logs_msg)
-    return build_msg
+    return build_msg.encode(sys.getdefaultencoding())
 
 
 def main():

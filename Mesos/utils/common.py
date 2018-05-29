@@ -16,10 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 from datetime import datetime
-
-from python_compatibility_utils import urllib2, urlencode, decode_response
+import json
+import sys
+import urllib.request as urllib2
+from urllib.parse import urlencode
 
 REVIEWBOARD_URL = "https://reviews.apache.org"
 
@@ -65,9 +66,11 @@ class ReviewBoardHandler(object):
             opener = urllib2.build_opener(auth_handler)
             urllib2.install_opener(opener)
             self._opener_installed = True
+        if data is not None:
+            data = data.encode(sys.getdefaultencoding())
         try:
-            return json.loads(
-                decode_response(urllib2.urlopen(url, data=data).read()))
+            return json.loads(urllib2.urlopen(url, data=data).read().decode(
+                sys.getdefaultencoding()))
         except Exception as err:
             print("Error handling URL %s: %s" % (url, err))
             # raise the error after printing the message
