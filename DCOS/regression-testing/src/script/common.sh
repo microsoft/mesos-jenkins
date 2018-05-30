@@ -379,7 +379,7 @@ function validate() {
 	count=20
 	while (( $count > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
-		local node_count=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes | length')
+		node_count=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes | length')
 		[ $? -eq 0 ] && [ ! -z "$node_count" ] && [ $node_count -eq ${EXPECTED_NODE_COUNT} ] && echo "Successfully got $EXPECTED_NODE_COUNT nodes" && break
 		sleep 30
 		count=$((count-1))
@@ -393,7 +393,7 @@ function validate() {
 	count=20
 	while (( $count > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
-		local unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
+		unhealthy_nodes=$(${remote_exec} curl -s http://localhost:1050/system/health/v1/nodes | jq '.nodes[] | select(.health != 0)')
 		[ $? -eq 0 ] && [ -z "$unhealthy_nodes" ] && echo "All nodes are healthy" && break
 		sleep 30; count=$((count-1))
 	done
@@ -414,12 +414,14 @@ function validate() {
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to configure dcos"
 
 	echo $(date +%H:%M:%S) "Installing marathon-lb"
-	count=5
+	count=10
 	while (( $count > 0 )); do
 		echo $(date +%H:%M:%S) "  ... counting down $count"
+		${remote_exec} ./dcos package list | grep marathon-lb
+		[ $? -eq 0 ] && echo "Successfully listed marathon-lb" && break
 		${remote_exec} ./dcos package install marathon-lb --yes
 		[ $? -eq 0 ] && echo "Successfully installed marathon-lb" && break
-		sleep 20
+		sleep 15
 		count=$((count-1))
 	done
 	[ $count -gt 0 ] || exit_with_msg "Error: failed to install marathon-lb"
