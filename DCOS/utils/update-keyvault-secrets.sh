@@ -41,8 +41,18 @@ generate_windows_password() {
 }
 
 
-create_linux_ssh_keypair
-generate_windows_password
+create_linux_ssh_keypair || {
+    echo "ERROR: Cannot create & upload the Linux SSH keypair to Azure key vault"
+    rm -rf $TMP_DIR
+    exit 1
+}
+
+generate_windows_password || {
+    echo "ERROR: Cannot generate & upload the Windows password to Azure key vault"
+    rm -rf $TMP_DIR
+    exit 1
+}
 
 # Cleanup
 rm -rf $TMP_DIR
+echo "Done generating & uploading new ssh keypair and Windows password to Azure key vault"
