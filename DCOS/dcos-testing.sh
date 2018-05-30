@@ -117,7 +117,7 @@ azure_cli_login() {
 get_linux_ssh_keypair() {
     # Download private/public keys secrets from Azure key vault
     echo "Downloading ssh private keypair from key vault"
-    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.b64" &>/dev/null || {
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.b64" || {
         echo "ERROR: Failed to download private key from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
@@ -128,7 +128,7 @@ get_linux_ssh_keypair() {
     }
     chmod 600 ${WORKSPACE}/id_rsa
     echo "Downloading ssh public key from key vault"
-    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PUBLIC_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.pub" &>/dev/null || {
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PUBLIC_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.pub" || {
         echo "ERROR: Failed to download public key from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
@@ -138,7 +138,7 @@ get_linux_ssh_keypair() {
 
 get_windows_password() {
     echo "Downloading Windows password from key vault"
-    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --file "${WORKSPACE}/win_pass" &>/dev/null || {
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --file "${WORKSPACE}/win_pass" || {
         echo "ERROR: Failed to download Windows password from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
