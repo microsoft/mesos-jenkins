@@ -210,25 +210,6 @@ upload_logs() {
     rm -rf $TEMP_LOGS_DIR || return 1
 }
 
-check_open_port() {
-    #
-    # Checks with a timeout if a particular port (TCP or UDP) is open (nc tool is used for this)
-    #
-    local ADDRESS="$1"
-    local PORT="$2"
-    local TIMEOUT=900
-    echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
-    SECONDS=0
-    while true; do
-        if [[ $SECONDS -gt $TIMEOUT ]]; then
-            echo "ERROR: Port $PORT didn't open at $ADDRESS within $TIMEOUT seconds"
-            return 1
-        fi
-        nc -v -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
-    done
-    echo "Success: Port $PORT is open at address $ADDRESS"
-}
-
 open_dcos_port() {
     #
     # This function opens the GUI endpoint on the first master unit
@@ -265,7 +246,9 @@ open_dcos_port() {
         echo "ERROR: Failed to create the DC/OS port security group rule for the master node"
         return 1
     }
+    echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
     check_open_port "$MASTER_PUBLIC_ADDRESS" "80" || return 1
+    echo "Success: Port $PORT is open at address $ADDRESS"
 }
 
 setup_remote_winrm_client() {
@@ -313,11 +296,13 @@ test_windows_marathon_app() {
         return 1
     }
     PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
+    echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" || {
         echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
+    echo "Success: Port $PORT is open at address $ADDRESS"
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     DNS_RECORDS=(
@@ -350,11 +335,13 @@ test_iis() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
+    echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
         echo "ERROR: Port 80 is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
+    echo "Success: Port $PORT is open at address $ADDRESS"
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
@@ -409,11 +396,13 @@ test_iis_docker_private_image() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
+    echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $ADDRESS"
     check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" || {
         echo "ERROR: Port 80 is not open for the application: $APP_NAME"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
+    echo "Success: Port $PORT is open at address $ADDRESS"
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
     echo "Successfully tested marathon applications with Docker private images"

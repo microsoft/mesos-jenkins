@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+check_open_port() {
+    #
+    # Checks with a timeout if a particular port (TCP or UDP) is open (nc tool is used for this)
+    #
+    local ADDRESS="$1"
+    local PORT="$2"
+    local TIMEOUT=900
+    SECONDS=0
+    while true; do
+        if [[ $SECONDS -gt $TIMEOUT ]]; then
+            echo "ERROR: Port $PORT didn't open at $ADDRESS within $TIMEOUT seconds"
+            return 1
+        fi
+        nc -v -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
+    done
+}
+
 run_ssh_command() {
     #
     # Run an SSH command
@@ -40,6 +57,7 @@ run_ssh_command() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
+    check_open_port $HOST $PORT || return 1
     ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${USER}@${HOST} "$COMMAND"
 }
 
@@ -84,6 +102,7 @@ upload_files_via_scp() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
+    check_open_port $HOST $PORT || return 1
     scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
 }
 
@@ -131,6 +150,7 @@ download_files_via_scp() {
     if [[ -z $USER ]]; then
         local USER="azureuser"
     fi
+    check_open_port $HOST $PORT || return 1
     scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
 }
 
