@@ -2,10 +2,11 @@
 
 if [[ -z $AZURE_KEYVAULT_NAME ]] || [[ -z $PRIVATE_KEY_SECRET_NAME ]] || [[ -z $PUBLIC_KEY_SECRET_NAME ]] || [[ -z $WIN_PASS_SECRET_NAME ]]; then
     echo "ERROR: KEYVAULT_NAME, PRIVATE_KEY_SECRET_NAME, PUBLIC_KEY_SECRET_NAME and WIN_PASS_SECRET_NAME are mandatory"
-    return 1
+    exit 1
 fi
 
-GENERATED_SSH_KEY_PATH="${WORKSPACE}/id_rsa"
+TMP_DIR=$(mktemp -d)
+GENERATED_SSH_KEY_PATH="${TMP_DIR}/id_rsa"
 
 create_linux_ssh_keypair() {
     echo "Generating a random ssh public/private keypair"
@@ -38,3 +39,10 @@ generate_windows_password() {
         return 1
     }
 }
+
+
+create_linux_ssh_keypair
+generate_windows_password
+
+# Cleanup
+rm -rf $TMP_DIR
