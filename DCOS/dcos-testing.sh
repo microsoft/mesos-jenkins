@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 
 export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
-export AZURE_KEYVAULT_NAME="ci-key-vault"
-export GENERATED_SSH_KEY_PATH="${WORKSPACE}/id_rsa"
-export PRIVATE_KEY_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-ssh-private-key"
-export PUBLIC_KEY_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-ssh-public-key"
-export WIN_PASS_SECRET_NAME="jenkins-${JOB_NAME}-${BUILD_ID}-win-pass"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -50,6 +45,10 @@ else
 fi
 if [[ -z $DCOS_DIR ]]; then
     export DCOS_DIR="$WORKSPACE/dcos_$BUILD_ID"
+fi
+if [[ -z $AZURE_KEYVAULT_NAME ]] || [[ -z $PRIVATE_KEY_SECRET_NAME ]] || [[ -z $PUBLIC_KEY_SECRET_NAME ]] || [[ -z $WIN_PASS_SECRET_NAME ]]; then
+    echo "ERROR: KEYVAULT_NAME, PRIVATE_KEY_SECRET_NAME, PUBLIC_KEY_SECRET_NAME and WIN_PASS_SECRET_NAME are mandatory"
+    exit 1
 fi
 if [[ -z $JOB_ARTIFACTS_DIR ]]; then
     echo "ERROR: JOB_ARTIFACTS_DIR is not set"
@@ -115,38 +114,36 @@ azure_cli_login() {
     }
 }
 
-create_linux_ssh_keypair() {
-    echo "Generating a random ssh public/private keypair"
-    ssh-keygen -b 2048 -t rsa -f $GENERATED_SSH_KEY_PATH -q -N "" || {
-        echo "ERROR: Failed to generate ssh keypair"
+get_linux_ssh_keypair() {
+    # Download private/public keys secrets from Azure key vault
+    echo "Downloading ssh private keypair from key vault"
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.b64" &>/dev/null || {
+        echo "ERROR: Failed to download private key from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
-    # Convert ssh key to base64 first and remove newlines
-    base64  "$GENERATED_SSH_KEY_PATH" | tr -d '\n' >  "${GENERATED_SSH_KEY_PATH}.b64" || {
-        echo "ERROR: Failed to create SSH key base64 file: ${GENERATED_SSH_KEY_PATH}.b64"
+    # Decode private key
+    base64 -d ${WORKSPACE}/id_rsa.b64 > ${WORKSPACE}/id_rsa || {
+        echo "ERROR: Failed to decode private key"
         return 1
     }
-    # Upload private/public keys as secrets to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PRIVATE_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.b64" &>/dev/null || {
-        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
+    chmod 600 ${WORKSPACE}/id_rsa
+    echo "Downloading ssh public key from key vault"
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$PUBLIC_KEY_SECRET_NAME" --file "${WORKSPACE}/id_rsa.pub" &>/dev/null || {
+        echo "ERROR: Failed to download public key from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$PUBLIC_KEY_SECRET_NAME" --file "${GENERATED_SSH_KEY_PATH}.pub" &>/dev/null || {
-        echo "ERROR: Failed to upload private key to Azure key vault $AZURE_KEYVAULT_NAME"
-        return 1
-    }
-    # Export generated public key as variable
-    export LINUX_PUBLIC_SSH_KEY=$(cat ${GENERATED_SSH_KEY_PATH}.pub)
+    # Export downloaded public key as variable
+    export LINUX_PUBLIC_SSH_KEY=$(cat ${WORKSPACE}/id_rsa.pub)
 }
 
-generate_windows_password() {
-    echo "Generating random Windows password"
-    export WIN_AGENT_ADMIN_PASSWORD="P@s0$(date +%s | sha256sum | base64 | head -c 32)"
-    # Upload Windows password to Azure key vault
-    az keyvault secret set --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --value "$WIN_AGENT_ADMIN_PASSWORD" &>/dev/null || {
-        echo "ERROR: Failed to upload Windows password to Azure key vault $AZURE_KEYVAULT_NAME"
+get_windows_password() {
+    echo "Downloading Windows password from key vault"
+    az keyvault secret download --vault-name "$AZURE_KEYVAULT_NAME" --name "$WIN_PASS_SECRET_NAME" --file "${WORKSPACE}/win_pass" &>/dev/null || {
+        echo "ERROR: Failed to download Windows password from Azure key vault $AZURE_KEYVAULT_NAME"
         return 1
     }
+    # Export downloaded password as variable
+    export WIN_AGENT_ADMIN_PASSWORD=$(cat ${WORKSPACE}/win_pass)
 }
 
 copy_ssh_key_to_proxy_master() {
