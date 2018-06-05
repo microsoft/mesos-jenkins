@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+check_open_port() {
+    #
+    # Checks with a timeout if a particular port (TCP or UDP) is open (nc tool is used for this)
+    #
+    local ADDRESS="$1"
+    local PORT="$2"
+    local TIMEOUT=900
+    SECONDS=0
+    while true; do
+        if [[ $SECONDS -gt $TIMEOUT ]]; then
+            echo "ERROR: Port $PORT didn't open at $ADDRESS within $TIMEOUT seconds"
+            return 1
+        fi
+        nc -v -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
+    done
+}
+
 run_ssh_command() {
     #
     # Run an SSH command
@@ -11,7 +28,7 @@ run_ssh_command() {
                 local SSH_KEY=$2
                 shift;;
             -u)
-                local USER=$2
+                local REMOTE_USER=$2
                 shift;;
             -h)
                 local HOST=$2
@@ -25,13 +42,13 @@ run_ssh_command() {
             -*)
                 local PARAM=$1
                 echo "unknown parameter $PARAM"
-                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -c COMMAND"
+                echo "$0 -i SSH_KEY -u REMOTE_USER -h HOST -p PORT -c COMMAND"
                 return 1;;
         esac
         shift
     done
-    if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $COMMAND ]]; then
-        echo "USER, HOST and COMMAND are mandatory"
+    if [[ -z $REMOTE_USER ]] || [[ -z $HOST ]] || [[ -z $COMMAND ]]; then
+        echo "REMOTE_USER, HOST and COMMAND are mandatory"
         return 1
     fi
     if [ -z $PORT ]; then
@@ -40,7 +57,8 @@ run_ssh_command() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
-    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${USER}@${HOST} "$COMMAND"
+    check_open_port $HOST $PORT || return 1
+    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${REMOTE_USER}@${HOST} "$COMMAND"
 }
 
 upload_files_via_scp() {
@@ -54,7 +72,7 @@ upload_files_via_scp() {
                 local SSH_KEY=$2
                 shift;;
             -u)
-                local USER=$2
+                local REMOTE_USER=$2
                 shift;;
             -h)
                 local HOST=$2
@@ -69,13 +87,13 @@ upload_files_via_scp() {
             -*)
                 local PARAM=$1
                 echo "unknown parameter $PARAM"
-                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
+                echo "$0 -i SSH_KEY -u REMOTE_USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
                 return 1;;
         esac
         shift
     done
-    if [[ -z $USER ]] || [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
-        echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
+    if [[ -z $REMOTE_USER ]] || [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
+        echo "REMOTE_USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
         return 1
     fi
     if [ -z $PORT ]; then
@@ -84,7 +102,8 @@ upload_files_via_scp() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${USER}@${HOST}:${REMOTE_PATH}
+    check_open_port $HOST $PORT || return 1
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${REMOTE_USER}@${HOST}:${REMOTE_PATH}
 }
 
 download_files_via_scp() {
@@ -98,7 +117,7 @@ download_files_via_scp() {
                 local SSH_KEY=$2
                 shift;;
             -u)
-                local USER=$2
+                local REMOTE_USER=$2
                 shift;;
             -h)
                 local HOST=$2
@@ -113,13 +132,13 @@ download_files_via_scp() {
             -*)
                 local PARAM=$1
                 echo "unknown parameter $PARAM"
-                echo "$0 -i SSH_KEY -u USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
+                echo "$0 -i SSH_KEY -u REMOTE_USER -h HOST -p PORT -f REMOTE_PATH LOCAL_PATH"
                 return 1;;
         esac
         shift
     done
     if [[ -z $HOST ]] || [[ -z $LOCAL_PATH ]] || [[ -z $REMOTE_PATH ]]; then
-        echo "USER, HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
+        echo "HOST, LOCAL_PATH and REMOTE_PATH are mandatory"
         return 1
     fi
     if [ -z $PORT ]; then
@@ -128,10 +147,11 @@ download_files_via_scp() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
-    if [[ -z $USER ]]; then
-        local USER="azureuser"
+    if [[ -z $REMOTE_USER ]]; then
+        local REMOTE_USER="azureuser"
     fi
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
+    check_open_port $HOST $PORT || return 1
+    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${REMOTE_USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
 }
 
 mount_smb_share() {
