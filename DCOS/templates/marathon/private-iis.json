@@ -11,7 +11,7 @@
       "Windows"
     ]
   ],
-  "networks": [ { "mode": "container", "name": "customnat" } ],
+  "networks": [ { "mode": "container", "name": "dcosnat" } ],
   "container": {
     "type": "DOCKER",
     "volumes": [],
