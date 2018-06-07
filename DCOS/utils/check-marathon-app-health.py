@@ -108,6 +108,11 @@ def main():
                                           timeout))
     print("All the health checks for the application %s reported "
           "successfully." % (app["id"]))
+    app = client.get_app(params.name)
+    if "lastTaskFailure" in app.keys():
+        failure_message = app["lastTaskFailure"]["message"]
+        raise Exception("Marathon reported last task failure. "
+                        "Failure message: %s" % (failure_message))
 
 
 if __name__ == '__main__':
