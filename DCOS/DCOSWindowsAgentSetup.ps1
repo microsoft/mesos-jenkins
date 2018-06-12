@@ -74,7 +74,41 @@ function Start-ExecuteWithRetry {
     }
 }
 
+function Install-Git {
+    Write-Log "Enter Install-Git"
+    $gitInstallerURL = "http://dcos-win.westus.cloudapp.azure.com/downloads/Git-2.16.2-64-bit.exe"
+    $gitInstallDir = Join-Path $env:ProgramFiles "Git"
+    $gitPaths = @("$gitInstallDir\cmd", "$gitInstallDir\bin")
+    if(Test-Path $gitInstallDir) {
+        Write-Log "Git is already installed"
+        Add-ToSystemPath $gitPaths
+        Write-Log "Exit Install-Git: already installed"
+        return
+    }
+    Write-Log "Downloading Git from $gitInstallerURL"
+    $programFile = Join-Path $env:TEMP "git.exe"
+    Start-ExecuteWithRetry { Invoke-WebRequest -UseBasicParsing -Uri $gitInstallerURL -OutFile $programFile }
+    $parameters = @{
+        'FilePath' = $programFile
+        'ArgumentList' = @("/SILENT")
+        'Wait' = $true
+        'PassThru' = $true
+    }
+    Write-Log "Installing Git"
+    $p = Start-Process @parameters
+    if($p.ExitCode -ne 0) {
+        Throw "Failed to install Git during the environment setup"
+    }
+    Add-ToSystemPath $gitPaths
+    Write-Log "Exit Install-Git"
+}
+
 try {
+    #
+    # Install Git
+    #
+    Install-Git
+
     #
     # Enable the SMB firewall rule needed when collecting logs
     #
