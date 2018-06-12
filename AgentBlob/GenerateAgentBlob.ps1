@@ -21,8 +21,9 @@ $SOURCE_FILES = @{
     "dcos-net.zip"                = "http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip"
     "metrics.zip"                 = "http://dcos-win.westus.cloudapp.azure.com/metrics-build/dcos/latest/binaries/metrics.zip"
     "diagnostics.zip"             = "http://dcos-win.westus.cloudapp.azure.com/diagnostics-build/dcos/latest/binaries/diagnostics.zip"
-    # The following file is a big file and it's only needed for DC/OS 1.10. We can remove it should we decided to remove support for 1.10
+    # The following two files are pretty big and they are only needed for DC/OS 1.10. We can remove it should we decided to drop support for 1.10
     "spartan.zip"                 = "http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip"
+    "erlang.zip"                  = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl8.3.zip"
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"
