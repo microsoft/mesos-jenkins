@@ -74,6 +74,28 @@ function Start-ExecuteWithRetry {
     }
 }
 
+function Add-ToSystemPath {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string[]]$Path
+    )
+    $systemPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';')
+    $currentPath = $env:PATH.Split(';')
+    foreach($p in $Path) {
+        if($p -notin $systemPath) {
+            $systemPath += $p
+        }
+        if($p -notin $currentPath) {
+            $currentPath += $p
+        }
+    }
+    $env:PATH = $currentPath -join ';'
+    setx.exe /M PATH ($systemPath -join ';')
+    if($LASTEXITCODE) {
+        Throw "Failed to set the new system path"
+    }
+}
+
 function Install-Git {
     Write-Log "Enter Install-Git"
     $gitInstallerURL = "http://dcos-win.westus.cloudapp.azure.com/downloads/Git-2.16.2-64-bit.exe"
