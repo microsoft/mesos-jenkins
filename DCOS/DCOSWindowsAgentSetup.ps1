@@ -26,6 +26,16 @@ $UPSTREAM_INIT_SCRIPT = "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/
 $CONFIG_WINRM_SCRIPT = "https://raw.githubusercontent.com/ansible/ansible/v2.5.0a1/examples/scripts/ConfigureRemotingForAnsible.ps1"
 
 
+filter Timestamp { "[$(Get-Date -Format o)] $_" }
+
+function Write-Log {
+    Param(
+        [string]$Message
+    )
+    $msg = $message | Timestamp
+    Write-Output $msg
+}
+
 function Start-ExecuteWithRetry {
     Param(
         [Parameter(Mandatory=$true)]
@@ -39,24 +49,24 @@ function Start-ExecuteWithRetry {
     $ErrorActionPreference = "Continue"
     $retryCount = 0
     while ($true) {
-        Write-Output "$((Get-Date -Format g).ToString()): Start-ExecuteWithRetry attempt $retryCount"
+        Write-Log "Start-ExecuteWithRetry attempt $retryCount"
         try {
             $res = Invoke-Command -ScriptBlock $ScriptBlock `
                                   -ArgumentList $ArgumentList
             $ErrorActionPreference = $currentErrorActionPreference
-            Write-Output "$((Get-Date -Format g).ToString()): Start-ExecuteWithRetry terminated"
+            Write-Log "Start-ExecuteWithRetry terminated"
             return $res
         } catch [System.Exception] {
             $retryCount++
             if ($retryCount -gt $MaxRetryCount) {
                 $ErrorActionPreference = $currentErrorActionPreference
-                Write-Output "$((Get-Date -Format g).ToString()): Start-ExecuteWithRetry exception thrown"
+                Write-Log "Start-ExecuteWithRetry exception thrown"
                 throw
             } else {
                 if($RetryMessage) {
-                    Write-Output "$((Get-Date -Format g).ToString()): Start-ExecuteWithRetry RetryMessage: $RetryMessage"
+                    Write-Log "Start-ExecuteWithRetry RetryMessage: $RetryMessage"
                 } elseif($_) {
-                    Write-Output "$((Get-Date -Format g).ToString()): Start-ExecuteWithRetry Retry: $_.ToString()"
+                    Write-Log "Start-ExecuteWithRetry Retry: $_.ToString()"
                 }
                 Start-Sleep $RetryInterval
             }
@@ -131,10 +141,10 @@ try {
         Throw "The upstream DCOS init script failed"
     }
 } catch {
-    Write-Output "$((Get-Date -Format g).ToString()): DCOSWindowsAgentSetup.ps1 exception: $_.ToString()"
-    Write-Output $_.ScriptStackTrace
-    Write-Output "Failed to initialize the DCOS node for CI"
+    Write-Log "DCOSWindowsAgentSetup.ps1 exception: $_.ToString()"
+    Write-Log $_.ScriptStackTrace
+    Write-Log "Failed to initialize the DCOS node for CI"
     exit 1
 }
-Write-Output "$((Get-Date -Format g).ToString()): DCOSWindowsAgentSetup.ps1 completed"
+Write-Log "DCOSWindowsAgentSetup.ps1 completed"
 exit 0
