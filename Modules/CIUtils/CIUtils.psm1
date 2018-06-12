@@ -196,10 +196,16 @@ function Compress-Files {
         [string]$FilesDirectory,
         [Parameter(Mandatory=$true)]
         [string]$Archive,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$false)]
         [string]$Filter
     )
-    $files = Get-ChildItem $FilesDirectory -Filter $Filter | Foreach-Object { $_.FullName }
+    $parameters = @{
+        'Path' = $FilesDirectory
+    }
+    if($Filter) {
+        $parameters['Filter'] = $Filter
+    }
+    $files = Get-ChildItem @parameters | Foreach-Object { $_.FullName }
     Start-ExternalCommand { & 7z.exe a -tzip $Archive $files -sdel } -ErrorMessage "Failed to compress the files"
 }
 
