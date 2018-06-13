@@ -583,9 +583,52 @@ test_master_agent_authentication() {
     echo "Success: All the masters have the authenticate_agents flag enabled"
 }
 
+compare_azure_vms_and_dcos_agents() {
+    # Get list of all agent IPs by concatenating output of win and linux functions
+    local agent_ips="$(echo $(linux_agents_private_ips) $(windows_agents_private_ips) | tr ' ' '\n' | sort)"
+
+    # Count number of Azure IPs
+    local agent_ips_no=$(echo $agent_ips | tr ' ' '\n' | awk 'END{print NR}')
+
+    # fetch dcos-cli 
+    curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.12/dcos
+    chmod +x dcos
+
+    ./dcos cluster remove --all
+    ./dcos cluster setup http://"$MASTER_PUBLIC_ADDRESS" || {
+        echo "ERROR: failed to run dcos cluster setup http://'$MASTER_PUBLIC_ADDRESS'"
+        return 1
+    }
+    
+    # Fetch API agent IPs list
+    local dcos_api_ips=$(./dcos node | grep agent | awk '{print $2}' | sort) || {
+        echo "ERROR: Failed to run 'dcos node'"
+        return 1
+    }
+    
+    # Count API agent IPs
+    local dcos_api_ips_no=$(echo $dcos_api_ips | tr ' ' '\n' | awk 'END{print NR}')
+
+    # Compare number of IPs, return 1 if not equal
+    if [ $agent_ips_no -ne $dcos_api_ips_no ]; then
+        echo "ERROR: Number of Azure VM IPs is different from number of DCOS API IPs"
+        return 1
+    fi
+    
+    # diff the 2 lists of IPs (which are already sorted)
+    diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") | grep -v '^>' > /dev/null 2>&1
+
+    # If previous command has exit_code=0 then the lists are different and we return 1
+    if [ $? -eq 0 ]; then
+        echo "ERROR: Some Azure VM IPs are different from DCOS API IPs"
+        return 1
+    fi
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
+    #  - Compare Azure VM IPs with DCOS IPs
     #  - Test if the custom attributes are set
     #  - Test if the Mesos master - agent authentication is enabled
     #  - Test DC/OS DNS functionality from the Windows node
@@ -595,6 +638,7 @@ run_functional_tests() {
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
     #
+    compare_azure_vms_and_dcos_agents || return 1
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
