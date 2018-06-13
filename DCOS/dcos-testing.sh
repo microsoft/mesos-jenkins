@@ -590,18 +590,8 @@ compare_azure_vms_and_dcos_agents() {
     # Count number of Azure IPs
     local agent_ips_no=$(echo $agent_ips | tr ' ' '\n' | awk 'END{print NR}')
 
-    # fetch dcos-cli 
-    curl -O https://downloads.dcos.io/binaries/cli/linux/x86-64/dcos-1.12/dcos
-    chmod +x dcos
-
-    ./dcos cluster remove --all
-    ./dcos cluster setup http://"$MASTER_PUBLIC_ADDRESS" || {
-        echo "ERROR: failed to run dcos cluster setup http://'$MASTER_PUBLIC_ADDRESS'"
-        return 1
-    }
-    
     # Fetch API agent IPs list
-    local dcos_api_ips=$(./dcos node | grep agent | awk '{print $2}' | sort) || {
+    local dcos_api_ips=$(dcos node | grep agent | awk '{print $2}' | sort) || {
         echo "ERROR: Failed to run 'dcos node'"
         return 1
     }
