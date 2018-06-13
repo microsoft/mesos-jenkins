@@ -763,6 +763,8 @@ check_exit_code() {
         rm -f $PARAMETERS_FILE
     fi
 
+    echo "Ending time: $(date)"
+
     exit 1
 }
 
