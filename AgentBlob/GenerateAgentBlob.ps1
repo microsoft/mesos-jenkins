@@ -1,4 +1,13 @@
-﻿$ErrorActionPreference = "Stop"
+﻿Param(
+    [string]$DiagnosticsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/diagnostics-build/dcos/latest/binaries/diagnostics.zip",
+    [string]$MetricsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/metrics-build/dcos/latest/binaries/metrics.zip",
+    [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/mesos-build/apache/latest/binaries/mesos-binaries.zip",
+    [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip",
+    [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip",
+    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce"
+)
+
+$ErrorActionPreference = "Stop"
 
 # This is a script to package all the DC/OS Windows agent components into single zip 
 # file, called WindowsAgentBlob, for speeding up the Windows agent's setup.
@@ -14,15 +23,15 @@ $SOURCE_FILES = @{
     "httpd-2.4.33-win64-VC15.zip" = "http://dcos-win.westus.cloudapp.azure.com/downloads/httpd-2.4.33-win64-VC15.zip"
     "VC_redist_2013_x64.exe"      = "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
     "VC_redist_2017_x64.exe"      = "https://download.visualstudio.microsoft.com/download/pr/11687625/2cd2dba5748dc95950a5c42c2d2d78e4/VC_redist.x64.exe"
-    "docker.exe"                  = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce/docker.exe"
-    "dockerd.exe"                 = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce/dockerd.exe"
+    "docker.exe"                  = "${DockerBinariesBaseUrl}/docker.exe"
+    "dockerd.exe"                 = "${DockerBinariesBaseUrl}/dockerd.exe"
     "service-wrapper.exe"         = "http://dcos-win.westus.cloudapp.azure.com/downloads/service-wrapper.exe"
-    "mesos.zip"                   = "http://dcos-win.westus.cloudapp.azure.com/mesos-build/apache/latest/binaries/mesos-binaries.zip"
-    "dcos-net.zip"                = "http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip"
-    "metrics.zip"                 = "http://dcos-win.westus.cloudapp.azure.com/metrics-build/dcos/latest/binaries/metrics.zip"
-    "diagnostics.zip"             = "http://dcos-win.westus.cloudapp.azure.com/diagnostics-build/dcos/latest/binaries/diagnostics.zip"
+    "mesos.zip"                   = $MesosPackageUrl
+    "dcos-net.zip"                = $DcosNetPackageUrl
+    "metrics.zip"                 = $MetricsPackageUrl
+    "diagnostics.zip"             = $DiagnosticsPackageUrl
     # The following two files are pretty big and they are only needed for DC/OS 1.10. We can remove it should we decided to drop support for 1.10
-    "spartan.zip"                 = "http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip"
+    "spartan.zip"                 = $SpartanPackageUrl
     "erlang.zip"                  = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl8.3.zip"
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
