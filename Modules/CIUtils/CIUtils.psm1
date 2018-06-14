@@ -2,6 +2,8 @@ $templating = (Resolve-Path "$PSScriptRoot\..\Templating").Path
 Import-Module $templating
 
 
+filter Timestamp { "[$(Get-Date -Format o)] $_" }
+
 function Start-SSHCommand {
     Param(
         [Parameter(Mandatory=$true)]
@@ -342,4 +344,12 @@ function Start-FileDownload {
     }
     $webclient = New-Object System.Net.WebClient
     $webclient.DownloadFile($URL, $Destination)
+}
+
+function Write-Log {
+    Param(
+        [string]$Message
+    )
+    $msg = $message | Timestamp
+    Write-Output $msg
 }
