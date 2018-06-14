@@ -606,7 +606,7 @@ compare_azure_vms_and_dcos_agents() {
     fi
     
     # diff the 2 lists of IPs (which are already sorted)
-    diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") | grep -v '^>' > /dev/null 2>&1
+    diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") 2>&1
 
     # If previous command has exit_code=0 then the lists are different and we return 1
     if [ $? -eq 0 ]; then
