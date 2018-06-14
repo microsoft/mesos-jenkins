@@ -609,8 +609,11 @@ compare_azure_vms_and_dcos_agents() {
     diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") 2>&1
 
     # If previous command has exit_code=0 then the lists are different and we return 1
-    if [ $? -eq 0 ]; then
+    if [ $? -eq 1 ]; then
         echo "ERROR: Some Azure VM IPs are different from DCOS API IPs"
+        return 1
+    elif [ $? -gt 1 ]; then
+        echo "ERROR: diff encountered an error"
         return 1
     fi
 }
