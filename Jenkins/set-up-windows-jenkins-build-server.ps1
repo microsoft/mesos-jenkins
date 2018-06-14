@@ -11,7 +11,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "vs_2017_community.exe"
     }
     "git" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/Git-2.16.2-64-bit.exe"
+        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/git-64-bit.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "git.exe"
     }
     "cmake" = @{

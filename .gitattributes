@@ -1,0 +1,2 @@
+*.psm1      text eol=crlf
+*.psd1      text eol=crlf

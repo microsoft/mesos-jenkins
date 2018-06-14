@@ -98,7 +98,7 @@ function Add-ToSystemPath {
 
 function Install-Git {
     Write-Log "Enter Install-Git"
-    $gitInstallerURL = "http://dcos-win.westus.cloudapp.azure.com/downloads/Git-2.16.2-64-bit.exe"
+    $gitInstallerURL = "http://dcos-win.westus.cloudapp.azure.com/downloads/git-64-bit.exe"
     $gitInstallDir = Join-Path $env:ProgramFiles "Git"
     $gitPaths = @("$gitInstallDir\cmd", "$gitInstallDir\bin")
     if(Test-Path $gitInstallDir) {
