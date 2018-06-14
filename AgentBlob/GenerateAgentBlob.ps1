@@ -4,7 +4,8 @@
     [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/mesos-build/apache/latest/binaries/mesos-binaries.zip",
     [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip",
     [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip",
-    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce"
+    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce",
+    [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,17 +39,11 @@ $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"
 $SETUP_SCRIPTS_REPO_URL = "https://github.com/dcos/dcos-windows"
 $WINDOWS_AGENT_BLOB_FILE_NAME = "windowsAgentBlob.zip"
-$REMOTE_BASE_DIR = "/data/windows-agent-blob"
-
-filter Timestamp { "[$(Get-Date -Format o)] $_" }
-
-function Write-Log {
-    Param(
-        [string]$Message
-    )
-    $msg = $message | Timestamp
-    Write-Output $msg
+$global:PARAMETERS = @{
+    "BUILD_STATUS" = $null
+    "ARTIFACTS_DIR" = $ARTIFACTS_DIR
 }
+
 
 function New-ArtifactsDirectory {
     if(Test-Path $ARTIFACTS_DIR) {
@@ -115,6 +110,7 @@ function New-DCOSWindowsAgentBlob {
             Throw "Failed to clone $SETUP_SCRIPTS_REPO_URL repository"
         }
     } -RetryMessage "Failed to clone ${SETUP_SCRIPTS_REPO_URL}"
+    Copy-Item "${setupScripts}\scripts\DCOSWindowsAgentSetup.ps1" $ARTIFACTS_DIR
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME
     if(Test-Path $blobTargetPath) {
@@ -127,66 +123,37 @@ function New-DCOSWindowsAgentBlob {
     Write-Log "Finished generating $WINDOWS_AGENT_BLOB_FILE_NAME"
 }
 
-function Copy-FilesToRemoteServer {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$LocalFilesPath,
-        [Parameter(Mandatory=$true)]
-        [string]$RemoteFilesPath
-    )
-    Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
-                     -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
-}
-
-function New-RemoteDirectory {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$RemoteDirectoryPath
-    )
-    $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
-}
-
-function New-RemoteSymlink {
-    Param(
-        [Parameter(Mandatory=$true)]
-        [string]$RemotePath,
-        [Parameter(Mandatory=$false)]
-        [string]$RemoteSymlinkPath
-    )
-    $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
-}
-
-function Publish-BuildArtifacts {
-    if(!(Test-Path $ARTIFACTS_DIR)) {
-        Throw "The artifacts directory doesn't exist"
+function New-ParametersFile {
+    if(Test-Path $ParametersFile) {
+        Remove-Item -Force $ParametersFile
     }
-    if((Get-ChildItem $ARTIFACTS_DIR).Count -eq 0) {
-        Throw "The artifacts directory is empty"
-    }
-    $buildTime = Get-Date -Format "MM-dd-yyy_HH-mm-ss"
-    $remoteBuildDir = "${REMOTE_BASE_DIR}/${buildTime}"
-    New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
-    Copy-FilesToRemoteServer "${ARTIFACTS_DIR}\*" $remoteBuildDir
-    New-RemoteSymlink -RemotePath $remoteBuildDir -RemoteSymlinkPath "${REMOTE_BASE_DIR}/latest"
+    New-Item -ItemType File -Path $ParametersFile | Out-Null
 }
+
+function Write-ParametersFile {
+    $json = ConvertTo-Json -InputObject $global:PARAMETERS
+    Set-Content -Path $ParametersFile -Value $json -Encoding Ascii
+}
+
 
 try {
     Write-Log "Started generating DC/OS Windows agent blob"
     $startTime = Get-Date
+    New-ParametersFile
     New-ArtifactsDirectory
     Get-7ZipInstaller
     New-DCOSWindowsAgentBlob
-    Publish-BuildArtifacts
     $endTime = Get-Date
     Write-Log "Finished to generate the DC/OS Windows agent blob"
     Write-Log "Job execution stats"
     $endTime - $startTime
+    $global:PARAMETERS["BUILD_STATUS"] = "PASS"
 } catch {
     Write-Output $_.ToString()
     Write-Output $_.ScriptStackTrace
+    $global:PARAMETERS["BUILD_STATUS"] = "FAIL"
     exit 1
+} finally {
+    Write-ParametersFile
 }
 exit 0
