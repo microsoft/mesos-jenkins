@@ -110,7 +110,6 @@ function New-DCOSWindowsAgentBlob {
             Throw "Failed to clone $SETUP_SCRIPTS_REPO_URL repository"
         }
     } -RetryMessage "Failed to clone ${SETUP_SCRIPTS_REPO_URL}"
-    Copy-Item "${setupScripts}\scripts\DCOSWindowsAgentSetup.ps1" $ARTIFACTS_DIR
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME
     if(Test-Path $blobTargetPath) {
