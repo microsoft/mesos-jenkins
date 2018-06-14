@@ -79,6 +79,7 @@ IIS_RENDERED_TEMPLATE="${WORKSPACE}/iis.json"
 PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
 PRIVATE_IIS_RENDERED_TEMPLATE="${WORKSPACE}/private-iis.json"
 WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
+WINDOWS_APP_RENDERED_TEMPLATE="${WORKSPACE}/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
@@ -287,25 +288,48 @@ test_windows_marathon_app() {
     # - Check if the exposed port is open
     # - Check if the DNS records for the task are advertised to the Windows nodes
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    local APP_ID="test-windows-app-${AGENT_HOSTNAME}"
+    # Generate json file from template
+    eval "cat << EOF
+    $(cat $WINDOWS_APP_TEMPLATE)
+    EOF
+    " > $WINDOWS_APP_RENDERED_TEMPLATE
+    # Start deployment
     echo "Deploying a Windows Marathon application on DC/OS"
-    dcos marathon app add $WINDOWS_APP_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
-    echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "900" || {
-        echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
+        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "900" || {
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    else
+        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+            echo "ERROR: Failed to scp utils.sh"
+            return 1
+        }
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80" || {
+            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
+    fi
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     DNS_RECORDS=(
