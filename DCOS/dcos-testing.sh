@@ -77,6 +77,7 @@ LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.a
 IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
 IIS_RENDERED_TEMPLATE="${WORKSPACE}/iis.json"
 PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
+PRIVATE_IIS_RENDERED_TEMPLATE="${WORKSPACE}/private-iis.json"
 WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
@@ -375,6 +376,17 @@ test_iis_docker_private_image() {
     #
     # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-private-iis-${AGENT_HOSTNAME}"
+    
+    # Generate json file from template
+    eval "cat << EOF
+    $(cat $PRIVATE_IIS_TEMPLATE)
+    EOF
+    " > $PRIVATE_IIS_RENDERED_TEMPLATE
+
+    # Start deployment
     echo "Testing marathon applications with Docker private images"
 
     # Login to create the docker config file with credentials
@@ -398,36 +410,40 @@ test_iis_docker_private_image() {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
-    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
-        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+
+    # Download the config file with creds locally to targeted node
+    run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $AGENT_HOSTNAME $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$AGENT_HOSTNAME/docker.zip" || {
+        echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
         return 1
     }
-    # Download the config file with creds locally to all the targeted nodes
-    for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
-            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
-            return 1
-        }
-    done
 
     echo "Deploying IIS application from private image on DC/OS"
-    dcos marathon app add $PRIVATE_IIS_TEMPLATE || {
+    dcos marathon app add $PRIVATE_IIS_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
-        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "Success: Port 80 is open at address $ADDRESS"
+    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
+        echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
+            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port 80 is open at address $ADDRESS"
+    else
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80" || {
+            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
+    fi
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
     echo "Successfully tested marathon applications with Docker private images"
