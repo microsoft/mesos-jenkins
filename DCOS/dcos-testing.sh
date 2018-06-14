@@ -686,12 +686,31 @@ run_functional_tests() {
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
-    test_windows_marathon_app || return 1
-    test_iis || return 1
-    test_iis_docker_private_image || return 1
-    test_mesos_fetcher_local || return 1
-    test_mesos_fetcher_remote_http || return 1
-    test_mesos_fetcher_remote_https || return 1
+    # For the following tests we need to run them on all the spawned agents
+    WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+    WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    if [[ -z $WIN_PRIVATE_AGENTS_IPS ]] && [[ -z $WIN_PUBLIC_AGENTS_IPS ]]; then
+        echo "ERROR: No Windows slaves registered"
+        return 1
+    fi
+    for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
+        local AGENT_ROLE="*"
+        test_windows_marathon_app "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
+    for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
+        local AGENT_ROLE="slave_public"
+        test_windows_marathon_app "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
 }
 
 collect_linux_masters_logs() {
