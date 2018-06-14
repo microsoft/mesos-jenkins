@@ -295,10 +295,10 @@ test_windows_marathon_app() {
     local AGENT_ROLE=$2
     local APP_ID="test-windows-app-${AGENT_HOSTNAME}"
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $WINDOWS_APP_TEMPLATE)
-    EOF
-    " > $WINDOWS_APP_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $WINDOWS_APP_TEMPLATE)
+	EOF
+	" > $WINDOWS_APP_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying a Windows Marathon application on DC/OS"
     dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
@@ -321,12 +321,12 @@ test_windows_marathon_app() {
         }
         echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
     else
-        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
         upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
             echo "ERROR: Failed to scp utils.sh"
             return 1
         }
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80" || {
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME $PORT 900" || {
             echo "ERROR: Port 80 is not open for the application: $APP_NAME"
             dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
             return 1
@@ -358,10 +358,10 @@ test_iis() {
     local AGENT_ROLE=$2
     APP_ID="test-iis-${AGENT_HOSTNAME}"
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $IIS_TEMPLATE)
-    EOF
-    " > $IIS_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $IIS_TEMPLATE)
+	EOF
+	" > $IIS_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying IIS application on DC/OS"
     dcos marathon app add $IIS_RENDERED_TEMPLATE || {
@@ -383,12 +383,12 @@ test_iis() {
         }
         echo "Success: Port 80 is open at address $WIN_AGENT_PUBLIC_ADDRESS"
     else
-        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
         upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
             echo "ERROR: Failed to scp utils.sh"
             return 1
         }
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80" || {
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80 900" || {
             echo "ERROR: Port 80 is not open for the application: $APP_NAME"
             dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
             return 1
@@ -408,10 +408,10 @@ test_iis_docker_private_image() {
     APP_ID="test-private-iis-${AGENT_HOSTNAME}"
     
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $PRIVATE_IIS_TEMPLATE)
-    EOF
-    " > $PRIVATE_IIS_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $PRIVATE_IIS_TEMPLATE)
+	EOF
+	" > $PRIVATE_IIS_RENDERED_TEMPLATE
 
     # Start deployment
     echo "Testing marathon applications with Docker private images"
@@ -464,7 +464,8 @@ test_iis_docker_private_image() {
         }
         echo "Success: Port 80 is open at address $ADDRESS"
     else
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80" || {
+        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80 900" || {
             echo "ERROR: Port 80 is not open for the application: $APP_NAME"
             dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
             return 1
@@ -518,10 +519,10 @@ test_mesos_fetcher_local() {
     local AGENT_ROLE=$2
     APP_ID="test-fetcher-local-${AGENT_HOSTNAME}"
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $FETCHER_LOCAL_TEMPLATE)
-    EOF
-    " > $FETCHER_LOCAL_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $FETCHER_LOCAL_TEMPLATE)
+	EOF
+	" > $FETCHER_LOCAL_RENDERED_TEMPLATE
     # Start deployment
     echo "Testing Mesos fetcher using local resource"
     upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
@@ -553,10 +554,10 @@ test_mesos_fetcher_remote_http() {
     local AGENT_ROLE=$2
     APP_ID="test-fetcher-http-${AGENT_HOSTNAME}"
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $FETCHER_HTTP_TEMPLATE)
-    EOF
-    " > $FETCHER_HTTP_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $FETCHER_HTTP_TEMPLATE)
+	EOF
+	" > $FETCHER_HTTP_RENDERED_TEMPLATE
     # Start deployment
     echo "Testing Mesos fetcher using remote http resource"
     dcos marathon app add $FETCHER_HTTP_RENDERED_TEMPLATE || return 1
@@ -579,10 +580,10 @@ test_mesos_fetcher_remote_https() {
     local AGENT_ROLE=$2
     APP_ID="test-fetcher-https-${AGENT_HOSTNAME}"
     # Generate json file from template
-    eval "cat << EOF
-    $(cat $FETCHER_HTTPS_TEMPLATE)
-    EOF
-    " > $FETCHER_HTTPS_RENDERED_TEMPLATE
+	eval "cat <<-EOF
+	$(cat $FETCHER_HTTPS_TEMPLATE)
+	EOF
+	" > $FETCHER_HTTPS_RENDERED_TEMPLATE
     # Start deployment
     echo "Testing Mesos fetcher using remote https resource"
     dcos marathon app add $FETCHER_HTTPS_RENDERED_TEMPLATE || return 1
