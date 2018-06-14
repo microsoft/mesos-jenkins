@@ -14,9 +14,9 @@ Import-Module $ciUtils
 
 $global:PARAMETERS = @{
     "BUILD_STATUS" = $null
-    "DCOS_WINDOWS_BOOTSTRAP_URL" = "${LOG_SERVER_BASE_URL}/windows-agent-blob/${ReleaseVersion}"
+    "DCOS_WINDOWS_BOOTSTRAP_URL" = "${LOG_SERVER_BASE_URL}/dcos-windows/testing/windows-agent-blob/${ReleaseVersion}"
 }
-$REMOTE_BASE_DIR = "/data/windows-agent-blob"
+$REMOTE_BASE_DIR = "/data/dcos-windows/testing/windows-agent-blob"
 
 
 function Copy-FilesToRemoteServer {
