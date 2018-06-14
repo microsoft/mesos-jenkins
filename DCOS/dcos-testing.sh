@@ -37,8 +37,8 @@ elif [[ "$DCOS_DEPLOYMENT_TYPE" = "hybrid" ]]; then
     export LINUX_MASTER_COUNT="3"
     export LINUX_PUBLIC_AGENT_COUNT="1"
     export LINUX_PRIVATE_AGENT_COUNT="1"
-    export WIN_PUBLIC_AGENT_COUNT="1"
-    export WIN_PRIVATE_AGENT_COUNT="1"
+    export WIN_PUBLIC_AGENT_COUNT="2"
+    export WIN_PRIVATE_AGENT_COUNT="2"
 else
     echo "ERROR: $DCOS_DEPLOYMENT_TYPE DCOS_DEPLOYMENT_TYPE is not supported"
     exit 1
