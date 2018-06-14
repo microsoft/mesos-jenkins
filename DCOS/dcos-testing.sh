@@ -83,6 +83,7 @@ WINDOWS_APP_RENDERED_TEMPLATE="${WORKSPACE}/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTP_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
+FETCHER_HTTPS_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
@@ -570,9 +571,18 @@ test_mesos_fetcher_remote_https() {
     #
     # Test Mesos fetcher with remote resource (https)
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-fetcher-https-${AGENT_HOSTNAME}"
+    # Generate json file from template
+    eval "cat << EOF
+    $(cat $FETCHER_HTTPS_TEMPLATE)
+    EOF
+    " > $FETCHER_HTTPS_RENDERED_TEMPLATE
+    # Start deployment
     echo "Testing Mesos fetcher using remote https resource"
-    dcos marathon app add $FETCHER_HTTPS_TEMPLATE || return 1
-    APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_TEMPLATE)
+    dcos marathon app add $FETCHER_HTTPS_RENDERED_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_RENDERED_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote https resource"
