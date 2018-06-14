@@ -58,6 +58,13 @@ function Publish-BuildArtifacts {
     if((Get-ChildItem $ArtifactsDirectory).Count -eq 0) {
         Throw "The artifacts directory is empty"
     }
+    # Fetch the CI init script before publishing artifacts
+    $ciInitScriptUrl = "https://raw.githubusercontent.com/Microsoft/mesos-jenkins/master/DCOS/DCOSWindowsAgentSetup.ps1"
+    $ciInitScript = "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
+    curl.exe --keepalive-time 2 -fLsS --retry 10 -Y 100000 -y 60 -L -o $ciInitScript $ciInitScriptUrl
+    if($LASTEXITCODE) {
+        Throw "Fail to download $ciInitScriptUrl"
+    }
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
     Copy-FilesToRemoteServer "${ArtifactsDirectory}\*" $remoteBuildDir
