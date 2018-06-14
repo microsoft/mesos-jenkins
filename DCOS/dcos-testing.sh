@@ -85,6 +85,7 @@ FETCHER_HTTP_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
 FETCHER_HTTPS_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
+FETCHER_LOCAL_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
@@ -513,24 +514,27 @@ test_mesos_fetcher_local() {
     #
     # Test Mesos fetcher with local resource
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-fetcher-local-${AGENT_HOSTNAME}"
+    # Generate json file from template
+    eval "cat << EOF
+    $(cat $FETCHER_LOCAL_TEMPLATE)
+    EOF
+    " > $FETCHER_LOCAL_RENDERED_TEMPLATE
+    # Start deployment
     echo "Testing Mesos fetcher using local resource"
     upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
-    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
-        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+    # Download the fetcher test file locally to targeted node
+    run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $AGENT_HOSTNAME $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$AGENT_HOSTNAME/fetcher-test.zip" || {
+        echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
         return 1
     }
-    # Download the fetcher test file locally to all the targeted nodes
-    for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$IP/fetcher-test.zip" || {
-            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
-            return 1
-        }
-    done
-    dcos marathon app add $FETCHER_LOCAL_TEMPLATE || return 1
-    APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_TEMPLATE)
+    dcos marathon app add $FETCHER_LOCAL_RENDERED_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_RENDERED_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
