@@ -2,7 +2,7 @@ $JENKINS_SERVER_URL="https://mesos-jenkins.westus2.cloudapp.azure.com"
 
 # Remote log server
 $REMOTE_LOG_SERVER = "dcos-win.westus.cloudapp.azure.com"
-$REMOTE_USER = "logs"
+$REMOTE_USER = "jenkins"
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
