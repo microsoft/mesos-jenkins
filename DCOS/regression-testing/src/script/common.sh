@@ -248,6 +248,14 @@ function get_orchestrator_version() {
 	echo $orchestratorVersion
 }
 
+function get_name_suffix() {
+	[[ ! -z "${OUTPUT:-}" ]] || exit_with_msg "Must specify OUTPUT"
+
+	nameSuffix=$(jq -r .parameters.nameSuffix.defaultValue ${OUTPUT}/azuredeploy.json)
+
+	echo $nameSuffix
+}
+
 function get_api_version() {
 	[[ ! -z "${CLUSTER_DEFINITION:-}" ]] || exit_with_msg "Must specify CLUSTER_DEFINITION"
 
