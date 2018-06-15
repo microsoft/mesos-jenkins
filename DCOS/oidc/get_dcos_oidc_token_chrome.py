@@ -21,9 +21,9 @@ def getDCOSToken():
     password = os.environ.get('DCOS_OAUTH_PASSWORD')
     if username == None or password == None:
         die("missing credentials")
-    hostname = os.environ.get('DCOS_HOSTNAME')
-    if hostname == None:
-        die("missing URL")
+    url = os.environ.get('DCOS_URL')
+    if url == None:
+        die("missing DC/OS URL")
 
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -31,7 +31,7 @@ def getDCOSToken():
     browser = webdriver.Chrome("chromedriver", chrome_options=chrome_options)
     browser.implicitly_wait(10)
     browser.set_page_load_timeout(10)
-    browser.get("http://"+ hostname + "/login?redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+    browser.get(url + "/login?redirect_uri=urn:ietf:wg:oauth:2.0:oob")
     
     try:
         windowslive = WebDriverWait(browser, 10).until(
