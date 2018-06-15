@@ -1,5 +1,15 @@
 #!/bin/bash
 
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+####################
+
 set -e
 set -u
 set -o pipefail
@@ -26,11 +36,11 @@ publicIpId=$(az network lb show -g ${RESOURCE_GROUP} -n dcos-master-lb-$NAMESUFF
 masterIp=$(az network public-ip show --ids "${publicIpId}" --query "{ ipAddress: ipAddress }" --out tsv)
 
 # start SSH tunnel
-ssh -i ${SSH_KEY} -L 12345:localhost:80 -p 2200 azureuser@${masterIp} sleep 30 &
+ssh -i ${SSH_KEY} -o ConnectTimeout=30 -o StrictHostKeyChecking=no -L 12345:localhost:80 -p 2200 azureuser@${masterIp} sleep 30 &
 
 # get Open ID Connect token and login to DC/OS
 export DCOS_URL="http://localhost:12345"
-token=$(python get_dcos_oidc_token_chrome.py)
+token=$(python $DIR/get_dcos_oidc_token_chrome.py)
 
 # stop SSH tunnel
 kill %% || echo "skipped"
@@ -39,5 +49,5 @@ kill %% || echo "skipped"
 tmpfile=$(mktemp)
 trap "rm -f $tmpfile" EXIT
 echo $token | cat > $tmpfile
-scp -i ${SSH_KEY} -P 2200 $tmpfile azureuser@${masterIp}:~/.dcos.oidc.token
+scp -i ${SSH_KEY} -o ConnectTimeout=30 -o StrictHostKeyChecking=no -P 2200 $tmpfile azureuser@${masterIp}:~/.dcos.oidc.token
 echo "Token copied"
