@@ -250,8 +250,6 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 				break
 			}
 			env = append(env, fmt.Sprintf("NAMESUFFIX=%s", strings.TrimSpace(string(out))))
-			fmt.Println("NAMESUFFIX", strings.TrimSpace(string(out)))
-			os.Exit(1)
 
 			cmd = exec.Command(script, "get_node_count")
 			cmd.Env = env
