@@ -412,7 +412,11 @@ function validate() {
 	${remote_exec} chmod a+x ./dcos
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to chmod dcos"
 	echo $(date +%H:%M:%S) "Configuring dcos"
-	${remote_exec} ./dcos cluster setup http://localhost:80
+	if [[ "${DCOS_OAUTH:-}" = "true" ]]; then
+		${remote_exec} "echo .dcos.oidc.token | ./dcos cluster setup http://localhost:80"
+	else
+		${remote_exec} ./dcos cluster setup http://localhost:80
+	fi
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to configure dcos"
 
 	echo $(date +%H:%M:%S) "Installing marathon-lb"
