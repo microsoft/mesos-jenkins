@@ -421,7 +421,7 @@ function validate() {
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to chmod dcos"
 	echo $(date +%H:%M:%S) "Configuring dcos"
 	if [[ "${DCOS_OAUTH:-}" = "true" ]]; then
-		${remote_exec} "echo .dcos.oidc.token | ./dcos cluster setup http://localhost:80"
+		${remote_exec} "cat ~/.dcos.oidc.token | ./dcos cluster setup http://localhost:80"
 	else
 		${remote_exec} ./dcos cluster setup http://localhost:80
 	fi
