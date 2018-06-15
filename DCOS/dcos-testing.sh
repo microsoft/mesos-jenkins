@@ -327,7 +327,7 @@ test_windows_marathon_app() {
             return 1
         }
         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME $PORT 900" || {
-            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
             dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
             return 1
         }

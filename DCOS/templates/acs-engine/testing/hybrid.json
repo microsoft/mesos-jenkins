@@ -10,7 +10,7 @@
       }
     },
     "masterProfile": {
-      "count": 3,
+      "count": ${LINUX_MASTER_COUNT},
       "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
       "vmSize": "${LINUX_MASTER_SIZE}",
       "preProvisionExtension": {
@@ -21,7 +21,7 @@
     "agentPoolProfiles": [
       {
         "name": "${WIN_AGENT_PUBLIC_POOL}",
-        "count": 1,
+        "count": ${WIN_PUBLIC_AGENT_COUNT},
         "vmSize": "${WIN_AGENT_SIZE}",
         "preProvisionExtension": {
             "name": "preprovision-agent-windows",
@@ -43,7 +43,7 @@
       },
       {
         "name": "${WIN_AGENT_PRIVATE_POOL}",
-        "count": 1,
+        "count": ${WIN_PRIVATE_AGENT_COUNT},
         "vmSize": "${WIN_AGENT_SIZE}",
         "preProvisionExtension": {
             "name": "preprovision-agent-windows",
@@ -57,7 +57,7 @@
       },
       {
         "name": "${LINUX_AGENT_PUBLIC_POOL}",
-        "count": 1,
+        "count": ${LINUX_PUBLIC_AGENT_COUNT},
         "vmSize": "${LINUX_AGENT_SIZE}",
         "preProvisionExtension": {
             "name": "preprovision-agent-linux-public",
@@ -76,7 +76,7 @@
       },
       {
         "name": "${LINUX_AGENT_PRIVATE_POOL}",
-        "count": 1,
+        "count": ${LINUX_PRIVATE_AGENT_COUNT},
         "vmSize": "${LINUX_AGENT_SIZE}",
         "preProvisionExtension": {
             "name": "preprovision-agent-linux-private",
