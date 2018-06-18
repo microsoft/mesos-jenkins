@@ -86,7 +86,6 @@ LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
 LOG_SERVER_USER="jenkins"
 REMOTE_LOGS_DIR="/data/dcos-testing"
 LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
-JENKINS_SERVER_URL="https://mesos-jenkins.westus2.cloudapp.azure.com"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
@@ -203,7 +202,7 @@ upload_logs() {
     # Uploads the logs to the log server
     #
     # Copy the Jenkins console as well
-    curl "${JENKINS_SERVER_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
+    curl --user ${JENKINS_USER}:${JENKINS_PASSWORD} "${JENKINS_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
     upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
@@ -836,7 +835,14 @@ run_dcos_autoscale_job() {
     AUTOSCALE_EXIT_CODE=$?
     AUTOSCALE_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
 
-    echo "You can check the Jenkins console at: ${JENKINS_SERVER_URL}/job/${AUTOSCALE_JOB_NAME}/${AUTOSCALE_JOB_NUMBER}/console"
+    JOB_URL="${JENKINS_URL}/job/${AUTOSCALE_JOB_NAME}/${AUTOSCALE_JOB_NUMBER}"
+    echo "Finished $JOB_URL"
+
+    echo "Console output from the scale testing job:"
+    curl --user ${JENKINS_USER}:${JENKINS_PASSWORD} "${JOB_URL}/consoleText" || {
+        echo "Failed to download scale test console log"
+        return 1
+    }
 
     if [[ $AUTOSCALE_EXIT_CODE -ne 0 ]]; then
         echo "DC/OS autoscale testing job failed"
