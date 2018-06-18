@@ -37,7 +37,6 @@ $SOURCE_FILES = @{
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"
-$SETUP_SCRIPTS_REPO_URL = "https://github.com/dcos/dcos-windows"
 $WINDOWS_AGENT_BLOB_FILE_NAME = "windowsAgentBlob.zip"
 $global:PARAMETERS = @{
     "BUILD_STATUS" = $null
@@ -56,10 +55,7 @@ function Get-7ZipInstaller {
     Write-Log "Downloading 7-Zip installer"
     $targetFileName = Split-Path -Path $7ZIP_DOWNLOAD_URL -Leaf
     $targetPath = Join-Path $ARTIFACTS_DIR $targetFileName
-    curl.exe --keepalive-time 2 -fLsS --retry 10 -Y 100000 -y 60 -L -o $targetPath $7ZIP_DOWNLOAD_URL
-    if($LASTEXITCODE) {
-        Throw "Failed to download $7ZIP_DOWNLOAD_URL"
-    }
+    Start-FileDownload -URL $7ZIP_DOWNLOAD_URL -Destination $targetPath
     $sha1sum = (Get-FileHash -Algorithm SHA1 -Path $targetPath).Hash.ToLower()
     Set-Content -Path "${targetPath}.sha1sum" -Value $sha1sum -Encoding Ascii
     Write-Log "Finished downloading 7-Zip"
@@ -79,10 +75,7 @@ function New-DCOSWindowsAgentBlob {
         $fileUri = $SOURCE_FILES[$fileName]
         $targetPath = Join-Path $blobDir $fileName
         Write-Log "Downloading $fileUri to $targetPath"
-        curl.exe --keepalive-time 2 -fLsS --retry 10 -Y 100000 -y 60 -L -o $targetPath $fileUri
-        if($LASTEXITCODE) {
-            Throw "Failed to download $fileUri"
-        }
+        Start-FileDownload -URL $fileUri -Destination $targetPath
     }
     # - Extract DevCon package
     $cabPkg = Join-Path $blobDir "MicrosoftWDKInstallers.cab"
@@ -105,11 +98,11 @@ function New-DCOSWindowsAgentBlob {
         Remove-Item -Recurse -Force -Path $setupScripts
     }
     Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $SETUP_SCRIPTS_REPO_URL, $setupScripts)
+        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $DCOS_WINDOWS_GIT_URL, $setupScripts)
         if($p.ExitCode -ne 0) {
-            Throw "Failed to clone $SETUP_SCRIPTS_REPO_URL repository"
+            Throw "Failed to clone $DCOS_WINDOWS_GIT_URL repository"
         }
-    } -RetryMessage "Failed to clone ${SETUP_SCRIPTS_REPO_URL}"
+    } -RetryMessage "Failed to clone ${DCOS_WINDOWS_GIT_URL}"
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME
     if(Test-Path $blobTargetPath) {
