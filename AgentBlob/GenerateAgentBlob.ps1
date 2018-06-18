@@ -37,7 +37,6 @@ $SOURCE_FILES = @{
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"
-$SETUP_SCRIPTS_REPO_URL = "https://github.com/dcos/dcos-windows"
 $WINDOWS_AGENT_BLOB_FILE_NAME = "windowsAgentBlob.zip"
 $global:PARAMETERS = @{
     "BUILD_STATUS" = $null
@@ -99,11 +98,11 @@ function New-DCOSWindowsAgentBlob {
         Remove-Item -Recurse -Force -Path $setupScripts
     }
     Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $SETUP_SCRIPTS_REPO_URL, $setupScripts)
+        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $DCOS_WINDOWS_GIT_URL, $setupScripts)
         if($p.ExitCode -ne 0) {
-            Throw "Failed to clone $SETUP_SCRIPTS_REPO_URL repository"
+            Throw "Failed to clone $DCOS_WINDOWS_GIT_URL repository"
         }
-    } -RetryMessage "Failed to clone ${SETUP_SCRIPTS_REPO_URL}"
+    } -RetryMessage "Failed to clone ${DCOS_WINDOWS_GIT_URL}"
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME
     if(Test-Path $blobTargetPath) {
