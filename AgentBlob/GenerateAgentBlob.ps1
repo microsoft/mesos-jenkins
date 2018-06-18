@@ -56,10 +56,7 @@ function Get-7ZipInstaller {
     Write-Log "Downloading 7-Zip installer"
     $targetFileName = Split-Path -Path $7ZIP_DOWNLOAD_URL -Leaf
     $targetPath = Join-Path $ARTIFACTS_DIR $targetFileName
-    curl.exe --keepalive-time 2 -fLsS --retry 10 -Y 100000 -y 60 -L -o $targetPath $7ZIP_DOWNLOAD_URL
-    if($LASTEXITCODE) {
-        Throw "Failed to download $7ZIP_DOWNLOAD_URL"
-    }
+    Start-FileDownload -URL $7ZIP_DOWNLOAD_URL -Destination $targetPath
     $sha1sum = (Get-FileHash -Algorithm SHA1 -Path $targetPath).Hash.ToLower()
     Set-Content -Path "${targetPath}.sha1sum" -Value $sha1sum -Encoding Ascii
     Write-Log "Finished downloading 7-Zip"
@@ -79,10 +76,7 @@ function New-DCOSWindowsAgentBlob {
         $fileUri = $SOURCE_FILES[$fileName]
         $targetPath = Join-Path $blobDir $fileName
         Write-Log "Downloading $fileUri to $targetPath"
-        curl.exe --keepalive-time 2 -fLsS --retry 10 -Y 100000 -y 60 -L -o $targetPath $fileUri
-        if($LASTEXITCODE) {
-            Throw "Failed to download $fileUri"
-        }
+        Start-FileDownload -URL $fileUri -Destination $targetPath
     }
     # - Extract DevCon package
     $cabPkg = Join-Path $blobDir "MicrosoftWDKInstallers.cab"
