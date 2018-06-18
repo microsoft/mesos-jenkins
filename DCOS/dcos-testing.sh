@@ -903,5 +903,7 @@ successfully_exit_dcos_testing_job() {
         rm -f $PARAMETERS_FILE
     fi
 
+    echo "Ending time: $(date)"
+
     echo "Successfully tested an Azure DC/OS deployment with the latest DC/OS builds"
 }
