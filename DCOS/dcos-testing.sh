@@ -293,7 +293,7 @@ test_windows_marathon_app() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    local APP_ID="test-windows-app-${AGENT_HOSTNAME}"
+    local APP_ID="test-windows-app-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $WINDOWS_APP_TEMPLATE)
@@ -342,6 +342,7 @@ test_windows_marathon_app() {
         "${APP_NAME}.marathon.mesos.thisdcos.directory"
         "${APP_NAME}.marathon.slave.mesos.thisdcos.directory"
     )
+    sleep 30
     for DNS_RECORD in ${DNS_RECORDS[@]}; do
         test_windows_agent_dcos_dns "$TASK_HOST" "$DNS_RECORD" || return 1
     done
@@ -356,7 +357,7 @@ test_iis() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-iis-${AGENT_HOSTNAME}"
+    APP_ID="test-iis-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $IIS_TEMPLATE)
@@ -405,7 +406,7 @@ test_iis_docker_private_image() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-private-iis-${AGENT_HOSTNAME}"
+    APP_ID="test-private-iis-$(echo $AGENT_HOSTNAME | tr . -)"
     
     # Generate json file from template
 	eval "cat <<-EOF
@@ -517,7 +518,7 @@ test_mesos_fetcher_local() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-local-${AGENT_HOSTNAME}"
+    APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_LOCAL_TEMPLATE)
@@ -552,7 +553,7 @@ test_mesos_fetcher_remote_http() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-http-${AGENT_HOSTNAME}"
+    APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTP_TEMPLATE)
@@ -578,7 +579,7 @@ test_mesos_fetcher_remote_https() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-https-${AGENT_HOSTNAME}"
+    APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTPS_TEMPLATE)
