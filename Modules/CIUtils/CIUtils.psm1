@@ -337,13 +337,26 @@ function Start-FileDownload {
         [Parameter(Mandatory=$true)]
         [string]$Destination,
         [Parameter(Mandatory=$false)]
+        [string]$User,
+        [Parameter(Mandatory=$false)]
+        [string]$Password,
+        [Parameter(Mandatory=$false)]
+        [int]$RetryCount=10,
+        [Parameter(Mandatory=$false)]
         [switch]$Force
     )
-    if($Force) {
-        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+    $params = @('-fLsS', '--retry', $RetryCount)
+    if($User -and $Password) {
+        $params += @('--user', "${User}:${Password}")
     }
-    $webclient = New-Object System.Net.WebClient
-    $webclient.DownloadFile($URL, $Destination)
+    if($Force) {
+        $params += 'insecure'
+    }
+    $params += @('-o', $Destination, $URL)
+    $p = Start-Process -FilePath 'curl.exe' -ArgumentList $params -Wait -PassThru
+    if($p.ExitCode -ne 0) {
+        Throw "Fail to download $URL"
+    }
 }
 
 function Write-Log {
