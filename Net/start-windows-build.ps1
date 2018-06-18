@@ -311,7 +311,7 @@ function New-RemoteLatestSymlinks {
 }
 
 function Start-LogServerFilesUpload {
-    $consoleUrl = "${JENKINS_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
+    $consoleUrl = "${env:JENKINS_URL}/job/${env:JOB_NAME}/${env:BUILD_NUMBER}/consoleText"
     Start-FileDownload -User ${env:JENKINS_USER} -Password ${env:JENKINS_PASSWORD} `
                        -URL $consoleUrl -Destination "$DCOS_NET_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
