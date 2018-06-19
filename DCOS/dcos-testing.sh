@@ -283,6 +283,39 @@ get_marathon_application_host_port() {
     cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['container']['docker']['portMappings'][0]['hostPort'])"
 }
 
+test_dcos_task_connectivity() {
+    #
+    # Test connectivity against a dcos tasks
+    #
+    local APP_NAME=$1
+    local AGENT_HOSTNAME=$2
+    local AGENT_ROLE=$3
+    local PORT=$4
+    local TIMEOUT="900"
+    # Check port depending on agent role
+    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
+        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "$TIMEOUT" || {
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    else
+        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+            echo "ERROR: Failed to scp utils.sh"
+            return 1
+        }
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME $PORT $TIMEOUT" || {
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
+    fi
+}
+
 test_windows_marathon_app() {
     #
     # - Deploy a simple IIS web server on Windows
@@ -311,27 +344,7 @@ test_windows_marathon_app() {
         return 1
     }
     PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
-    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
-        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "900" || {
-            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
-    else
-        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
-        upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
-            echo "ERROR: Failed to scp utils.sh"
-            return 1
-        }
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME $PORT 900" || {
-            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
-    fi
+    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     DNS_RECORDS=(
@@ -373,27 +386,8 @@ test_iis() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
-        echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
-            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port 80 is open at address $WIN_AGENT_PUBLIC_ADDRESS"
-    else
-        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
-        upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
-            echo "ERROR: Failed to scp utils.sh"
-            return 1
-        }
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80 900" || {
-            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
-    fi
+    PORT="80"
+    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
@@ -454,23 +448,8 @@ test_iis_docker_private_image() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
-        echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
-            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port 80 is open at address $ADDRESS"
-    else
-        echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME 80 900" || {
-            echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-            return 1
-        }
-        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
-    fi
+    PORT="80"
+    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
     echo "Successfully tested marathon applications with Docker private images"
