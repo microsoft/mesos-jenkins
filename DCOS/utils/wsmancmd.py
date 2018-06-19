@@ -81,7 +81,7 @@ def parse_args():
                 is_powershell_script = True
         if is_powershell_cmd and not is_powershell_script:
             cmd = args
-        else:
+        elif is_powershell_script:
             with open(args[0], 'r') as script_file:
                 content = script_file.read()
             cmd = content.replace('\n', '; ')
