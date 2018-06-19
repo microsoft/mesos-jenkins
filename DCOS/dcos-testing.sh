@@ -685,26 +685,13 @@ compare_azure_vms_and_dcos_agents() {
     fi
 }
 
-run_functional_tests() {
+test_dcos_windows_apps() {
     #
-    # Run the following DC/OS functional tests:
-    #  - Compare Azure VM IPs with DCOS IPs
-    #  - Test if the custom attributes are set
-    #  - Test if the Mesos master - agent authentication is enabled
-    #  - Test DC/OS DNS functionality from the Windows node
-    #  - Test if a Windows marathon application can be successfully deployed and consumed
-    #  - Test a simple IIS marathon Windows app
-    #  - Test Mesos fetcher with local resource
-    #  - Test Mesos fetcher with remote http resource
-    #  - Test Mesos fetcher with remote https resource
+    # Test DC/OS apps on all available Windows nodes
     #
-    compare_azure_vms_and_dcos_agents || return 1
-    test_custom_attributes || return 1
-    test_master_agent_authentication || return 1
-    test_dcos_dns || return 1
-    # For the following tests we need to run them on all the spawned agents
-    WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
-    WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    # Get the IPs of all Windows agents
+    local WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+    local WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
     if [[ -z $WIN_PRIVATE_AGENTS_IPS ]] && [[ -z $WIN_PUBLIC_AGENTS_IPS ]]; then
         echo "ERROR: No Windows slaves registered"
         return 1
@@ -727,6 +714,26 @@ run_functional_tests() {
         test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
     done
+}
+
+run_functional_tests() {
+    #
+    # Run the following DC/OS functional tests:
+    #  - Compare Azure VM IPs with DCOS IPs
+    #  - Test if the custom attributes are set
+    #  - Test if the Mesos master - agent authentication is enabled
+    #  - Test DC/OS DNS functionality from the Windows node
+    #  - Test if a Windows marathon application can be successfully deployed and consumed
+    #  - Test a simple IIS marathon Windows app
+    #  - Test Mesos fetcher with local resource
+    #  - Test Mesos fetcher with remote http resource
+    #  - Test Mesos fetcher with remote https resource
+    #
+    compare_azure_vms_and_dcos_agents || return 1
+    test_custom_attributes || return 1
+    test_master_agent_authentication || return 1
+    test_dcos_dns || return 1
+    test_dcos_windows_apps | return 1
 }
 
 collect_linux_masters_logs() {
