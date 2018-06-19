@@ -29,11 +29,11 @@ DEFAULT_PORT_HTTPS = 5986
 
 
 def print_usage():
-    print ("%s [-U <url>] [-H <host>] [-P <port>] [-s] "
-           "[-a <basic|kerberos|certificate>] "
-           "[-u <username>] [-p <password>] "
-           "[-c <client_cert_pem> -k <client_cert_cert_key_pem>] "
-           "<cmd> [cmd_args]" % sys.argv[0])
+    print("%s [-U <url>] [-H <host>] [-P <port>] [-s] "
+          "[-a <basic|kerberos|certificate>] "
+          "[-u <username>] [-p <password>] "
+          "[-c <client_cert_pem> -k <client_cert_cert_key_pem>] "
+          "--file <powershell_script> --powershell <cmd> [cmd_args]" % sys.argv[0])
 
 
 def parse_args():
@@ -49,10 +49,11 @@ def parse_args():
     cert_pem = None
     cert_key_pem = None
     is_powershell_cmd = False
+    is_powershell_script = False
     try:
         show_usage = False
         opts, args = getopt.getopt(sys.argv[1:], "hsU:H:P:u:p:c:k:a:",
-                                   "powershell")
+                                   ["powershell", "file"])
         for opt, arg in opts:
             if opt == "-h":
                 show_usage = True
@@ -76,7 +77,14 @@ def parse_args():
                 cert_key_pem = arg
             elif opt == "--powershell":
                 is_powershell_cmd = True
-        cmd = args
+            elif opt == "--file":
+                is_powershell_script = True
+        if is_powershell_cmd and not is_powershell_script:
+            cmd = args
+        else:
+            with open(args[0], 'r') as script_file:
+                content = script_file.read()
+            cmd = content.replace('\n', '; ')
         if (show_usage or not
                 (cmd and
                  (url and not host and not port and not use_ssl) or
@@ -91,7 +99,7 @@ def parse_args():
     except getopt.GetoptError:
         print_usage()
     return (args_ok, url, host, use_ssl, port, auth, username, password,
-            cert_pem, cert_key_pem, cmd, is_powershell_cmd)
+            cert_pem, cert_key_pem, cmd, is_powershell_cmd, is_powershell_script)
 
 
 def run_wsman_cmd(url, auth, username, password, cert_pem, cert_key_pem, cmd):
@@ -135,7 +143,7 @@ def get_url(url, host, use_ssl, port):
 def main():
     exit_code = 1
     (args_ok, url, host, use_ssl, port, auth, username, password,
-     cert_pem, cert_key_pem, cmd, is_powershell_cmd) = parse_args()
+     cert_pem, cert_key_pem, cmd, is_powershell_cmd, is_powershell_script) = parse_args()
     if args_ok:
         url = get_url(url, host, use_ssl, port)
         if is_powershell_cmd:
@@ -143,6 +151,11 @@ def main():
                    "-ExecutionPolicy", "RemoteSigned", "-NonInteractive",
                    "-EncodedCommand",
                    base64.b64encode((" ".join(cmd)).encode("utf-16-le"))]
+        if is_powershell_script:
+            cmd = ["powershell.exe",
+                   "-ExecutionPolicy", "RemoteSigned", "-NonInteractive",
+                   "-EncodedCommand",
+                   base64.b64encode(cmd.encode("utf-16-le"))]
         std_out, std_err, exit_code = run_wsman_cmd(url, auth, username,
                                                     password, cert_pem,
                                                     cert_key_pem, cmd)
