@@ -341,7 +341,6 @@ test_windows_marathon_app() {
         "${APP_NAME}.marathon.mesos.thisdcos.directory"
         "${APP_NAME}.marathon.slave.mesos.thisdcos.directory"
     )
-    sleep 30
     for DNS_RECORD in ${DNS_RECORDS[@]}; do
         test_windows_agent_dcos_dns "$TASK_HOST" "$DNS_RECORD" || return 1
     done
