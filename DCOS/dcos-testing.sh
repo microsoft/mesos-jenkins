@@ -344,7 +344,7 @@ test_windows_marathon_app() {
         return 1
     }
     PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
-    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     DNS_RECORDS=(
@@ -387,7 +387,7 @@ test_iis() {
         return 1
     }
     PORT="80"
-    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
@@ -449,7 +449,7 @@ test_iis_docker_private_image() {
         return 1
     }
     PORT="80"
-    test_dcos_task_connectivity $APP_NAME $AGENT_HOSTNAME $AGENT_ROLE $PORT || return 1
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
     echo "Successfully tested marathon applications with Docker private images"
@@ -733,7 +733,7 @@ run_functional_tests() {
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
-    test_dcos_windows_apps | return 1
+    test_dcos_windows_apps || return 1
 }
 
 collect_linux_masters_logs() {
