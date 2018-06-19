@@ -1,5 +1,5 @@
 {
-  "id": "test-windows-app",
+  "id": "${APP_ID}",
   "cpus": 1,
   "mem": 512,
   "disk": 0,
@@ -9,6 +9,11 @@
       "os",
       "LIKE",
       "Windows"
+    ],
+    [
+      "hostname",
+      "LIKE",
+      "${AGENT_HOSTNAME}"
     ]
   ],
   "networks": [ { "mode": "container", "name": "dcosnat" } ],
@@ -40,6 +45,6 @@
     }
   ],
   "acceptedResourceRoles": [
-    "slave_public"
+    "${AGENT_ROLE}"
   ]
 }

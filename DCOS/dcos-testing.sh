@@ -37,8 +37,8 @@ elif [[ "$DCOS_DEPLOYMENT_TYPE" = "hybrid" ]]; then
     export LINUX_MASTER_COUNT="3"
     export LINUX_PUBLIC_AGENT_COUNT="1"
     export LINUX_PRIVATE_AGENT_COUNT="1"
-    export WIN_PUBLIC_AGENT_COUNT="1"
-    export WIN_PRIVATE_AGENT_COUNT="1"
+    export WIN_PUBLIC_AGENT_COUNT="2"
+    export WIN_PRIVATE_AGENT_COUNT="2"
 else
     echo "ERROR: $DCOS_DEPLOYMENT_TYPE DCOS_DEPLOYMENT_TYPE is not supported"
     exit 1
@@ -75,11 +75,17 @@ MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
+IIS_RENDERED_TEMPLATE="${WORKSPACE}/iis.json"
 PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
+PRIVATE_IIS_RENDERED_TEMPLATE="${WORKSPACE}/private-iis.json"
 WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
+WINDOWS_APP_RENDERED_TEMPLATE="${WORKSPACE}/windows-app.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
+FETCHER_HTTP_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
+FETCHER_HTTPS_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
+FETCHER_LOCAL_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-local.json"
 FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
@@ -277,6 +283,39 @@ get_marathon_application_host_port() {
     cat $TEMPLATE_PATH | python -c "import json,sys ; input = json.load(sys.stdin) ; print(input['container']['docker']['portMappings'][0]['hostPort'])"
 }
 
+test_dcos_task_connectivity() {
+    #
+    # Test connectivity against a dcos tasks
+    #
+    local APP_NAME=$1
+    local AGENT_HOSTNAME=$2
+    local AGENT_ROLE=$3
+    local PORT=$4
+    local TIMEOUT="900"
+    # Check port depending on agent role
+    if [[ "$AGENT_ROLE" == "slave_public" ]]; then
+        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+        check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "$TIMEOUT" || {
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    else
+        echo "Checking, with a timeout of $TIMEOUT seconds, if the port $PORT is open at the address: $AGENT_HOSTNAME"
+        upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
+            echo "ERROR: Failed to scp utils.sh"
+            return 1
+        }
+        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && check_open_port $AGENT_HOSTNAME $PORT $TIMEOUT" || {
+            echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
+            dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+            return 1
+        }
+        echo "Success: Port $PORT is open at address $AGENT_HOSTNAME"
+    fi
+}
+
 test_windows_marathon_app() {
     #
     # - Deploy a simple IIS web server on Windows
@@ -284,25 +323,28 @@ test_windows_marathon_app() {
     # - Check if the exposed port is open
     # - Check if the DNS records for the task are advertised to the Windows nodes
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    local APP_ID="test-windows-app-$(echo $AGENT_HOSTNAME | tr . -)"
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $WINDOWS_APP_TEMPLATE)
+	EOF
+	" > $WINDOWS_APP_RENDERED_TEMPLATE
+    # Start deployment
     echo "Deploying a Windows Marathon application on DC/OS"
-    dcos marathon app add $WINDOWS_APP_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    PORT=$(get_marathon_application_host_port $WINDOWS_APP_TEMPLATE)
-    echo "Checking, with a timeout of 900 seconds, if the port $PORT is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "$PORT" "900" || {
-        echo "ERROR: Port $PORT is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "Success: Port $PORT is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     DNS_RECORDS=(
@@ -324,24 +366,28 @@ test_iis() {
     #
     # - Deploy a simple DC/OS IIS marathon application
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $IIS_TEMPLATE)
+	EOF
+	" > $IIS_RENDERED_TEMPLATE
+    # Start deployment
     echo "Deploying IIS application on DC/OS"
-    dcos marathon app add $IIS_TEMPLATE || {
+    dcos marathon app add $IIS_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $IIS_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
-        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "Success: Port 80 is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    PORT="80"
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
 }
@@ -350,6 +396,17 @@ test_iis_docker_private_image() {
     #
     # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-private-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $PRIVATE_IIS_TEMPLATE)
+	EOF
+	" > $PRIVATE_IIS_RENDERED_TEMPLATE
+
+    # Start deployment
     echo "Testing marathon applications with Docker private images"
 
     # Login to create the docker config file with credentials
@@ -373,36 +430,26 @@ test_iis_docker_private_image() {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
-    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
-        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+
+    # Download the config file with creds locally to targeted node
+    run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $AGENT_HOSTNAME $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$AGENT_HOSTNAME/docker.zip" || {
+        echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
         return 1
     }
-    # Download the config file with creds locally to all the targeted nodes
-    for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo cp /tmp/docker.zip /mnt/$IP/docker.zip" || {
-            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
-            return 1
-        }
-    done
 
     echo "Deploying IIS application from private image on DC/OS"
-    dcos marathon app add $PRIVATE_IIS_TEMPLATE || {
+    dcos marathon app add $PRIVATE_IIS_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
-    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
-        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
-        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
-        return 1
-    }
-    echo "Success: Port 80 is open at address $ADDRESS"
+    PORT="80"
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
     remove_dcos_marathon_app $APP_NAME || return 1
     echo "Successfully tested marathon applications with Docker private images"
@@ -446,24 +493,27 @@ test_mesos_fetcher_local() {
     #
     # Test Mesos fetcher with local resource
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $FETCHER_LOCAL_TEMPLATE)
+	EOF
+	" > $FETCHER_LOCAL_RENDERED_TEMPLATE
+    # Start deployment
     echo "Testing Mesos fetcher using local resource"
     upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/utils.sh" "$DIR/utils/utils.sh" || {
         echo "ERROR: Failed to scp utils.sh"
         return 1
     }
-    WIN_PUBLIC_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || {
-        echo "ERROR: Failed to get the DC/OS Windows public agents addresses"
+    # Download the fetcher test file locally to targeted node
+    run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $AGENT_HOSTNAME $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$AGENT_HOSTNAME/fetcher-test.zip" || {
+        echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
         return 1
     }
-    # Download the fetcher test file locally to all the targeted nodes
-    for IP in $WIN_PUBLIC_IPS; do
-        run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && sudo wget $FETCHER_LOCAL_FILE_URL -O /mnt/$IP/fetcher-test.zip" || {
-            echo "ERROR: Failed to copy the fetcher resource file to Windows public agent $IP"
-            return 1
-        }
-    done
-    dcos marathon app add $FETCHER_LOCAL_TEMPLATE || return 1
-    APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_TEMPLATE)
+    dcos marathon app add $FETCHER_LOCAL_RENDERED_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_RENDERED_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
@@ -478,9 +528,18 @@ test_mesos_fetcher_remote_http() {
     #
     # Test Mesos fetcher with remote resource (http)
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $FETCHER_HTTP_TEMPLATE)
+	EOF
+	" > $FETCHER_HTTP_RENDERED_TEMPLATE
+    # Start deployment
     echo "Testing Mesos fetcher using remote http resource"
-    dcos marathon app add $FETCHER_HTTP_TEMPLATE || return 1
-    APP_NAME=$(get_marathon_application_name $FETCHER_HTTP_TEMPLATE)
+    dcos marathon app add $FETCHER_HTTP_RENDERED_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_HTTP_RENDERED_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote http resource"
@@ -495,9 +554,18 @@ test_mesos_fetcher_remote_https() {
     #
     # Test Mesos fetcher with remote resource (https)
     #
+    local AGENT_HOSTNAME=$1
+    local AGENT_ROLE=$2
+    APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
+    # Generate json file from template
+	eval "cat <<-EOF
+	$(cat $FETCHER_HTTPS_TEMPLATE)
+	EOF
+	" > $FETCHER_HTTPS_RENDERED_TEMPLATE
+    # Start deployment
     echo "Testing Mesos fetcher using remote https resource"
-    dcos marathon app add $FETCHER_HTTPS_TEMPLATE || return 1
-    APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_TEMPLATE)
+    dcos marathon app add $FETCHER_HTTPS_RENDERED_TEMPLATE || return 1
+    APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_RENDERED_TEMPLATE)
     test_mesos_fetcher $APP_NAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote https resource"
@@ -617,6 +685,37 @@ compare_azure_vms_and_dcos_agents() {
     fi
 }
 
+test_dcos_windows_apps() {
+    #
+    # Test DC/OS apps on all available Windows nodes
+    #
+    # Get the IPs of all Windows agents
+    local WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+    local WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    if [[ -z $WIN_PRIVATE_AGENTS_IPS ]] && [[ -z $WIN_PUBLIC_AGENTS_IPS ]]; then
+        echo "ERROR: No Windows slaves registered"
+        return 1
+    fi
+    for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
+        local AGENT_ROLE="*"
+        test_windows_marathon_app "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
+    for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
+        local AGENT_ROLE="slave_public"
+        test_windows_marathon_app "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_iis_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
@@ -634,12 +733,7 @@ run_functional_tests() {
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
-    test_windows_marathon_app || return 1
-    test_iis || return 1
-    test_iis_docker_private_image || return 1
-    test_mesos_fetcher_local || return 1
-    test_mesos_fetcher_remote_http || return 1
-    test_mesos_fetcher_remote_https || return 1
+    test_dcos_windows_apps || return 1
 }
 
 collect_linux_masters_logs() {
