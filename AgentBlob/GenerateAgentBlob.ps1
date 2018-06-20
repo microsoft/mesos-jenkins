@@ -98,7 +98,7 @@ function New-DCOSWindowsAgentBlob {
         Remove-Item -Recurse -Force -Path $setupScripts
     }
     Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $DCOS_WINDOWS_GIT_URL, $setupScripts)
+        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', '-q', $DCOS_WINDOWS_GIT_URL, $setupScripts)
         if($p.ExitCode -ne 0) {
             Throw "Failed to clone $DCOS_WINDOWS_GIT_URL repository"
         }

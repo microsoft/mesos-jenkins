@@ -64,7 +64,7 @@ function Publish-BuildArtifacts {
         Remove-Item -Recurse -Force $ciScripts
     }
     Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $MESOS_JENKINS_GIT_URL, $ciScripts)
+        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', '-q', $MESOS_JENKINS_GIT_URL, $ciScripts)
         if($p.ExitCode -ne 0) {
             Throw "Failed to clone $MESOS_JENKINS_GIT_URL repository"
         }
