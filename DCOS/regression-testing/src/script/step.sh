@@ -71,6 +71,11 @@ get_orchestrator_version)
   get_orchestrator_version
 ;;
 
+get_name_suffix)
+  export OUTPUT="${ROOT}/_output/${INSTANCE_NAME}"
+  get_name_suffix
+;;
+
 validate)
   export OUTPUT=${OUTPUT:-"${ROOT}/_output/${INSTANCE_NAME}"}
   set +e

@@ -248,6 +248,14 @@ function get_orchestrator_version() {
 	echo $orchestratorVersion
 }
 
+function get_name_suffix() {
+	[[ ! -z "${OUTPUT:-}" ]] || exit_with_msg "Must specify OUTPUT"
+
+	nameSuffix=$(jq -r .parameters.nameSuffix.defaultValue ${OUTPUT}/azuredeploy.json)
+
+	echo $nameSuffix
+}
+
 function get_api_version() {
 	[[ ! -z "${CLUSTER_DEFINITION:-}" ]] || exit_with_msg "Must specify CLUSTER_DEFINITION"
 
@@ -412,7 +420,11 @@ function validate() {
 	${remote_exec} chmod a+x ./dcos
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to chmod dcos"
 	echo $(date +%H:%M:%S) "Configuring dcos"
-	${remote_exec} ./dcos cluster setup http://localhost:80
+	if [[ "${DCOS_OAUTH:-}" = "true" ]]; then
+		${remote_exec} "cat ~/.dcos.oidc.token | ./dcos cluster setup http://localhost:80"
+	else
+		${remote_exec} ./dcos cluster setup http://localhost:80
+	fi
 	[ $? -eq 0 ] || exit_with_msg "Error: failed to configure dcos"
 
 	echo $(date +%H:%M:%S) "Installing marathon-lb"

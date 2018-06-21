@@ -241,6 +241,16 @@ func (m *TestManager) testRun(d config.Deployment, index, attempt int, timeout t
 			}
 			env = append(env, fmt.Sprintf("EXPECTED_ORCHESTRATOR_VERSION=%s", strings.TrimSpace(string(out))))
 
+			cmd = exec.Command(script, "get_name_suffix")
+			cmd.Env = env
+			out, err = cmd.Output()
+			if err != nil {
+				wrileLog(logFile, "Error [%s:%s] %v\nOutput: %s", "get_name_suffix", resourceGroup, err, string(out))
+				errorInfo = report.NewErrorInfo(testName, step, "NameSuffixParsingError", "PreRun", d.Location)
+				break
+			}
+			env = append(env, fmt.Sprintf("NAMESUFFIX=%s", strings.TrimSpace(string(out))))
+
 			cmd = exec.Command(script, "get_node_count")
 			cmd.Env = env
 			out, err = cmd.Output()
