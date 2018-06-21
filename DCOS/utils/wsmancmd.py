@@ -121,14 +121,8 @@ def run_wsman_cmd(url, auth, username, password, cert_pem, cert_key_pem, cmd):
                           cert_pem=cert_pem,
                           cert_key_pem=cert_key_pem)
     shell_id = p.open_shell(codepage=65001)
-    
-    if cmd[0] == "powershell.exe":
-        command_id = p.run_command(shell_id, cmd[0], cmd[1:])
-    elif isinstance(cmd, list):
-        command_id = p.run_command(shell_id, " ".join(cmd))
-    else:
-        command_id = p.run_command(shell_id, cmd)
-        
+
+    command_id = p.run_command(shell_id, cmd[0], cmd[1:])
     
     std_out, std_err, status_code = p.get_command_output(shell_id, command_id)
     p.cleanup_command(shell_id, command_id)
@@ -163,6 +157,8 @@ def main():
                    "-ExecutionPolicy", "RemoteSigned", "-NonInteractive",
                    "-EncodedCommand",
                    base64.b64encode(("".join(cmd)).encode("utf-16-le"))]
+        else:
+            cmd = ["cmd /c ", "".join(cmd)]
         std_out, std_err, exit_code = run_wsman_cmd(url, auth, username,
                                                     password, cert_pem,
                                                     cert_key_pem, cmd)
