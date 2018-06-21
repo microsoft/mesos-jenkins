@@ -2,7 +2,8 @@ Param(
     [Parameter(Mandatory=$true)]
     [string]$ArtifactsDirectory,
     [string]$ReleaseVersion=$(Get-Date -Format "MM-dd-yyy_HH-mm-ss"),
-    [string]$ParametersFile="${env:TEMP}\publish-blob-parameters.json"
+    [string]$ParametersFile="${env:TEMP}\publish-blob-parameters.json",
+    [switch]$NewLatestSymlink
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,7 +65,7 @@ function Publish-BuildArtifacts {
         Remove-Item -Recurse -Force $ciScripts
     }
     Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', $MESOS_JENKINS_GIT_URL, $ciScripts)
+        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', '-q', $MESOS_JENKINS_GIT_URL, $ciScripts)
         if($p.ExitCode -ne 0) {
             Throw "Failed to clone $MESOS_JENKINS_GIT_URL repository"
         }
@@ -75,7 +76,9 @@ function Publish-BuildArtifacts {
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
     Copy-FilesToRemoteServer "${ArtifactsDirectory}\*" $remoteBuildDir
-    New-RemoteSymlink -RemotePath $remoteBuildDir -RemoteSymlinkPath "${REMOTE_BASE_DIR}/latest"
+    if($NewLatestSymlink) {
+        New-RemoteSymlink -RemotePath $remoteBuildDir -RemoteSymlinkPath "${REMOTE_BASE_DIR}/latest"
+    }
 }
 
 function New-ParametersFile {
