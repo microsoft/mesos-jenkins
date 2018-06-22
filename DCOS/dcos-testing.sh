@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
+export AZURE_RESOURCE_GROUP="${JOB_NAME}-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -90,8 +90,8 @@ FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/t
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
 LOG_SERVER_USER="jenkins"
-REMOTE_LOGS_DIR="/data/dcos-testing"
-LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
+REMOTE_LOGS_DIR="/data/${JOB_NAME}"
+LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/${JOB_NAME}"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
