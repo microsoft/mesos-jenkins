@@ -35,6 +35,7 @@ $SOURCE_FILES = @{
     # The following two files are pretty big and they are only needed for DC/OS 1.10. We can remove it should we decided to drop support for 1.10
     "spartan.zip"                 = $SpartanPackageUrl
     "erlang.zip"                  = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl8.3.zip"
+    "handles.exe"                 = "http://dcos-win.westus.cloudapp.azure.com/downloads/handles.exe"
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"

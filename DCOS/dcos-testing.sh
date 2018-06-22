@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export AZURE_RESOURCE_GROUP="dcos_testing_${BUILD_ID}"
+export AZURE_RESOURCE_GROUP="${JOB_NAME}-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
 export WIN_AGENT_PUBLIC_POOL="winpubpool"
 export WIN_AGENT_PRIVATE_POOL="winpripool"
@@ -90,8 +90,8 @@ FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/t
 FETCHER_FILE_MD5="07D6BB2D5BAED0C40396C229259CAA71"
 LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
 LOG_SERVER_USER="jenkins"
-REMOTE_LOGS_DIR="/data/dcos-testing"
-LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-testing"
+REMOTE_LOGS_DIR="/data/${JOB_NAME}"
+LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/${JOB_NAME}"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
@@ -210,6 +210,7 @@ upload_logs() {
     # Copy the Jenkins console as well
     curl --user ${JENKINS_USER}:${JENKINS_PASSWORD} "${JENKINS_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
+    run_ssh_command -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -c "mkdir -p ${REMOTE_LOGS_DIR}" || return 1
     upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
     echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
