@@ -5,7 +5,8 @@
     [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip",
     [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip",
     [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce",
-    [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json"
+    [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json",
+    [string]$GithubPRHeadSha
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,16 +94,24 @@ function New-DCOSWindowsAgentBlob {
     Remove-Item -Force $cabPkg
     # - Clone dcos/dcos-windows repository
     Write-Log "Cloning dcos-windows repository"
+    if($GithubPRHeadSha) {
+        $fileName = "${GithubPRHeadSha}"
+    } else {
+        $fileName = "master"
+    }
+    $dcoswindowsZipUrl = "{0}/archive/{1}.zip" -f @($DCOS_WINDOWS_GIT_URL, $fileName)
+    $dcoswindowsTmpDir = Join-Path $blobDir "dcos-windows-tmp"
+    $dcoswindowsArchive = Join-Path $blobDir "dcos-windows.zip"
     $setupScripts = Join-Path $blobDir "dcos-windows"
     if(Test-Path $setupScripts) {
         Remove-Item -Recurse -Force -Path $setupScripts
     }
-    Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', '-q', $DCOS_WINDOWS_GIT_URL, $setupScripts)
-        if($p.ExitCode -ne 0) {
-            Throw "Failed to clone $DCOS_WINDOWS_GIT_URL repository"
-        }
-    } -RetryMessage "Failed to clone ${DCOS_WINDOWS_GIT_URL}"
+    Start-FileDownload -URL $dcoswindowsZipUrl -Destination $dcoswindowsArchive
+    Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
+    Move-Item "${dcoswindowsTmpDir}/dcos-windows-${fileName}" $setupScripts
+    Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
+    Remove-Item -Force -Path $dcoswindowsArchive
+
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME
     if(Test-Path $blobTargetPath) {
