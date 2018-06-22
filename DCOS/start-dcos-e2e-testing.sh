@@ -9,6 +9,9 @@ fi
 
 echo "Starting time: $(date)"
 
+# - Source the the DC/OS e2e functions
+source $DIR/dcos-testing.sh
+
 # - Install latest ACS Engine internal stable build
 ACS_ENGINE_URL="http://dcos-win.westus.cloudapp.azure.com/acs-engine/stable-candidate/latest/linux-amd64/acs-engine"
 mkdir -p $WORKSPACE/bin && \
@@ -16,9 +19,6 @@ curl $ACS_ENGINE_URL -o $WORKSPACE/bin/acs-engine && \
 chmod +x $WORKSPACE/bin/acs-engine && \
 export PATH="$WORKSPACE/bin:$PATH" 
 check_exit_code false
-
-# - Source the the DC/OS e2e functions
-source $DIR/dcos-testing.sh
 
 # - Login to Azure
 azure_cli_login
