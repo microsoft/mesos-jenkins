@@ -210,6 +210,7 @@ upload_logs() {
     # Copy the Jenkins console as well
     curl --user ${JENKINS_USER}:${JENKINS_PASSWORD} "${JENKINS_URL}/job/${JOB_NAME}/${BUILD_NUMBER}/consoleText" -o $TEMP_LOGS_DIR/jenkins-console.log || return 1
     echo "Uploading logs to the log server"
+    run_ssh_command -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -c "mkdir -p ${REMOTE_LOGS_DIR}" || return 1
     upload_files_via_scp -u $LOG_SERVER_USER -h $LOG_SERVER_ADDRESS -p "22" -f "${REMOTE_LOGS_DIR}/" $TEMP_LOGS_DIR || return 1
     echo "All the logs available at: $BUILD_OUTPUTS_URL"
     echo "BUILD_OUTPUTS_URL=$BUILD_OUTPUTS_URL" >> $PARAMETERS_FILE
