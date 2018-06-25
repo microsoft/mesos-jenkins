@@ -71,7 +71,7 @@ function Publish-BuildArtifacts {
         }
     } -RetryMessage "Failed to clone ${MESOS_JENKINS_GIT_URL}"
     Copy-Item -Path "${ciScripts}\DCOS\DCOSWindowsAgentSetup.ps1" -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
-    Copy-Item -Recurse -Path "${ciScripts}\DCOS\templates\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
+    Copy-Item -Recurse -Path "${ciScripts}\DCOS\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
     Remove-Item -Recurse -Force $ciScripts
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
