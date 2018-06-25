@@ -1,3 +1,5 @@
+$ErrorActionPreference = "Stop"
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $TD_AGENT = "td-agent-3.1.1-0-x64.msi"
 $url = "http://packages.treasuredata.com.s3.amazonaws.com/3/windows/$TD_AGENT"
