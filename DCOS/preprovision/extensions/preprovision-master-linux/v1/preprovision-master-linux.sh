@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 mkdir -p /etc/ethos/
 touch /etc/ethos/dcos-mesos-master-secrets
 chmod 600 /etc/ethos/dcos-mesos-master-secrets
