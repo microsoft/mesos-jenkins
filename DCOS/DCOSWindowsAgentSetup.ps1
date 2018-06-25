@@ -17,7 +17,9 @@ Param(
     [AllowNull()]
     [string]$MesosWorkDir,
     [AllowNull()]
-    [string]$customAttrs
+    [string]$customAttrs,
+    [AllowNull()]
+    [string]$DcosVersion = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -198,7 +200,8 @@ try {
                         -MesosInstallDir $MesosInstallDir `
                         -MesosLaunchDir $MesosLaunchDir `
                         -MesosWorkDir $MesosWorkDir `
-                        -customAttrs $customAttrs
+                        -customAttrs $customAttrs `
+                        -DcosVersion $DcosVersion
     if($LASTEXITCODE -ne 0) {
         Throw "The upstream DCOS init script failed"
     }
