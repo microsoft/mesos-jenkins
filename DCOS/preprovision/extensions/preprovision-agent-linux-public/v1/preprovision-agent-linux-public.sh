@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 mkdir -p /etc/ethos/
 touch /etc/ethos/dcos-mesos-agent-secret
 chmod 600 /etc/ethos/dcos-mesos-agent-secret
@@ -22,12 +23,12 @@ cat > /etc/ethos/dcos-mesos-agent-http-credentials << EOF
 }
 EOF
 
-mkdir -p /etc/systemd/system/dcos-mesos-slave.service.d
+mkdir -p /etc/systemd/system/dcos-mesos-slave-public.service.d
 echo "[Service]
 Environment=MESOS_AUTHENTICATE_HTTP_READONLY=true
 Environment=MESOS_AUTHENTICATE_HTTP_READWRITE=true
 Environment=MESOS_HTTP_CREDENTIALS=/etc/ethos/dcos-mesos-agent-http-credentials
-Environment=MESOS_CREDENTIAL=/etc/ethos/dcos-mesos-agent-secret" > /etc/systemd/system/dcos-mesos-slave.service.d/10-dcos-mesos-agent-auth.conf
+Environment=MESOS_CREDENTIAL=/etc/ethos/dcos-mesos-agent-secret" > /etc/systemd/system/dcos-mesos-slave-public.service.d/10-dcos-mesos-agent-public-auth.conf
 
 mkdir -p /opt/azure/dcos
 touch /opt/azure/dcos/postinstall.sh

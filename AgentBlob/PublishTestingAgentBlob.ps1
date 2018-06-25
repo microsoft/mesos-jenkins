@@ -60,19 +60,9 @@ function Publish-BuildArtifacts {
         Throw "The artifacts directory is empty"
     }
     # Fetch the CI init script before publishing artifacts
-    $ciScripts = Join-Path $env:TEMP "mesos-jenkins"
-    if(Test-Path $ciScripts) {
-        Remove-Item -Recurse -Force $ciScripts
-    }
-    Start-ExecuteWithRetry -ScriptBlock {
-        $p = Start-Process -FilePath 'git.exe' -Wait -PassThru -NoNewWindow -ArgumentList @('clone', '-q', $MESOS_JENKINS_GIT_URL, $ciScripts)
-        if($p.ExitCode -ne 0) {
-            Throw "Failed to clone $MESOS_JENKINS_GIT_URL repository"
-        }
-    } -RetryMessage "Failed to clone ${MESOS_JENKINS_GIT_URL}"
-    Copy-Item -Path "${ciScripts}\DCOS\DCOSWindowsAgentSetup.ps1" -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
-    Copy-Item -Recurse -Path "${ciScripts}\DCOS\templates\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
-    Remove-Item -Recurse -Force $ciScripts
+    Start-FileDownload -URL "https://raw.githubusercontent.com/dcos/dcos-windows/master/scripts/DCOSWindowsAgentSetup.ps1" `
+                       -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
+    Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
     Copy-FilesToRemoteServer "${ArtifactsDirectory}\*" $remoteBuildDir

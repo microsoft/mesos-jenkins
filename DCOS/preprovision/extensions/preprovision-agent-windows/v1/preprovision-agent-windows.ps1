@@ -2,14 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $BASE_URL = "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/extensions/preprovision-agent-windows/v1"
 $SCRIPTS_DIRECTORY = Join-Path $env:TEMP "preprovision_scripts"
-$AGENT_CREDS_SCRIPT="preprovision-agent-windows-mesos-credentials.ps1"
-$FLUENTD_SCRIPT="preprovision-agent-windows-fluentd.ps1"
+$CI_SETUP_SCRIPT = "preprovision-agent-windows-ci-setup.ps1"
+$AGENT_CREDS_SCRIPT = "preprovision-agent-windows-mesos-credentials.ps1"
+$FLUENTD_SCRIPT = "preprovision-agent-windows-fluentd.ps1"
 $SCRIPTS = @{
+    "ci_setup" = @{
+        "url" = "$BASE_URL/$CI_SETUP_SCRIPT"
+        "local_file" = Join-Path $SCRIPTS_DIRECTORY $CI_SETUP_SCRIPT
+    }
     "agent_creds" = @{
         "url" = "$BASE_URL/$AGENT_CREDS_SCRIPT"
         "local_file" = Join-Path $SCRIPTS_DIRECTORY $AGENT_CREDS_SCRIPT
     }
-	"fluentd" = @{
+    "fluentd" = @{
         "url" = "$BASE_URL/$FLUENTD_SCRIPT"
         "local_file" = Join-Path $SCRIPTS_DIRECTORY $FLUENTD_SCRIPT
     }

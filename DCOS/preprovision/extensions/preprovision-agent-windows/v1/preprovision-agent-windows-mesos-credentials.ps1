@@ -1,3 +1,5 @@
+$ErrorActionPreference = "Stop"
+
 $MESOS_SERVICE_DIR = Join-Path $env:SystemDrive "DCOS\mesos\service"
 New-Item -ItemType Directory -Force -Path $MESOS_SERVICE_DIR
 
