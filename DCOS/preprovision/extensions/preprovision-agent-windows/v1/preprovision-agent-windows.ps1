@@ -9,7 +9,7 @@ $SCRIPTS = @{
         "url" = "$BASE_URL/$AGENT_CREDS_SCRIPT"
         "local_file" = Join-Path $SCRIPTS_DIRECTORY $AGENT_CREDS_SCRIPT
     }
-	"fluentd" = @{
+    "fluentd" = @{
         "url" = "$BASE_URL/$FLUENTD_SCRIPT"
         "local_file" = Join-Path $SCRIPTS_DIRECTORY $FLUENTD_SCRIPT
     }
