@@ -110,6 +110,15 @@ function New-DCOSWindowsAgentBlob {
     Start-FileDownload -URL $dcoswindowsZipUrl -Destination $dcoswindowsArchive
     Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
     Move-Item "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts" $setupScripts
+    #
+    # TODO(ibalutoiu): For backwards compatibility we also copy the scripts file to
+    #                  AGENT_BLOB_DIR\dcos-windows\scripts (the expected location atm).
+    #                  The following lines will be removed, only we fully transition
+    #                  to consume the agent Blob setup scripts from AGENT_BLOB_DIR\scripts
+    ###
+    New-Item -ItemType Directory -Path "${blobDir}\dcos-windows"
+    Copy-Item -Recurse -Force -Path $setupScripts -Destination "${blobDir}\dcos-windows\"
+    ###
     Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
     Remove-Item -Force -Path $dcoswindowsArchive
 
