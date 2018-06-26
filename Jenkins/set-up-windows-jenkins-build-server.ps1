@@ -249,9 +249,9 @@ function Install-Git {
                    -InstallDirectory $installDir `
                    -ArgumentList @("/SILENT") `
                    -EnvironmentPath @("$installDir\cmd", "$installDir\bin")
-    git.exe config --global core.autocrlf false
+    git.exe config --global core.autocrlf true
     if($LASTEXITCODE) {
-        Throw "Failed to set git global config core.autocrlf false"
+        Throw "Failed to set git global config core.autocrlf true"
     }
 }
 
