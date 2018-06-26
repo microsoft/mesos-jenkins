@@ -94,7 +94,7 @@ function New-DCOSWindowsAgentBlob {
     Move-Item $devConFile $devConBinary
     Remove-Item -Force $cabPkg
     # - Clone dcos/dcos-windows repository
-    Write-Log "Cloning dcos-windows repository"
+    Write-Log "Fetching dcos-windows/scripts"
     if($GithubPRHeadSha) {
         $fileName = "${GithubPRHeadSha}"
     } else {
@@ -103,13 +103,22 @@ function New-DCOSWindowsAgentBlob {
     $dcoswindowsZipUrl = "{0}/archive/{1}.zip" -f @($DCOS_WINDOWS_GIT_URL, $fileName)
     $dcoswindowsTmpDir = Join-Path $blobDir "dcos-windows-tmp"
     $dcoswindowsArchive = Join-Path $blobDir "dcos-windows.zip"
-    $setupScripts = Join-Path $blobDir "dcos-windows"
+    $setupScripts = Join-Path $blobDir "scripts"
     if(Test-Path $setupScripts) {
         Remove-Item -Recurse -Force -Path $setupScripts
     }
     Start-FileDownload -URL $dcoswindowsZipUrl -Destination $dcoswindowsArchive
     Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
-    Move-Item "${dcoswindowsTmpDir}/dcos-windows-${fileName}" $setupScripts
+    Move-Item "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts" $setupScripts
+    #
+    # TODO(ibalutoiu): For backwards compatibility we also copy the scripts file to
+    #                  AGENT_BLOB_DIR\dcos-windows\scripts (the expected location atm).
+    #                  The following lines will be removed, only we fully transition
+    #                  to consume the agent Blob setup scripts from AGENT_BLOB_DIR\scripts
+    ###
+    New-Item -ItemType Directory -Path "${blobDir}\dcos-windows"
+    Copy-Item -Recurse -Force -Path $setupScripts -Destination "${blobDir}\dcos-windows\"
+    ###
     Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
     Remove-Item -Force -Path $dcoswindowsArchive
 
