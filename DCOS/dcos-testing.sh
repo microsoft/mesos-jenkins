@@ -25,6 +25,7 @@ if [[ -z $DOCKER_HUB_USER_PASSWORD ]]; then
     echo "ERROR: Parameter DOCKER_HUB_USER_PASSWORD is not set"
     exit 1
 fi
+
 if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
     export DCOS_AZURE_PROVIDER_PACKAGE_ID="5a6b7b92820dc4a7825c84f0a96e012e0fcc8a6b"
     export LINUX_MASTER_COUNT="1"
@@ -249,7 +250,8 @@ open_dcos_port() {
         return 1
     }
     az network nsg rule create --resource-group $AZURE_RESOURCE_GROUP --nsg-name $MASTER_SG_NAME --name $NAT_RULE_NAME \
-                               --access Allow --protocol Tcp --direction Inbound --priority 100 --destination-port-range 80 --output table || {
+                               --access Allow --protocol Tcp --direction Inbound --source-address-prefixes $MASTER_WHITELISTED_IPS \
+                               --priority 100 --destination-port-range 80 --output table || {
         echo "ERROR: Failed to create the DC/OS port security group rule for the master node"
         return 1
     }
@@ -400,7 +402,7 @@ test_iis_docker_private_image() {
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
     APP_ID="test-private-iis-$(echo $AGENT_HOSTNAME | tr . -)"
-    
+
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $PRIVATE_IIS_TEMPLATE)
@@ -663,7 +665,7 @@ compare_azure_vms_and_dcos_agents() {
         echo "ERROR: Failed to run 'dcos node'"
         return 1
     }
-    
+
     # Count API agent IPs
     local dcos_api_ips_no=$(echo $dcos_api_ips | tr ' ' '\n' | awk 'END{print NR}')
 
@@ -672,7 +674,7 @@ compare_azure_vms_and_dcos_agents() {
         echo "ERROR: Number of Azure VM IPs is different from number of DCOS API IPs"
         return 1
     fi
-    
+
     # diff the 2 lists of IPs (which are already sorted)
     diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") 2>&1
 
