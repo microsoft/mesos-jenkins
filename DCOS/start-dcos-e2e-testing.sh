@@ -7,6 +7,11 @@ if [[ -z $WORKSPACE ]]; then
     exit 1
 fi
 
+if [[ -z $MASTER_WHITELISTED_IPS ]]; then
+    echo "ERROR: The environment variable MASTER_WHITELISTED_IPS is not set."
+    exit 1
+fi
+
 echo "Starting time: $(date)"
 
 # - Source the the DC/OS e2e functions
@@ -17,7 +22,7 @@ ACS_ENGINE_URL="http://dcos-win.westus.cloudapp.azure.com/acs-engine/stable-cand
 mkdir -p $WORKSPACE/bin && \
 curl $ACS_ENGINE_URL -o $WORKSPACE/bin/acs-engine && \
 chmod +x $WORKSPACE/bin/acs-engine && \
-export PATH="$WORKSPACE/bin:$PATH" 
+export PATH="$WORKSPACE/bin:$PATH"
 check_exit_code false
 
 # - Login to Azure
