@@ -130,8 +130,8 @@ function New-DCOSWindowsAgentBlob {
         $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts\DCOSWindowsAgentSetup.ps1"
         ###
     }
-    Copy-Item -Path $initScript -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
-    Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
+    Copy-Item -Path $initScript -Destination "$($global:PARAMETERS['ARTIFACTS_DIR'])\DCOSWindowsAgentSetup.ps1"
+    Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "$($global:PARAMETERS['ARTIFACTS_DIR'])\preprovision"
     Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
 
     Write-Log "Creating zip package from $blobDir"
