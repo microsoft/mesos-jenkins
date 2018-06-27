@@ -228,7 +228,7 @@ open_dcos_port() {
         return 1
     }
     # NOTE: We take the fist master NIC
-    MASTER_NIC_NAME=$(az network nic list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $3}' | head -1) || {
+    MASTER_NIC_NAME=$(az network nic list --resource-group $AZURE_RESOURCE_GROUP --output table | grep 'dcos-master' | awk '{print $5}' | head -1) || {
         echo "ERROR: Failed to get the master NIC name"
         return 1
     }
