@@ -93,7 +93,7 @@ function New-DCOSWindowsAgentBlob {
     $devConBinary = Join-Path $blobDir "devcon.exe"
     Move-Item $devConFile $devConBinary
     Remove-Item -Force $cabPkg
-    # - Clone dcos/dcos-windows repository
+    # - Fetch dcos-windows/scripts directory
     Write-Log "Fetching dcos-windows/scripts"
     if($GithubPRHeadSha) {
         $fileName = "${GithubPRHeadSha}"
@@ -109,8 +109,9 @@ function New-DCOSWindowsAgentBlob {
     }
     Start-FileDownload -URL $dcoswindowsZipUrl -Destination $dcoswindowsArchive
     Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
+    Remove-Item -Force -Path $dcoswindowsArchive
     Move-Item "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts" $setupScripts
-    #
+    ###
     # TODO(ibalutoiu): For backwards compatibility we also copy the scripts file to
     #                  AGENT_BLOB_DIR\dcos-windows\scripts (the expected location atm).
     #                  The following lines will be removed, only we fully transition
@@ -119,8 +120,19 @@ function New-DCOSWindowsAgentBlob {
     New-Item -ItemType Directory -Path "${blobDir}\dcos-windows"
     Copy-Item -Recurse -Force -Path $setupScripts -Destination "${blobDir}\dcos-windows\"
     ###
+    # - Copy the init script and the pre-provision scripts for the CI
+    $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\DCOSWindowsAgentSetup.ps1"
+    if(!(Test-Path $initScript)) {
+        ###
+        # TODO(ibalutoiu): The DCOSWindowsAgentSetup.ps1 location should be in the
+        #                  repository root directory. Remove the old location, once
+        #                  it is not used anymore
+        $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts\DCOSWindowsAgentSetup.ps1"
+        ###
+    }
+    Copy-Item -Path $initScript -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
+    Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
     Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
-    Remove-Item -Force -Path $dcoswindowsArchive
 
     Write-Log "Creating zip package from $blobDir"
     $blobTargetPath = Join-Path $ARTIFACTS_DIR $WINDOWS_AGENT_BLOB_FILE_NAME

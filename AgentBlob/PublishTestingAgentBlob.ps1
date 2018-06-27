@@ -59,10 +59,6 @@ function Publish-BuildArtifacts {
     if((Get-ChildItem $ArtifactsDirectory).Count -eq 0) {
         Throw "The artifacts directory is empty"
     }
-    # Fetch the CI init script before publishing artifacts
-    Start-FileDownload -URL "https://raw.githubusercontent.com/dcos/dcos-windows/master/scripts/DCOSWindowsAgentSetup.ps1" `
-                       -Destination "${ArtifactsDirectory}\DCOSWindowsAgentSetup.ps1"
-    Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "${ArtifactsDirectory}\preprovision"
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
     Copy-FilesToRemoteServer "${ArtifactsDirectory}\*" $remoteBuildDir
