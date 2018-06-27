@@ -62,6 +62,7 @@ function Publish-BuildArtifacts {
     $remoteBuildDir = "${REMOTE_BASE_DIR}/${ReleaseVersion}"
     New-RemoteDirectory -RemoteDirectoryPath $remoteBuildDir
     Copy-FilesToRemoteServer "${ArtifactsDirectory}\*" $remoteBuildDir
+    Write-Output "Testing agent blob published to: $($global:PARAMETERS['DCOS_WINDOWS_BOOTSTRAP_URL'])"
     if($NewLatestSymlink) {
         New-RemoteSymlink -RemotePath $remoteBuildDir -RemoteSymlinkPath "${REMOTE_BASE_DIR}/latest"
     }
