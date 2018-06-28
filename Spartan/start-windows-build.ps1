@@ -1,6 +1,6 @@
 Param(
     [Parameter(Mandatory=$false)]
-    [string]$GitURL="http://github.com/dcos/spartan",
+    [string]$GitURL="https://github.com/dcos/spartan",
     [Parameter(Mandatory=$false)]
     [string]$Branch="master",
     [Parameter(Mandatory=$false)]
