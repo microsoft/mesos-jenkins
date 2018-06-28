@@ -471,19 +471,12 @@ test_mesos_fetcher() {
     $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
-    REMOTE_CMD='docker ps | Where-Object { $_.Contains("microsoft/iis") -and $_.Contains("->80/tcp") } | ForEach-Object { $_.Split()[0] }'
-    DOCKER_CONTAINER_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
-        echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
+    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/mesos-fetcher-checksum.ps1" "$DIR/utils/mesos-fetcher-checksum.ps1" || {
+        echo "ERROR: Failed to scp mesos-fetcher-checksum.ps1"
         return 1
     }
-    if [[ -z $DOCKER_CONTAINER_ID ]]; then
-        echo "ERROR: There aren't any Docker containers running on $TASK_HOST for application $APPLICATION_NAME"
-        return 1
-    fi
-    REMOTE_CMD="docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash"
-    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
-        echo "ERROR: Failed to get the fetcher file MD5 checksum"
-        return 1
+    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/mesos-fetcher-checksum.ps1") || {
+        echo "ERROR: Failed to get MD5 checksum for the fetcher file"
     }
     if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
         echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
