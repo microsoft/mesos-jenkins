@@ -710,6 +710,12 @@ test_dcos_windows_apps() {
         test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
     done
+
+    # Shutdown testing
+    local AGENT_ROLES=("*" "slave_public")
+    for ROLE in "${AGENT_ROLES[@]}"; do
+        test_windows_agent_graceful_shutdown "${ROLE}" || return 1
+    done
 }
 
 test_windows_agent_recovery() {
@@ -788,6 +794,107 @@ test_windows_agent_recovery() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
+test_windows_agent_graceful_shutdown() {
+		# test comment
+    local AGENT_HOSTNAME=""
+    local AGENT_ROLE="$1"
+    if [[ "${AGENT_ROLE}" == "*" ]]; then
+        local APP_ID="test-windows-graceful-shutdown-star"
+    else
+        local APP_ID="test-windows-graceful-shutdown-$(echo "${AGENT_ROLE}" | tr _ -)"
+    fi
+    # eval-ing template and deleting hostname constraint -- failover impossible with constraint
+    eval "cat <<-EOF
+	$(cat $WINDOWS_APP_TEMPLATE | jq -r 'del(.constraints[1])')
+	EOF
+	" > $WINDOWS_APP_RENDERED_TEMPLATE
+
+    echo "Deploying a Windows Marathon application on DC/OS"
+
+    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application"
+        return 1
+    }
+    
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+    
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
+    
+    #
+    #### Stopping service
+    #
+    setup_remote_winrm_client || return 1
+    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/stop-mesos-service.ps1" "$DIR/utils/stop-mesos-service.ps1" || {
+        echo "ERROR: Failed to scp stop-mesos-service.ps1"
+        return 1
+    }
+    echo "Stopping the dcos-mesos-slave service on $AGENT_HOSTNAME"
+    local REMOTE_CMD_STOP="/tmp/wsmancmd -H $AGENT_HOSTNAME -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/stop-mesos-service.ps1"
+    local CHECK_RESULT_STOP=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD_STOP" 2>/dev/null) || {
+        echo -e "Error: Failed to run service kill script on $AGENT_HOSTNAME"
+        return 1
+    }
+
+    if [ "$CHECK_RESULT_STOP" == "SUCCESS" ]; then
+        echo "Service dcos-mesos-slave successfully Stopped!"
+    elif [ "$CHECK_RESULT_STOP" == "FAILURE" ]; then
+        echo "ERROR: Service dcos-mesos-slave stopping failure"
+        return 1
+    else
+        echo "ERROR: Service dcos-mesos-slave is in '$CHECK_RESULT' state, which is unknown"
+        return 1
+    fi
+
+    echo "Sleeping 10s to wait for node to clear in DCOS API"
+    sleep 10 
+    local TASKS=$(dcos marathon task list | grep $AGENT_HOSTNAME)
+    if [[ $TASKS == "" ]]; then
+        echo "No tasks running on $AGENT_HOSTNAME"
+    else
+        echo "Tasks still running on $AGENT_HOSTNAME"
+        return 1
+    fi
+
+    # Check task health after task failover
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME --ignore-last-task-failure || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    local NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+    test_dcos_task_connectivity "$APP_NAME" "$NEW_TASK_HOST" "$AGENT_ROLE" "$PORT" || return 1
+    echo "Graceful shutdown successful on $AGENT_HOSTNAME!"
+
+    remove_dcos_marathon_app $APP_NAME || return 1
+    
+    # Start service back up
+    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/start-mesos-service.ps1" "$DIR/utils/start-mesos-service.ps1" || {
+        echo "ERROR: Failed to scp start-mesos-service.ps1"
+        return 1
+    }
+    local REMOTE_CMD_START="/tmp/wsmancmd -H $AGENT_HOSTNAME -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/start-mesos-service.ps1"
+    local CHECK_RESULT_START=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD_START" 2>/dev/null) || {
+        echo -e "Error: Failed to run service start script on $AGENT_HOSTNAME"
+        return 1
+    }
+
+    if [ "$CHECK_RESULT_START" == "SUCCESS" ]; then
+        echo "Service dcos-mesos-slave successfully started back up!"
+    elif [ "$CHECK_RESULT_START" == "FAILURE" ]; then
+        echo "ERROR: Service dcos-mesos-slave starting failure"
+        return 1
+    else
+        echo "ERROR: Service dcos-mesos-slave is in '$CHECK_RESULT' state, which is unknown"
+        return 1
+    fi
+}
 
 run_functional_tests() {
     #
