@@ -11,6 +11,9 @@ def parse_parameters():
         description="Verify if all the DCOS app tasks are healthy")
     parser.add_argument("-n", "--name", type=str, required=True,
                         help="The DCOS application name")
+    parser.add_argument("--ignore-last-task-failure", action='store_true',
+                        required=False, default=False, help="Flag to ignore"
+                        "last task failure, used for recovery testing")
     return parser.parse_args()
 
 
@@ -109,10 +112,11 @@ def main():
     print("All the health checks for the application %s reported "
           "successfully." % (app["id"]))
     app = client.get_app(params.name)
-    if "lastTaskFailure" in app.keys():
-        failure_message = app["lastTaskFailure"]["message"]
-        raise Exception("Marathon reported last task failure. "
-                        "Failure message: %s" % (failure_message))
+    if not params.ignore_last_task_failure:
+        if "lastTaskFailure" in app.keys():
+            failure_message = app["lastTaskFailure"]["message"]
+            raise Exception("Marathon reported last task failure. "
+                            "Failure message: %s" % (failure_message))
 
 
 if __name__ == '__main__':
