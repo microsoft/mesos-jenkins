@@ -468,14 +468,14 @@ test_custom_attributes() {
 
 test_mesos_fetcher() {
     local APPLICATION_NAME="$1"
+    local AGENT_HOSTNAME="$2"
     $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
     setup_remote_winrm_client || return 1
-    TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
     upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/mesos-fetcher-checksum.ps1" "$DIR/utils/mesos-fetcher-checksum.ps1" || {
         echo "ERROR: Failed to scp mesos-fetcher-checksum.ps1"
         return 1
     }
-    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/mesos-fetcher-checksum.ps1") || {
+    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $AGENT_HOSTNAME -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/mesos-fetcher-checksum.ps1") || {
         echo "ERROR: Failed to get MD5 checksum for the fetcher file"
     }
     if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
@@ -510,7 +510,7 @@ test_mesos_fetcher_local() {
     }
     dcos marathon app add $FETCHER_LOCAL_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
         return 1
@@ -536,7 +536,7 @@ test_mesos_fetcher_remote_http() {
     echo "Testing Mesos fetcher using remote http resource"
     dcos marathon app add $FETCHER_HTTP_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_HTTP_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote http resource"
         return 1
@@ -562,7 +562,7 @@ test_mesos_fetcher_remote_https() {
     echo "Testing Mesos fetcher using remote https resource"
     dcos marathon app add $FETCHER_HTTPS_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote https resource"
         return 1
