@@ -75,12 +75,12 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
-IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
-IIS_RENDERED_TEMPLATE="${WORKSPACE}/iis.json"
-PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
-PRIVATE_IIS_RENDERED_TEMPLATE="${WORKSPACE}/private-iis.json"
-WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
-WINDOWS_APP_RENDERED_TEMPLATE="${WORKSPACE}/windows-app.json"
+WINDOWS_APP_CONTAINER_TEMPLATE="$DIR/templates/marathon/windows-app-container.json"
+WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-container.json"
+DOCKER_PRIVATE_TEMPLATE="$DIR/templates/marathon/docker-private-image.json"
+DOCKER_PRIVATE_RENDERED_TEMPLATE="${WORKSPACE}/docker-private-image.json"
+WINDOWS_APP_PUBLISH_TEMPLATE="$DIR/templates/marathon/windows-app-publish.json"
+WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-publish.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTP_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
@@ -331,22 +331,22 @@ test_win_marathon_app_port_publish() {
     local APP_ID="test-win-app-publish-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $WINDOWS_APP_TEMPLATE)
+	$(cat $WINDOWS_APP_PUBLISH_TEMPLATE)
 	EOF
-	" > $WINDOWS_APP_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying a Windows Marathon application on DC/OS"
-    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    PORT=$(get_marathon_application_host_port $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE)
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
@@ -374,16 +374,16 @@ test_win_marathon_app_port_container() {
     local APP_ID="test-win-app-container-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $IIS_TEMPLATE)
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE)
 	EOF
-	" > $IIS_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying IIS application on DC/OS"
-    dcos marathon app add $IIS_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $IIS_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
@@ -405,9 +405,9 @@ test_docker_private_image() {
     
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $PRIVATE_IIS_TEMPLATE)
+	$(cat $DOCKER_PRIVATE_TEMPLATE)
 	EOF
-	" > $PRIVATE_IIS_RENDERED_TEMPLATE
+	" > $DOCKER_PRIVATE_RENDERED_TEMPLATE
 
     # Start deployment
     echo "Testing marathon applications with Docker private images"
@@ -441,11 +441,11 @@ test_docker_private_image() {
     }
 
     echo "Deploying IIS application from private image on DC/OS"
-    dcos marathon app add $PRIVATE_IIS_RENDERED_TEMPLATE || {
+    dcos marathon app add $DOCKER_PRIVATE_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $DOCKER_PRIVATE_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
@@ -727,17 +727,17 @@ test_windows_agent_recovery() {
     local AGENT_ROLE="$2"
     local APP_ID="test-windows-recovery-$(echo $AGENT_HOSTNAME | tr . -)"
     eval "cat <<-EOF
-	$(cat $WINDOWS_APP_TEMPLATE)
+	$(cat $WINDOWS_APP_PUBLISH_TEMPLATE)
 	EOF
-	" > $WINDOWS_APP_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE
     echo "Deploying a Windows Marathon application on DC/OS"
 
-    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
     
-    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE)
     
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
@@ -745,7 +745,7 @@ test_windows_agent_recovery() {
         return 1
     }
 
-    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE)
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
 
     #
