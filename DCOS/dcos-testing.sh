@@ -319,7 +319,7 @@ test_dcos_task_connectivity() {
     fi
 }
 
-test_windows_marathon_app() {
+test_win_marathon_app_port_publish() {
     #
     # - Deploy a simple IIS web server on Windows
     # - Check if Marathon successfully launched the Mesos Docker task
@@ -365,7 +365,7 @@ test_windows_marathon_app() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
-test_iis() {
+test_win_marathon_app_port_container() {
     #
     # - Deploy a simple DC/OS IIS marathon application
     #
@@ -395,7 +395,7 @@ test_iis() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
-test_iis_docker_private_image() {
+test_docker_private_image() {
     #
     # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
     #
@@ -699,20 +699,20 @@ test_dcos_windows_apps() {
     fi
     for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
         local AGENT_ROLE="*"
-        test_windows_marathon_app "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_container "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_windows_agent_recovery "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
     done
     for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
         local AGENT_ROLE="slave_public"
-        test_windows_marathon_app "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_container "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_windows_agent_recovery "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
