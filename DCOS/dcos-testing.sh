@@ -817,7 +817,6 @@ test_windows_agent_graceful_shutdown() {
     }
     
     local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
-    local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
@@ -825,6 +824,7 @@ test_windows_agent_graceful_shutdown() {
         return 1
     }
     local PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     
     #
@@ -852,15 +852,22 @@ test_windows_agent_graceful_shutdown() {
         return 1
     fi
 
-    echo "Sleeping 10s to wait for node to clear in DCOS API"
-    sleep 10 
-    local TASKS=$(dcos marathon task list | grep $AGENT_HOSTNAME)
-    if [[ $TASKS == "" ]]; then
-        echo "No tasks running on $AGENT_HOSTNAME"
-    else
-        echo "Tasks still running on $AGENT_HOSTNAME"
-        return 1
-    fi
+    echo "Waiting with a timeout of 3mins for DCOS to migrate the task from $AGENT_HOSTNAME..."
+    local NEW_TASK_HOST=""
+    while true; do
+        if [[ $SECONDS -gt 180 ]]; then
+            echo "ERROR: task for $APP_NAME didn't migrate from $AGENT_HOSTNAME within $TIMEOUT seconds"
+            return 1
+        fi
+        NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+        if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]]; then
+            echo "No tasks running on $AGENT_HOSTNAME, task migrated to $NEW_TASK_HOST"    
+            break
+        else
+            sleep 1
+        fi
+
+    done
 
     # Check task health after task failover
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME --ignore-last-task-failure || {
@@ -868,7 +875,6 @@ test_windows_agent_graceful_shutdown() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    local NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     test_dcos_task_connectivity "$APP_NAME" "$NEW_TASK_HOST" "$AGENT_ROLE" "$PORT" || return 1
     echo "Graceful shutdown successful on $AGENT_HOSTNAME!"
 
