@@ -328,7 +328,7 @@ test_win_marathon_app_port_publish() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    local APP_ID="test-windows-app-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-win-app-publish-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $WINDOWS_APP_TEMPLATE)
@@ -371,7 +371,7 @@ test_win_marathon_app_port_container() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-win-app-container-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $IIS_TEMPLATE)
@@ -401,7 +401,7 @@ test_docker_private_image() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-private-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-docker-private-$(echo $AGENT_HOSTNAME | tr . -)"
     
     # Generate json file from template
 	eval "cat <<-EOF
@@ -498,7 +498,7 @@ test_mesos_fetcher_local() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_LOCAL_TEMPLATE)
@@ -533,7 +533,7 @@ test_mesos_fetcher_remote_http() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTP_TEMPLATE)
@@ -559,7 +559,7 @@ test_mesos_fetcher_remote_https() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTPS_TEMPLATE)
