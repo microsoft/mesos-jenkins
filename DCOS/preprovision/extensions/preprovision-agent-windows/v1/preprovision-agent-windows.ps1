@@ -26,7 +26,11 @@ if(!(Test-Path $SCRIPTS_DIRECTORY)) {
 
 foreach($script in $SCRIPTS.Keys) {
     Write-Output "Downloading: $($SCRIPTS[$script]["url"])"
-    Invoke-WebRequest -UseBasicParsing -Uri $SCRIPTS[$script]["url"] -OutFile  $SCRIPTS[$script]["local_file"]
+    curl.exe -s --retry 10 $SCRIPTS[$script]["url"] -o $SCRIPTS[$script]["local_file"]
+    if($LASTEXITCODE) {
+        Write-Output "Failed to download $($SCRIPTS[$script]["url"])"
+        exit 1
+    }
     Write-Output "Executing script with full path $($SCRIPTS[$script]["local_file"])"
     & $SCRIPTS[$script]["local_file"]
     if ($LASTEXITCODE) {

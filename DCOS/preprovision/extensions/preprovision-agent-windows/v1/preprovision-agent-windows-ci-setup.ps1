@@ -13,6 +13,35 @@ function Write-Log {
     Write-Output $msg
 }
 
+function Start-FileDownload {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$URL,
+        [Parameter(Mandatory=$true)]
+        [string]$Destination,
+        [Parameter(Mandatory=$false)]
+        [string]$User,
+        [Parameter(Mandatory=$false)]
+        [string]$Password,
+        [Parameter(Mandatory=$false)]
+        [int]$RetryCount=10,
+        [Parameter(Mandatory=$false)]
+        [switch]$Force
+    )
+    $params = @('-fLsS', '--retry', $RetryCount)
+    if($User -and $Password) {
+        $params += @('--user', "${User}:${Password}")
+    }
+    if($Force) {
+        $params += '--insecure'
+    }
+    $params += @('-o', $Destination, $URL)
+    $p = Start-Process -FilePath 'curl.exe' -ArgumentList $params -Wait -PassThru
+    if($p.ExitCode -ne 0) {
+        Throw "Fail to download $URL"
+    }
+}
+
 function Start-ExecuteWithRetry {
     Param(
         [Parameter(Mandatory=$true)]
@@ -86,7 +115,7 @@ function Install-Git {
     }
     Write-Log "Downloading Git from $gitInstallerURL"
     $programFile = Join-Path $env:TEMP "git.exe"
-    Start-ExecuteWithRetry { Invoke-WebRequest -UseBasicParsing -Uri $gitInstallerURL -OutFile $programFile }
+    Start-FileDownload -URL $gitInstallerURL -Destination $programFile
     $parameters = @{
         'FilePath' = $programFile
         'ArgumentList' = @("/SILENT")
@@ -117,8 +146,7 @@ try {
     # Configure WinRM
     #
     $configWinRMScript = Join-Path $env:SystemDrive "AzureData\ConfigureWinRM.ps1"
-    Start-ExecuteWithRetry -ScriptBlock { Invoke-WebRequest -UseBasicParsing -Uri $CONFIG_WINRM_SCRIPT -OutFile $configWinRMScript } `
-                           -MaxRetryCount 30 -RetryInterval 3 -RetryMessage "Failed to download ConfigureWinRM.ps1 script. Retrying"
+    Start-FileDownload -URL $CONFIG_WINRM_SCRIPT -Destination $configWinRMScript -RetryCount 30
     & $configWinRMScript
     if($LASTEXITCODE -ne 0) {
         Throw "Failed to configure WinRM"
@@ -142,8 +170,7 @@ try {
     if($LASTEXITCODE) {
         Throw "Failed to delete service: $serviceName"
     }
-    Start-ExecuteWithRetry -ScriptBlock { Invoke-WebRequest -UseBasicParsing -Uri $wrapperUrl -OutFile "${dockerHome}\service-wrapper.exe" } `
-                           -MaxRetryCount 30 -RetryInterval 3 -RetryMessage "Failed to download service-wrapper.exe. Retrying"
+    Start-FileDownload -URL $wrapperUrl -Destination "${dockerHome}\service-wrapper.exe" -RetryCount 30
     $binPath = ("`"${dockerHome}\service-wrapper.exe`" " +
                 "--service-name `"$serviceName`" " +
                 "--exec-start-pre `"powershell.exe if(Test-Path '${env:ProgramData}\docker\docker.pid') { Remove-Item -Force '${env:ProgramData}\docker\docker.pid' }`" " +
