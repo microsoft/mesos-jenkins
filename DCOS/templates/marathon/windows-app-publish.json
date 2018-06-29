@@ -23,10 +23,10 @@
     "docker": {
       "image": "dcoswindowsci/windows:1803",
       "privileged": false,
-      "portMappings": [
+      "parameters": [
         {
-          "containerPort": 80,
-          "hostPort": 31500
+          "key": "publish",
+          "value": "80:80"
         }
       ],
       "forcePullImage": false
