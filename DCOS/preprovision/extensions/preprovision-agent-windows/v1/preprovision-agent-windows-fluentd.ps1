@@ -9,8 +9,10 @@ $env:Path = "$fluentPath;" + $env:Path.Replace("$fluentPath;", "")
 
 function Get-Fluentd () {
     Write-Output "Downloading fluentd/td-agent..."
-    $wc = New-Object System.Net.WebClient
-    $wc.DownloadFile($url, $MSI_PATH)
+    curl.exe -s --retry 10 $url -o $MSI_PATH
+    if($LASTEXITCODE) {
+        Throw "Failed to download the Fluentd installer"
+    }
 }
 
 function Install-Fluentd () {

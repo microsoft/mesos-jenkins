@@ -350,7 +350,7 @@ function Start-FileDownload {
         $params += @('--user', "${User}:${Password}")
     }
     if($Force) {
-        $params += 'insecure'
+        $params += '--insecure'
     }
     $params += @('-o', $Destination, $URL)
     $p = Start-Process -FilePath 'curl.exe' -ArgumentList $params -Wait -PassThru
