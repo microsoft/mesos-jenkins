@@ -795,13 +795,11 @@ test_windows_agent_recovery() {
 }
 
 test_windows_agent_graceful_shutdown() {
-		# test comment
-    local AGENT_HOSTNAME=""
     local AGENT_ROLE="$1"
     if [[ "${AGENT_ROLE}" == "*" ]]; then
-        local APP_ID="test-windows-graceful-shutdown-star"
+        local APP_ID="test-windows-graceful-shutdown-private-agent"
     else
-        local APP_ID="test-windows-graceful-shutdown-$(echo "${AGENT_ROLE}" | tr _ -)"
+        local APP_ID="test-windows-graceful-shutdown-public-agent"
     fi
     # eval-ing template and deleting hostname constraint -- failover impossible with constraint
     eval "cat <<-EOF
@@ -854,6 +852,7 @@ test_windows_agent_graceful_shutdown() {
 
     echo "Waiting with a timeout of 3mins for DCOS to migrate the task from $AGENT_HOSTNAME..."
     local NEW_TASK_HOST=""
+    SECONDS=0
     while true; do
         if [[ $SECONDS -gt 180 ]]; then
             echo "ERROR: task for $APP_NAME didn't migrate from $AGENT_HOSTNAME within $TIMEOUT seconds"
@@ -861,7 +860,7 @@ test_windows_agent_graceful_shutdown() {
         fi
         NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
         if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]]; then
-            echo "No tasks running on $AGENT_HOSTNAME, task migrated to $NEW_TASK_HOST"    
+            echo "Task successfully migrated from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
             break
         else
             sleep 1
