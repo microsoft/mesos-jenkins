@@ -581,7 +581,7 @@ test_windows_agent_dcos_dns() {
     local AGENT_IP="$1"
     local DNS_RECORD="$2"
     echo -e "Trying to resolve $DNS_RECORD on Windows agent $AGENT_IP"
-    REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'nslookup.exe $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
     MAX_RETRIES=10
     RETRIES=0
     while [[ $RETRIES -le $MAX_RETRIES ]]; do
