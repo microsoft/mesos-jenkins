@@ -13,31 +13,17 @@ function Write-Log {
     Write-Output $msg
 }
 
-function Start-FileDownload {
+function Start-FileDownloadWithCurl {
     Param(
         [Parameter(Mandatory=$true)]
         [string]$URL,
         [Parameter(Mandatory=$true)]
         [string]$Destination,
         [Parameter(Mandatory=$false)]
-        [string]$User,
-        [Parameter(Mandatory=$false)]
-        [string]$Password,
-        [Parameter(Mandatory=$false)]
-        [int]$RetryCount=10,
-        [Parameter(Mandatory=$false)]
-        [switch]$Force
+        [int]$RetryCount=10
     )
-    $params = @('-fLsS', '--retry', $RetryCount)
-    if($User -and $Password) {
-        $params += @('--user', "${User}:${Password}")
-    }
-    if($Force) {
-        $params += '--insecure'
-    }
-    $params += @('-o', $Destination, $URL)
-    $p = Start-Process -FilePath 'curl.exe' -ArgumentList $params -Wait -PassThru
-    if($p.ExitCode -ne 0) {
+    curl.exe --retry $RetryCount -o `"$Destination`" `"$URL`"
+    if($LASTEXITCODE) {
         Throw "Fail to download $URL"
     }
 }
@@ -115,7 +101,7 @@ function Install-Git {
     }
     Write-Log "Downloading Git from $gitInstallerURL"
     $programFile = Join-Path $env:TEMP "git.exe"
-    Start-FileDownload -URL $gitInstallerURL -Destination $programFile
+    Start-FileDownloadWithCurl -URL $gitInstallerURL -Destination $programFile
     $parameters = @{
         'FilePath' = $programFile
         'ArgumentList' = @("/SILENT")
@@ -146,7 +132,7 @@ try {
     # Configure WinRM
     #
     $configWinRMScript = Join-Path $env:SystemDrive "AzureData\ConfigureWinRM.ps1"
-    Start-FileDownload -URL $CONFIG_WINRM_SCRIPT -Destination $configWinRMScript -RetryCount 30
+    Start-FileDownloadWithCurl -URL $CONFIG_WINRM_SCRIPT -Destination $configWinRMScript -RetryCount 30
     & $configWinRMScript
     if($LASTEXITCODE -ne 0) {
         Throw "Failed to configure WinRM"
@@ -170,7 +156,7 @@ try {
     if($LASTEXITCODE) {
         Throw "Failed to delete service: $serviceName"
     }
-    Start-FileDownload -URL $wrapperUrl -Destination "${dockerHome}\service-wrapper.exe" -RetryCount 30
+    Start-FileDownloadWithCurl -URL $wrapperUrl -Destination "${dockerHome}\service-wrapper.exe" -RetryCount 30
     $binPath = ("`"${dockerHome}\service-wrapper.exe`" " +
                 "--service-name `"$serviceName`" " +
                 "--exec-start-pre `"powershell.exe if(Test-Path '${env:ProgramData}\docker\docker.pid') { Remove-Item -Force '${env:ProgramData}\docker\docker.pid' }`" " +
