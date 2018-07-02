@@ -40,7 +40,7 @@ cat > $UPDATE_CONFIG_SCRIPT << EOF
 import json
 import sys
 
-CONFIG_FILE = "/opt/mesosphere/etc/dcos-check-config.json"
+CONFIG_FILE = sys.argv[1]
 
 with open(CONFIG_FILE, 'r') as f:
     str_config = f.read()
@@ -66,9 +66,10 @@ systemctl stop dcos-metrics-agent.service
 systemctl disable dcos-metrics-agent.service
 
 if [[ -e "/opt/mesosphere/etc/dcos-check-config.json" ]]; then
-    python $UPDATE_CONFIG_SCRIPT
+    python $UPDATE_CONFIG_SCRIPT "/opt/mesosphere/etc/dcos-check-config.json"
+elif [[ -e "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json" ]]; then
+    python $UPDATE_CONFIG_SCRIPT "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json"
 fi
-retrycmd_if_failure 10 10 120 curl -fsSL -o /opt/mesosphere/etc/dcos-diagnostics-runner-config.json https://dcos-mirror.azureedge.net/preprovision/dcos-diagnostics-runner-config-no-dcos-metrics.json
 
 systemctl restart dcos-checks-poststart.service || echo skipped
 EOF
