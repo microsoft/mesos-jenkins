@@ -66,6 +66,7 @@ systemctl stop dcos-metrics-agent.service
 systemctl disable dcos-metrics-agent.service
 
 python $UPDATE_CONFIG_SCRIPT
+retrycmd_if_failure 10 10 120 curl -fsSL -o /opt/mesosphere/etc/dcos-diagnostics-runner-config.json https://dcos-mirror.azureedge.net/preprovision/dcos-diagnostics-runner-config-no-dcos-metrics.json
 
 systemctl restart dcos-checks-poststart.service || echo skipped
 EOF
