@@ -38,4 +38,4 @@ foreach($script in $SCRIPTS.Keys) {
         exit 1
     }
 }
-Write-Output "Finished preprovisioning mesos credentials and fluentd agent"
+Write-Output "Finished executing the preprovision-agent-windows.ps1 script"
