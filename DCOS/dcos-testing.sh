@@ -79,6 +79,7 @@ WINDOWS_APP_CONTAINER_TEMPLATE="$DIR/templates/marathon/windows-app-container.js
 WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-container.json"
 DOCKER_PRIVATE_TEMPLATE="$DIR/templates/marathon/docker-private-image.json"
 DOCKER_PRIVATE_RENDERED_TEMPLATE="${WORKSPACE}/docker-private-image.json"
+IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
 WINDOWS_APP_PUBLISH_TEMPLATE="$DIR/templates/marathon/windows-app-publish.json"
 WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-publish.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
@@ -321,7 +322,7 @@ test_dcos_task_connectivity() {
 
 test_win_marathon_app_port_container() {
     #
-    # - Deploy a simple IIS web server on Windows
+    # - Deploy a simple web server on Windows
     # - Check if Marathon successfully launched the Mesos Docker task
     # - Check if the exposed port is open
     # - Check if the DNS records for the task are advertised to the Windows nodes
@@ -367,7 +368,7 @@ test_win_marathon_app_port_container() {
 
 test_win_marathon_app_port_publish() {
     #
-    # - Deploy a simple DC/OS IIS marathon application
+    # - Deploy a simple DC/OS marathon application
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
@@ -378,7 +379,7 @@ test_win_marathon_app_port_publish() {
 	EOF
 	" > $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE
     # Start deployment
-    echo "Deploying IIS application on DC/OS"
+    echo "Deploying Windows application on DC/OS"
     dcos marathon app add $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
@@ -397,7 +398,7 @@ test_win_marathon_app_port_publish() {
 
 test_docker_private_image() {
     #
-    # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
+    # Check if marathon can spawn a simple DC/OS Windows marathon application from a private docker image
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
@@ -440,7 +441,7 @@ test_docker_private_image() {
         return 1
     }
 
-    echo "Deploying IIS application from private image on DC/OS"
+    echo "Deploying Windows application from private image on DC/OS"
     dcos marathon app add $DOCKER_PRIVATE_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
@@ -482,7 +483,9 @@ test_mesos_fetcher() {
         echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
         return 1
     fi
-    echo "The MD5 checksum for the fetcher file was successfully checked"
+    echo -e "\n"
+    echo -e "The MD5 checksum for the fetcher file was successfully checked"
+    echo -e "\n"
 }
 
 test_mesos_fetcher_local() {
@@ -901,6 +904,32 @@ test_windows_agent_graceful_shutdown() {
     fi
 }
 
+test_iis() {
+    #
+    # - Deploy a simple DC/OS IIS marathon application
+    #
+    echo "Deploying IIS application on DC/OS"
+    dcos marathon app add $IIS_TEMPLATE || {
+        echo "ERROR: Failed to deploy the IIS Marathon application"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    echo "Success: Port 80 is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
@@ -908,9 +937,10 @@ run_functional_tests() {
     #  - Test if the custom attributes are set
     #  - Test if the Mesos master - agent authentication is enabled
     #  - Test DC/OS DNS functionality from the Windows node
+    #  - Test a DC/OS Windows task with IIS web server
     #  - Test if a Windows marathon application can be successfully deployed and consumed
     #  - Test Windows agent recovery after taskkill
-    #  - Test a simple IIS marathon Windows app
+    #  - Test a simple marathon Windows app
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
@@ -919,6 +949,7 @@ run_functional_tests() {
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
+    test_iis || return 1
     test_dcos_windows_apps || return 1
 }
 
