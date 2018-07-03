@@ -75,12 +75,12 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MASTER_PUBLIC_ADDRESS="${LINUX_MASTER_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 WIN_AGENT_PUBLIC_ADDRESS="${WIN_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
 LINUX_AGENT_PUBLIC_ADDRESS="${LINUX_AGENT_DNS_PREFIX}.${AZURE_REGION}.cloudapp.azure.com"
-IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
-IIS_RENDERED_TEMPLATE="${WORKSPACE}/iis.json"
-PRIVATE_IIS_TEMPLATE="$DIR/templates/marathon/private-iis.json"
-PRIVATE_IIS_RENDERED_TEMPLATE="${WORKSPACE}/private-iis.json"
-WINDOWS_APP_TEMPLATE="$DIR/templates/marathon/windows-app.json"
-WINDOWS_APP_RENDERED_TEMPLATE="${WORKSPACE}/windows-app.json"
+WINDOWS_APP_CONTAINER_TEMPLATE="$DIR/templates/marathon/windows-app-container.json"
+WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-container.json"
+DOCKER_PRIVATE_TEMPLATE="$DIR/templates/marathon/docker-private-image.json"
+DOCKER_PRIVATE_RENDERED_TEMPLATE="${WORKSPACE}/docker-private-image.json"
+WINDOWS_APP_PUBLISH_TEMPLATE="$DIR/templates/marathon/windows-app-publish.json"
+WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-publish.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
 FETCHER_HTTP_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-http.json"
 FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
@@ -319,7 +319,7 @@ test_dcos_task_connectivity() {
     fi
 }
 
-test_windows_marathon_app() {
+test_win_marathon_app_port_container() {
     #
     # - Deploy a simple IIS web server on Windows
     # - Check if Marathon successfully launched the Mesos Docker task
@@ -328,25 +328,25 @@ test_windows_marathon_app() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    local APP_ID="test-windows-app-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-win-app-container-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $WINDOWS_APP_TEMPLATE)
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE)
 	EOF
-	" > $WINDOWS_APP_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying a Windows Marathon application on DC/OS"
-    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     setup_remote_winrm_client || return 1
     TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
@@ -365,25 +365,25 @@ test_windows_marathon_app() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
-test_iis() {
+test_win_marathon_app_port_publish() {
     #
     # - Deploy a simple DC/OS IIS marathon application
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-win-app-publish-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $IIS_TEMPLATE)
+	$(cat $WINDOWS_APP_PUBLISH_TEMPLATE)
 	EOF
-	" > $IIS_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE
     # Start deployment
     echo "Deploying IIS application on DC/OS"
-    dcos marathon app add $IIS_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $IIS_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
@@ -395,19 +395,19 @@ test_iis() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
-test_iis_docker_private_image() {
+test_docker_private_image() {
     #
     # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-private-iis-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-docker-private-$(echo $AGENT_HOSTNAME | tr . -)"
     
     # Generate json file from template
 	eval "cat <<-EOF
-	$(cat $PRIVATE_IIS_TEMPLATE)
+	$(cat $DOCKER_PRIVATE_TEMPLATE)
 	EOF
-	" > $PRIVATE_IIS_RENDERED_TEMPLATE
+	" > $DOCKER_PRIVATE_RENDERED_TEMPLATE
 
     # Start deployment
     echo "Testing marathon applications with Docker private images"
@@ -441,11 +441,11 @@ test_iis_docker_private_image() {
     }
 
     echo "Deploying IIS application from private image on DC/OS"
-    dcos marathon app add $PRIVATE_IIS_RENDERED_TEMPLATE || {
+    dcos marathon app add $DOCKER_PRIVATE_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
     }
-    APP_NAME=$(get_marathon_application_name $PRIVATE_IIS_RENDERED_TEMPLATE)
+    APP_NAME=$(get_marathon_application_name $DOCKER_PRIVATE_RENDERED_TEMPLATE)
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
@@ -468,22 +468,15 @@ test_custom_attributes() {
 
 test_mesos_fetcher() {
     local APPLICATION_NAME="$1"
+    local AGENT_HOSTNAME="$2"
     $DIR/utils/check-marathon-app-health.py --name $APPLICATION_NAME || return 1
     setup_remote_winrm_client || return 1
-    TASK_HOST=$(dcos marathon app show $APPLICATION_NAME | jq -r ".tasks[0].host")
-    REMOTE_CMD='docker ps | Where-Object { $_.Contains("microsoft/iis") -and $_.Contains("->80/tcp") } | ForEach-Object { $_.Split()[0] }'
-    DOCKER_CONTAINER_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell '$REMOTE_CMD'") || {
-        echo "ERROR: Failed to get the Docker container ID from the host: $TASK_HOST"
+    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/mesos-fetcher-checksum.ps1" "$DIR/utils/mesos-fetcher-checksum.ps1" || {
+        echo "ERROR: Failed to scp mesos-fetcher-checksum.ps1"
         return 1
     }
-    if [[ -z $DOCKER_CONTAINER_ID ]]; then
-        echo "ERROR: There aren't any Docker containers running on $TASK_HOST for application $APPLICATION_NAME"
-        return 1
-    fi
-    REMOTE_CMD="docker exec $DOCKER_CONTAINER_ID powershell (Get-FileHash -Algorithm MD5 -Path C:\mesos\sandbox\fetcher-test.zip).Hash"
-    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $TASK_HOST -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD '$REMOTE_CMD'") || {
-        echo "ERROR: Failed to get the fetcher file MD5 checksum"
-        return 1
+    MD5_CHECKSUM=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "/tmp/wsmancmd -H $AGENT_HOSTNAME -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell --file /tmp/mesos-fetcher-checksum.ps1") || {
+        echo "ERROR: Failed to get MD5 checksum for the fetcher file"
     }
     if [[ "$MD5_CHECKSUM" != "$FETCHER_FILE_MD5" ]]; then
         echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
@@ -498,7 +491,7 @@ test_mesos_fetcher_local() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-local-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_LOCAL_TEMPLATE)
@@ -517,7 +510,7 @@ test_mesos_fetcher_local() {
     }
     dcos marathon app add $FETCHER_LOCAL_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_LOCAL_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using local resource"
         return 1
@@ -533,7 +526,7 @@ test_mesos_fetcher_remote_http() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-http-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTP_TEMPLATE)
@@ -543,7 +536,7 @@ test_mesos_fetcher_remote_http() {
     echo "Testing Mesos fetcher using remote http resource"
     dcos marathon app add $FETCHER_HTTP_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_HTTP_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote http resource"
         return 1
@@ -559,7 +552,7 @@ test_mesos_fetcher_remote_https() {
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
-    APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
+    local APP_ID="test-fetcher-https-$(echo $AGENT_HOSTNAME | tr . -)"
     # Generate json file from template
 	eval "cat <<-EOF
 	$(cat $FETCHER_HTTPS_TEMPLATE)
@@ -569,7 +562,7 @@ test_mesos_fetcher_remote_https() {
     echo "Testing Mesos fetcher using remote https resource"
     dcos marathon app add $FETCHER_HTTPS_RENDERED_TEMPLATE || return 1
     APP_NAME=$(get_marathon_application_name $FETCHER_HTTPS_RENDERED_TEMPLATE)
-    test_mesos_fetcher $APP_NAME || {
+    test_mesos_fetcher $APP_NAME $AGENT_HOSTNAME || {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         echo "ERROR: Failed to test Mesos fetcher using remote https resource"
         return 1
@@ -588,7 +581,7 @@ test_windows_agent_dcos_dns() {
     local AGENT_IP="$1"
     local DNS_RECORD="$2"
     echo -e "Trying to resolve $DNS_RECORD on Windows agent $AGENT_IP"
-    REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'Resolve-DnsName $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
+    REMOTE_CMD="/tmp/wsmancmd -H $AGENT_IP -s -a basic -u $WIN_AGENT_ADMIN -p $WIN_AGENT_ADMIN_PASSWORD --powershell 'nslookup.exe $DNS_RECORD' >/tmp/winrm.stdout 2>/tmp/winrm.stderr"
     MAX_RETRIES=10
     RETRIES=0
     while [[ $RETRIES -le $MAX_RETRIES ]]; do
@@ -699,20 +692,20 @@ test_dcos_windows_apps() {
     fi
     for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
         local AGENT_ROLE="*"
-        test_windows_marathon_app "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_container "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_windows_agent_recovery "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
     done
     for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
         local AGENT_ROLE="slave_public"
-        test_windows_marathon_app "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_container "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_windows_agent_recovery "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_iis_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
         test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
@@ -727,17 +720,17 @@ test_windows_agent_recovery() {
     local AGENT_ROLE="$2"
     local APP_ID="test-windows-recovery-$(echo $AGENT_HOSTNAME | tr . -)"
     eval "cat <<-EOF
-	$(cat $WINDOWS_APP_TEMPLATE)
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE)
 	EOF
-	" > $WINDOWS_APP_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
     echo "Deploying a Windows Marathon application on DC/OS"
 
-    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
     
-    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
@@ -745,7 +738,7 @@ test_windows_agent_recovery() {
         return 1
     }
 
-    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
 
     #

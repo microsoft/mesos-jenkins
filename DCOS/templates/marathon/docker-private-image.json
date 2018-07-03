@@ -21,7 +21,7 @@
     "type": "DOCKER",
     "volumes": [],
     "docker": {
-      "image": "microsoft/iis:windowsservercore-1803",
+      "image": "dcoswindowsci/private-windows:1803",
       "privileged": false,
       "parameters": [
         {
@@ -46,5 +46,8 @@
   ],
   "acceptedResourceRoles": [
     "${AGENT_ROLE}"
+  ],
+  "uris": [
+    "file://C:/docker.zip"
   ]
 }
