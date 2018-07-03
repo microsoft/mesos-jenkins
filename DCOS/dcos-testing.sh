@@ -79,6 +79,7 @@ WINDOWS_APP_CONTAINER_TEMPLATE="$DIR/templates/marathon/windows-app-container.js
 WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-container.json"
 DOCKER_PRIVATE_TEMPLATE="$DIR/templates/marathon/docker-private-image.json"
 DOCKER_PRIVATE_RENDERED_TEMPLATE="${WORKSPACE}/docker-private-image.json"
+IIS_TEMPLATE="$DIR/templates/marathon/iis.json"
 WINDOWS_APP_PUBLISH_TEMPLATE="$DIR/templates/marathon/windows-app-publish.json"
 WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE="${WORKSPACE}/windows-app-publish.json"
 FETCHER_HTTP_TEMPLATE="$DIR/templates/marathon/fetcher-http.json"
@@ -903,6 +904,32 @@ test_windows_agent_graceful_shutdown() {
     fi
 }
 
+test_iis() {
+    #
+    # - Deploy a simple DC/OS IIS marathon application
+    #
+    echo "Deploying IIS application on DC/OS"
+    dcos marathon app add $IIS_TEMPLATE || {
+        echo "ERROR: Failed to deploy the IIS Marathon application"
+        return 1
+    }
+    APP_NAME=$(get_marathon_application_name $IIS_TEMPLATE)
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    echo "Checking, with a timeout of 900 seconds, if the port 80 is open at the address: $WIN_AGENT_PUBLIC_ADDRESS"
+    check_open_port "$WIN_AGENT_PUBLIC_ADDRESS" "80" "900" || {
+        echo "ERROR: Port 80 is not open for the application: $APP_NAME"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    echo "Success: Port 80 is open at address $WIN_AGENT_PUBLIC_ADDRESS"
+    dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+    remove_dcos_marathon_app $APP_NAME || return 1
+}
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
@@ -910,6 +937,7 @@ run_functional_tests() {
     #  - Test if the custom attributes are set
     #  - Test if the Mesos master - agent authentication is enabled
     #  - Test DC/OS DNS functionality from the Windows node
+    #  - Test a DC/OS Windows task with IIS web server
     #  - Test if a Windows marathon application can be successfully deployed and consumed
     #  - Test Windows agent recovery after taskkill
     #  - Test a simple marathon Windows app
@@ -921,6 +949,7 @@ run_functional_tests() {
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
     test_dcos_dns || return 1
+    test_iis || return 1
     test_dcos_windows_apps || return 1
 }
 
