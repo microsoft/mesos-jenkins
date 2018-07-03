@@ -321,7 +321,7 @@ test_dcos_task_connectivity() {
 
 test_win_marathon_app_port_container() {
     #
-    # - Deploy a simple IIS web server on Windows
+    # - Deploy a simple web server on Windows
     # - Check if Marathon successfully launched the Mesos Docker task
     # - Check if the exposed port is open
     # - Check if the DNS records for the task are advertised to the Windows nodes
@@ -367,7 +367,7 @@ test_win_marathon_app_port_container() {
 
 test_win_marathon_app_port_publish() {
     #
-    # - Deploy a simple DC/OS IIS marathon application
+    # - Deploy a simple DC/OS marathon application
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
@@ -378,7 +378,7 @@ test_win_marathon_app_port_publish() {
 	EOF
 	" > $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE
     # Start deployment
-    echo "Deploying IIS application on DC/OS"
+    echo "Deploying Windows application on DC/OS"
     dcos marathon app add $WINDOWS_APP_PUBLISH_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
@@ -397,7 +397,7 @@ test_win_marathon_app_port_publish() {
 
 test_docker_private_image() {
     #
-    # Check if marathon can spawn a simple DC/OS IIS marathon application from a private docker image
+    # Check if marathon can spawn a simple DC/OS Windows marathon application from a private docker image
     #
     local AGENT_HOSTNAME=$1
     local AGENT_ROLE=$2
@@ -440,7 +440,7 @@ test_docker_private_image() {
         return 1
     }
 
-    echo "Deploying IIS application from private image on DC/OS"
+    echo "Deploying Windows application from private image on DC/OS"
     dcos marathon app add $DOCKER_PRIVATE_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application from private image"
         return 1
@@ -910,7 +910,7 @@ run_functional_tests() {
     #  - Test DC/OS DNS functionality from the Windows node
     #  - Test if a Windows marathon application can be successfully deployed and consumed
     #  - Test Windows agent recovery after taskkill
-    #  - Test a simple IIS marathon Windows app
+    #  - Test a simple marathon Windows app
     #  - Test Mesos fetcher with local resource
     #  - Test Mesos fetcher with remote http resource
     #  - Test Mesos fetcher with remote https resource
