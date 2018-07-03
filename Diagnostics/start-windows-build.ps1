@@ -146,6 +146,7 @@ function New-TestingEnvironment {
     Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
     Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     $env:GOPATH = $DIAGNOSTICS_DIR
+    $env:PATH = "${env:GOPATH}\bin;" + ${env:PATH}
     Write-Output "New tests environment was successfully created"
 }
 
