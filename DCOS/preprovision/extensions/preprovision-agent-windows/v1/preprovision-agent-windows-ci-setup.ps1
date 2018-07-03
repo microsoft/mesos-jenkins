@@ -139,10 +139,12 @@ try {
     }
 
     #
-    # Pre-pull CI IIS image
+    # Pre-pull CI images
     #
     Start-ExecuteWithRetry -ScriptBlock { docker.exe pull "microsoft/iis:windowsservercore-1803" } `
                            -MaxRetryCount 30 -RetryInterval 3 -RetryMessage "Failed to pull IIS image. Retrying"
+    Start-ExecuteWithRetry -ScriptBlock { docker.exe pull "dcoswindowsci/windows:1803" } `
+                           -MaxRetryCount 30 -RetryInterval 3 -RetryMessage "Failed to pull dcoswindowsci/windows testing image. Retrying"
 
     #
     # Enable Docker debug logging and capture stdout and stderr to a file.
