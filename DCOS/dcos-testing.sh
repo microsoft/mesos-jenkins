@@ -482,7 +482,9 @@ test_mesos_fetcher() {
         echo "ERROR: Fetcher file MD5 checksum is not correct. The checksum found is $MD5_CHECKSUM and the expected one is $FETCHER_FILE_MD5"
         return 1
     fi
-    echo "The MD5 checksum for the fetcher file was successfully checked"
+    echo -e "\n"
+    echo -e "The MD5 checksum for the fetcher file was successfully checked"
+    echo -e "\n"
 }
 
 test_mesos_fetcher_local() {
