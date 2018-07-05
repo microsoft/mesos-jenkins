@@ -143,8 +143,6 @@ function New-TestingEnvironment {
     $global:PARAMETERS["BRANCH"] = $Branch
     Start-GitClone -Path $DIAGNOSTICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestDiagnosticsCommit
-    Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-    Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     $env:GOPATH = $DIAGNOSTICS_DIR
     $env:PATH = "${env:GOPATH}\bin;" + ${env:PATH}
     Write-Output "New tests environment was successfully created"
@@ -169,8 +167,8 @@ function New-DCOSDiagnosticsPackage {
     Write-Output "Creating DC/OS Diagnostics package"
     Write-Output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR"
     New-Directory $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Copy-Item -Path "$DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Copy-Item -Recurse -Path "$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR\diagnostics\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
+    Copy-Item -Path "$PSScriptRoot\utils\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
+    Copy-Item -Recurse -Path "$PSScriptRoot\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$DIAGNOSTICS_GIT_REPO_DIR\*.exe" -Destination "$DIAGNOSTICS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$DIAGNOSTICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$DIAGNOSTICS_BUILD_BINARIES_DIR\diagnostics.zip"
     Write-Output "DC/OS Diagnostics package was successfully generated"
