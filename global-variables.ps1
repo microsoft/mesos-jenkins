@@ -1,5 +1,4 @@
 # Remote log server
-$REMOTE_USER = "jenkins"
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
@@ -8,6 +7,7 @@ $REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
 # DCOS common configurations
 $STORAGE_SERVER_ADDRESS = "dcos-win.westus.cloudapp.azure.com"
+$STORAGE_SERVER_USER = "jenkins"
 $STORAGE_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $ZOOKEEPER_PORT = 2181
 $EXHIBITOR_PORT = 8181
