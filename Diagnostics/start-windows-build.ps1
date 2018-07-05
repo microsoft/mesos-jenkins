@@ -209,19 +209,19 @@ function New-RemoteSymlink {
 }
 
 function Get-DiagnosticsBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
+    $repositoryName = $GitURL.Split("/")[-1]
     $diagnosticsCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$diagnosticsCommitID"
+    return "${repositoryName}-${Branch}-${diagnosticsCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-DiagnosticsBuildRelativePath
-    return "$REMOTE_DIAGNOSTICS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-DiagnosticsBuildRelativePath
-    return "$DIAGNOSTICS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -236,10 +236,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {

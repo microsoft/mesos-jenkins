@@ -2,7 +2,6 @@
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
-$REMOTE_DIAGNOSTICS_BUILD_DIR = "/data/diagnostics-build"
 $REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
 # DCOS common configurations
@@ -64,8 +63,6 @@ $DCOS_NET_BUILD_LOGS_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "logs"
 $DCOS_NET_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/net-build"
 
 # Diagnostics configurations
-$DIAGNOSTICS_SERVICE_NAME = "dcos-diagnostics"
-$DIAGNOSTICS_AGENT_PORT = 9003
 $DIAGNOSTICS_DIR = Join-Path $DCOS_DIR "diagnostics"
 $DIAGNOSTICS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "src\github.com\dcos\dcos-diagnostics"
 $DIAGNOSTICS_BUILD_OUT_DIR = Join-Path $DIAGNOSTICS_DIR "build-output"
@@ -73,7 +70,6 @@ $DIAGNOSTICS_BUILD_LOGS_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "logs"
 $DIAGNOSTICS_BUILD_BINARIES_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "binaries"
 $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "dcos-windows"
 $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "mesos-jenkins"
-$DIAGNOSTICS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/diagnostics-build"
 
 # Metrics configurations
 $METRICS_SERVICE_NAME = "dcos-metrics"
