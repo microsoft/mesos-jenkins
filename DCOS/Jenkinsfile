@@ -1,0 +1,134 @@
+def notifyGithub(String buildContext, String result) {
+   switch (result) {
+      case 'STARTED':
+         setGitHubPullRequestStatus(context: buildContext, message: "Build started", state: 'PENDING')
+         break
+      case 'FAILURE':
+         setGitHubPullRequestStatus(context: buildContext, message: "Build error", state: 'ERROR')
+         break
+      case 'UNSTABLE':
+         setGitHubPullRequestStatus(context: buildContext, message: "Tests are broken", state: 'FAILURE')
+         break
+      case 'SUCCESS':
+         setGitHubPullRequestStatus(context: buildContext, message: "All is good", state: 'SUCCESS')
+         break
+   }
+}
+
+def withGithubNotifier(String buildContext, Closure<Void> job) {
+   notifyGithub(buildContext, 'STARTED')
+   try {
+        job()
+        notifyGithub(buildContext, 'SUCCESS')
+        
+   } catch(e) {
+        echo 'Err: Build failed with Error -> ' + e.toString()
+        notifyGithub(buildContext, 'FAILURE')
+        throw e
+   }
+}
+
+def runBuild(String buildContext, String nodeName, Closure<Void> task) {
+    node(nodeName) {
+        withGithubNotifier ( buildContext, task )
+    }
+}
+
+def checkoutPRcode(String nodeName) {
+    node(nodeName) {
+        cleanWs()
+        checkout([
+            $class: 'GitSCM', 
+            branches: [[name: "origin-pull/pull/${GITHUB_PR_NUMBER}/merge"]], 
+            doGenerateSubmoduleConfigurations: false, 
+            extensions: [[
+                $class: 'RelativeTargetDirectory', 
+                relativeTargetDir: 'mesos-jenkins'
+            ]], 
+            submoduleCfg: [], 
+            userRemoteConfigs: [[
+                credentialsId: 'f9c8b624-50d0-4f77-a22b-c12c755e24cb', 
+                refspec: "+refs/pull/${GITHUB_PR_NUMBER}/merge:refs/remotes/origin-pull/pull/${GITHUB_PR_NUMBER}/merge", 
+                url: "${GITHUB_REPO_GIT_URL}"
+            ]]
+        ])
+        if (nodeName == 'windows-build-server') {
+            dir('dcos-metrics') { git url: 'https://github.com/dcos/dcos-metrics.git' } 
+            dir('dcos-diagnostics') { git url: 'https://github.com/dcos/dcos-diagnostics' } 
+            dir('dcos-net') { git url: 'https://github.com/dcos/dcos-net.git' } 
+            dir('spartan') { git url: 'https://github.com/dcos/spartan.git' } 
+            dir('mesos') { git url: 'https://github.com/apache/mesos.git' } 
+        }
+    }
+}
+
+// Linux environment for dcos e2e test
+def dcos_e2e_testing_env(String command) {
+    withCredentials([usernamePassword(credentialsId: '8d70c82f-6959-49ad-a553-e7906ad47710',
+                                      passwordVariable: 'JENKINS_PASSWORD', 
+                                      usernameVariable: 'JENKINS_USER'),
+                     usernamePassword(credentialsId: 'e20c9faa-1d51-46fa-8e69-a027c7f3f8c8',
+                                      passwordVariable: 'AZURE_SERVICE_PRINCIPAL_PASSWORD',
+                                      usernameVariable: 'AZURE_SERVICE_PRINCIPAL_ID'),
+                     usernamePassword(credentialsId: '49dc70d1-13d5-4b52-8944-d62f5a2474e3',
+                                      passwordVariable: 'DOCKER_HUB_USER_PASSWORD',
+                                      usernameVariable: 'DOCKER_HUB_USER')]) {
+    withEnv(["DCOS_DEPLOYMENT_TYPE=hybrid",
+             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/latest",
+             "DCOS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos/builds/latest/dcos_generate_config.sh",
+             "MASTER_WHITELISTED_IPS=13.66.169.239 13.66.171.181 13.66.173.101 13.66.215.214 13.77.172.69",
+             "AUTOCLEAN=true",
+             "EMAIL_NOTIFICATIONS=true",
+             "AZURE_KEYVAULT_NAME=ci-key-vault",
+             "PRIVATE_KEY_SECRET_NAME=jenkins-dcos-testing-ssh-private-key",
+             "PUBLIC_KEY_SECRET_NAME=jenkins-dcos-testing-ssh-public-key",
+             "WIN_PASS_SECRET_NAME=jenkins-dcos-testing-win-pass",
+             "AZURE_REGION=westus2",
+             "WIN_AGENT_SIZE=Standard_D2s_v3",
+             "LINUX_MASTER_SIZE=Standard_D2s_v3",
+             "LINUX_AGENT_SIZE=Standard_D2s_v3",
+             "AZURE_SERVICE_PRINCIPAL_TENAT=72f988bf-86f1-41af-91ab-2d7cd011db47",
+             "DCOS_DEPLOY_DIR=$WORKSPACE/dcos-deploy-dir",
+             "JOB_ARTIFACTS_DIR=$HOME/artifacts/$JOB_NAME",
+             "AZURE_CONFIG_DIR=$WORKSPACE/azure_$BUILD_ID"]) {
+                println "Bash shell executes -> $command"
+                sh command
+             }
+        }
+}
+
+// Windows Environment for running powershell scripts
+def win_env(String command) {
+    withCredentials([file(credentialsId: 'ae8d8ce4-a601-4e1b-9b53-4bb117fc3451', variable: 'SSH_KEY'),
+                    usernamePassword(credentialsId: '8d70c82f-6959-49ad-a553-e7906ad47710',
+                                     passwordVariable: 'JENKINS_PASSWORD', 
+                                     usernameVariable: 'JENKINS_USER') ]) {
+        println "Powershell executes -> $command"
+        powershell(script: """ 
+                            $command
+                            exit \$LASTEXITCODE
+                           """)
+    }
+}
+
+// Closures
+def e2eTesting = { dcos_e2e_testing_env('mesos-jenkins/DCOS/start-dcos-e2e-testing.sh') }
+def buildDiagnostics = { win_env('& mesos-jenkins/Diagnostics/start-windows-build.ps1') }
+def buildMesos = { win_env('& mesos-jenkins/Mesos/start-windows-build.ps1') }
+// Net build needs Erlang 9.2
+def buildNet = { win_env("""\${env:PATH} = "\${env:ProgramFiles}\\erl9.2\\bin;" + \${env:PATH} 
+                            & mesos-jenkins/Net/start-windows-build.ps1""") }
+def buildMetrics = { win_env('& mesos-jenkins/Metrics/start-windows-build.ps1') }
+def buildSpartan = { win_env('& mesos-jenkins/Spartan/start-windows-build.ps1') }
+
+// Pipeline Main script
+parallel "Linux init" :        { checkoutPRcode('dummy-slave') },
+         "Windows init" :      { checkoutPRcode('windows-build-server') }
+
+parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-build', 'windows-build-server',   buildDiagnostics) },
+         "Net build" :         { runBuild('jenkins/net-build',         'windows-build-server',   buildNet) },
+         "Mesos build" :       { runBuild('jenkins/mesos-build',       'windows-build-server',   buildMesos) }, 
+         "Spartan build" :     { runBuild('jenkins/spartan-build',     'windows-build-server',   buildSpartan) },
+         "Metrics build" :     { runBuild('jenkins/metrics-build',     'windows-build-server',   buildMetrics) }, 
+         "E2E Testing" :       { runBuild('jenkins/e2e-testing',       'dummy-slave',            e2eTesting) }
+
