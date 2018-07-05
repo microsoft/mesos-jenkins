@@ -74,8 +74,6 @@ $METRICS_GIT_REPO_DIR = Join-Path $METRICS_DIR "src\github.com\dcos\dcos-metrics
 $METRICS_BUILD_OUT_DIR = Join-Path $METRICS_DIR "build-output"
 $METRICS_BUILD_LOGS_DIR = Join-Path $METRICS_BUILD_OUT_DIR "logs"
 $METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
-$METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
-$METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
 
 # Installers & git repositories URLs
 $GIT_URL = "$STORAGE_SERVER_BASE_URL/downloads/git-64-bit.exe"
