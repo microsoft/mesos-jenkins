@@ -914,25 +914,25 @@ test_windows_agent_ungraceful_shutdown() {
     fi
     # eval-ing template and deleting hostname constraint -- failover impossible with constraint
     eval "cat <<-EOF
-	$(cat $WINDOWS_APP_TEMPLATE | jq -r 'del(.constraints[1])')
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE | jq -r 'del(.constraints[1])')
 	EOF
-	" > $WINDOWS_APP_RENDERED_TEMPLATE
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
 
     echo "Deploying a Windows Marathon application on DC/OS"
 
-    dcos marathon app add $WINDOWS_APP_RENDERED_TEMPLATE || {
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
         echo "ERROR: Failed to deploy the Windows Marathon application"
         return 1
     }
     
-    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_RENDERED_TEMPLATE)
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     
     $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
         echo "ERROR: Failed to get $APP_NAME application health checks"
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_RENDERED_TEMPLATE)
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
     test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
     
@@ -961,13 +961,11 @@ test_windows_agent_ungraceful_shutdown() {
         return 1
     fi
 
-    echo "Sleeping 15mins for the task to automatically fail over"
-    sleep 900
-    echo "Waiting with a timeout of 3mins for DCOS to fail the task over from $AGENT_HOSTNAME..."
+    echo "Waiting with a timeout of 5mins for DCOS to fail the task over from $AGENT_HOSTNAME..."
     local NEW_TASK_HOST=""
     SECONDS=0
     while true; do
-        if [[ $SECONDS -gt 180 ]]; then
+        if [[ $SECONDS -gt 300 ]]; then
             echo "ERROR: task for $APP_NAME didn't migrate from $AGENT_HOSTNAME within $TIMEOUT seconds"
             return 1
         fi
