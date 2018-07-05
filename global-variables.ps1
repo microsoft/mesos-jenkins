@@ -8,11 +8,11 @@ $REMOTE_DIAGNOSTICS_BUILD_DIR = "/data/diagnostics-build"
 $REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
 # DCOS common configurations
-$LOG_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
-$ERLANG_URL = "$LOG_SERVER_BASE_URL/downloads/erl8.3.zip"
+$STORAGE_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $ZOOKEEPER_PORT = 2181
 $EXHIBITOR_PORT = 8181
 $DCOS_DIR = Join-Path "D:" "DCOS"
+$ERLANG_URL = "$STORAGE_SERVER_BASE_URL/downloads/erl8.3.zip"
 $ERLANG_DIR = Join-Path $DCOS_DIR "erl8.3"
 $ERTS_DIR = Join-Path $ERLANG_DIR "erts-8.3"
 
@@ -30,7 +30,7 @@ $MESOS_GIT_REPO_DIR = Join-Path $MESOS_DIR "mesos"
 $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
 $MESOS_BUILD_LOGS_DIR = Join-Path $MESOS_BUILD_OUT_DIR "logs"
 $MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "binaries"
-$MESOS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/mesos-build"
+$MESOS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/mesos-build"
 
 # EPMD configurations
 $EPMD_SERVICE_NAME = "dcos-epmd"
@@ -49,7 +49,7 @@ $SPARTAN_SERVICE_DIR = Join-Path $SPARTAN_DIR "service"
 $SPARTAN_GIT_REPO_DIR = Join-Path $SPARTAN_DIR "spartan"
 $SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
 $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
-$SPARTAN_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/spartan-build"
+$SPARTAN_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/spartan-build"
 
 # dcos-net configurations
 $DCOS_NET_SERVICE_NAME = "dcos-net"
@@ -59,7 +59,7 @@ $DCOS_NET_LIBSODIUM_GIT_DIR = Join-Path $DCOS_NET_DIR "libsodium"
 $DCOS_NET_BUILD_OUT_DIR = Join-Path $DCOS_NET_DIR "build-output"
 $DCOS_NET_BUILD_RELEASE_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "release"
 $DCOS_NET_BUILD_LOGS_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "logs"
-$DCOS_NET_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/net-build"
+$DCOS_NET_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/net-build"
 
 # Diagnostics configurations
 $DIAGNOSTICS_SERVICE_NAME = "dcos-diagnostics"
@@ -71,7 +71,7 @@ $DIAGNOSTICS_BUILD_LOGS_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "logs"
 $DIAGNOSTICS_BUILD_BINARIES_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "binaries"
 $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "dcos-windows"
 $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $DIAGNOSTICS_DIR "mesos-jenkins"
-$DIAGNOSTICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/diagnostics-build"
+$DIAGNOSTICS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/diagnostics-build"
 
 # Metrics configurations
 $METRICS_SERVICE_NAME = "dcos-metrics"
@@ -83,10 +83,10 @@ $METRICS_BUILD_LOGS_DIR = Join-Path $METRICS_BUILD_OUT_DIR "logs"
 $METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
 $METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
 $METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
-$METRICS_BUILD_BASE_URL = "$LOG_SERVER_BASE_URL/metrics-build"
+$METRICS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/metrics-build"
 
 # Installers & git repositories URLs
-$GIT_URL = "$LOG_SERVER_BASE_URL/downloads/git-64-bit.exe"
+$GIT_URL = "$STORAGE_SERVER_BASE_URL/downloads/git-64-bit.exe"
 $7ZIP_URL = "http://d.7-zip.org/a/7z1700-x64.msi"
 $GOLANG_URL = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows"
