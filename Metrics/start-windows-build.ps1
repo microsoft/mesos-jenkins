@@ -222,19 +222,19 @@ function New-RemoteSymlink {
 }
 
 function Get-MetricsBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
-    $MetricsCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$MetricsCommitID"
+    $repositoryName = $GitURL.Split("/")[-1]
+    $metricsCommitID = Get-LatestCommitID
+    return "${repositoryName}-${Branch}-${metricsCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-MetricsBuildRelativePath
-    return "$REMOTE_METRICS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-MetricsBuildRelativePath
-    return "$METRICS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -249,10 +249,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {

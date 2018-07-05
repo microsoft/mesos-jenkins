@@ -2,7 +2,6 @@
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
 $REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
-$REMOTE_METRICS_BUILD_DIR = "/data/metrics-build"
 
 # DCOS common configurations
 $STORAGE_SERVER_ADDRESS = "dcos-win.westus.cloudapp.azure.com"
@@ -70,8 +69,6 @@ $DIAGNOSTICS_BUILD_LOGS_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "logs"
 $DIAGNOSTICS_BUILD_BINARIES_DIR = Join-Path $DIAGNOSTICS_BUILD_OUT_DIR "binaries"
 
 # Metrics configurations
-$METRICS_SERVICE_NAME = "dcos-metrics"
-$METRICS_AGENT_PORT = 9000
 $METRICS_DIR = Join-Path $DCOS_DIR "metrics"
 $METRICS_GIT_REPO_DIR = Join-Path $METRICS_DIR "src\github.com\dcos\dcos-metrics"
 $METRICS_BUILD_OUT_DIR = Join-Path $METRICS_DIR "build-output"
@@ -79,7 +76,6 @@ $METRICS_BUILD_LOGS_DIR = Join-Path $METRICS_BUILD_OUT_DIR "logs"
 $METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
 $METRICS_DCOS_WINDOWS_GIT_REPO_DIR = Join-Path $METRICS_DIR "dcos-windows"
 $METRICS_MESOS_JENKINS_GIT_REPO_DIR = Join-Path $METRICS_DIR "mesos-jenkins"
-$METRICS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/metrics-build"
 
 # Installers & git repositories URLs
 $GIT_URL = "$STORAGE_SERVER_BASE_URL/downloads/git-64-bit.exe"
