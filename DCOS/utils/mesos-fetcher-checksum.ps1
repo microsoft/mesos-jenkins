@@ -7,17 +7,7 @@ if($LASTEXITCODE) {
 if(!$DOCKER_CONTAINER_ID) {
     Throw "There isn't any container with port 80 exposed"
 }
-docker exec -u Administrator $DOCKER_CONTAINER_ID cmd /S /C copy C:\mesos\sandbox\fetcher-test.zip C:\fetcher-test.zip 2>&1 | Out-Null
+docker exec -u Administrator $DOCKER_CONTAINER_ID cmd /S /C MD5.exe C:\mesos\sandbox\fetcher-test.zip
 if($LASTEXITCODE) {
-    Throw "Fail to copy fetcher file to C:\"
+    Throw "Fail to get the MD5 checksum for the fetcher file"
 }
-$localFile = Join-Path $env:TEMP "fetcher-test.zip"
-if(Test-Path $localFile) {
-    Remove-Item -Recurse -Force -Path $localFile
-}
-docker cp "${DOCKER_CONTAINER_ID}:/fetcher-test.zip" $localFile
-if($LASTEXITCODE) {
-    Throw "Fail to execute: docker cp"
-}
-(Get-FileHash -Algorithm MD5 -Path $localFile).Hash
-Remove-Item -Force -Path $localFile -ErrorAction SilentlyContinue
