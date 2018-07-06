@@ -306,7 +306,7 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-mesos-build"
     New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 

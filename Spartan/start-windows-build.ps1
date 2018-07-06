@@ -96,7 +96,7 @@ function Get-RemoteBuildDirectoryPath {
 }
 
 function Get-RemoteLatestSymlinkPath {
-    return "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    return "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-spartan-build"
 }
 
 function Set-LatestSpartanCommit {
