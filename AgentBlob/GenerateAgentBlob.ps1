@@ -1,9 +1,9 @@
 ﻿Param(
-    [string]$DiagnosticsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/diagnostics-build/dcos/latest/binaries/diagnostics.zip",
-    [string]$MetricsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/metrics-build/dcos/latest/binaries/metrics.zip",
-    [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/mesos-build/apache/latest/binaries/mesos-binaries.zip",
-    [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/net-build/dcos/latest/release.zip",
-    [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/spartan-build/master/latest/release.zip",
+    [string]$DiagnosticsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-diagnostics-build/latest-diagnostics-build/binaries/diagnostics.zip",
+    [string]$MetricsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-metrics-build/latest-metrics-build/binaries/metrics.zip",
+    [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-mesos-build/latest-mesos-build/binaries/mesos-binaries.zip",
+    [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-net-build/latest-net-build/release.zip",
+    [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-spartan-build/latest-spartan-build/release.zip",
     [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce",
     [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json",
     [string]$GithubPRHeadSha
