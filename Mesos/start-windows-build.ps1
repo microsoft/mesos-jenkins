@@ -276,22 +276,22 @@ function New-RemoteSymlink {
 }
 
 function Get-MesosBuildRelativePath {
+    $repositoryName = $GitURL.Split("/")[-1]
     if($ReviewID) {
-        return "review/$ReviewID"
+        return "${repository}-review-${ReviewID}"
     }
-    $repositoryOwner = $GitURL.Split("/")[-2]
     $mesosCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$mesosCommitID"
+    return "${repositoryName}-${Branch}-${mesosCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-MesosBuildRelativePath
-    return "$REMOTE_MESOS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-MesosBuildRelativePath
-    return "$MESOS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -306,15 +306,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    if($ReviewID) {
-        # We only need to update a single symlink if this is testing a
-        # ReviewBoard Mesos patch.
-        return
-    }
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {
