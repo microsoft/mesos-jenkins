@@ -278,7 +278,7 @@ function New-RemoteSymlink {
 function Get-MesosBuildRelativePath {
     $repositoryName = $GitURL.Split("/")[-1]
     if($ReviewID) {
-        return "${repository}-review-${ReviewID}"
+        return "${repositoryName}-review-${ReviewID}"
     }
     $mesosCommitID = Get-LatestCommitID
     return "${repositoryName}-${Branch}-${mesosCommitID}"
