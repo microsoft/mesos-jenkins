@@ -127,8 +127,6 @@ function New-Environment {
     Write-Output "Creating new tests environment"
     Start-EnvironmentCleanup # Do an environment cleanup to make sure everything is fresh
     New-Directory $MESOS_DIR
-    New-Directory $MESOS_BUILD_DIR
-    New-Directory $MESOS_BINARIES_DIR
     New-Directory $MESOS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $MESOS_BUILD_LOGS_DIR
     $global:PARAMETERS["BRANCH"] = $Branch

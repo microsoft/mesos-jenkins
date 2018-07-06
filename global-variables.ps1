@@ -1,42 +1,17 @@
-# Remote log server
-$REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
-$REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
-
 # DCOS common configurations
 $STORAGE_SERVER_ADDRESS = "dcos-win.westus.cloudapp.azure.com"
 $STORAGE_SERVER_USER = "jenkins"
 $STORAGE_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
 $ARTIFACTS_DIRECTORY = "/storage/data/artifacts"
 $ARTIFACTS_BASE_URL = "${STORAGE_SERVER_BASE_URL}/artifacts"
-$ZOOKEEPER_PORT = 2181
-$EXHIBITOR_PORT = 8181
 $DCOS_DIR = Join-Path "D:" "DCOS"
-$ERLANG_URL = "$STORAGE_SERVER_BASE_URL/downloads/erl8.3.zip"
-$ERLANG_DIR = Join-Path $DCOS_DIR "erl8.3"
-$ERTS_DIR = Join-Path $ERLANG_DIR "erts-8.3"
 
 # Mesos configurations
-$MESOS_SERVICE_NAME = "dcos-mesos-slave"
-$MESOS_AGENT_PORT = 5051
 $MESOS_DIR = Join-Path $DCOS_DIR "mesos"
-$MESOS_BIN_DIR = Join-Path $MESOS_DIR "bin"
-$MESOS_WORK_DIR = Join-Path $MESOS_DIR "work"
-$MESOS_LOG_DIR = Join-Path $MESOS_DIR "log"
-$MESOS_SERVICE_DIR = Join-Path $MESOS_DIR "service"
-$MESOS_BUILD_DIR = Join-Path $MESOS_DIR "build"
-$MESOS_BINARIES_DIR = Join-Path $MESOS_DIR "binaries"
 $MESOS_GIT_REPO_DIR = Join-Path $MESOS_DIR "mesos"
 $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
 $MESOS_BUILD_LOGS_DIR = Join-Path $MESOS_BUILD_OUT_DIR "logs"
 $MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "binaries"
-$MESOS_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/mesos-build"
-
-# EPMD configurations
-$EPMD_SERVICE_NAME = "dcos-epmd"
-$EPMD_PORT = 61420
-$EPMD_DIR = Join-Path $DCOS_DIR "epmd"
-$EPMD_SERVICE_DIR = Join-Path $EPMD_DIR "service"
-$EPMD_LOG_DIR = Join-Path $EPMD_DIR "log"
 
 # Spartan configurations
 $SPARTAN_DIR = Join-Path $DCOS_DIR "spartan"
@@ -44,7 +19,6 @@ $SPARTAN_GIT_REPO_DIR = Join-Path $SPARTAN_DIR "spartan"
 $SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
 $SPARTAN_RELEASE_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "release"
 $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
-$SPARTAN_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/spartan-build"
 
 # dcos-net configurations
 $DCOS_NET_DIR = Join-Path $DCOS_DIR "dcos-net"
