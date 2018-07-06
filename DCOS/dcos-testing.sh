@@ -973,10 +973,8 @@ test_windows_agent_ungraceful_shutdown() {
         if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]]; then
             echo "Task successfully fail-overed from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
             break
-        else
-            sleep 1
         fi
-
+        sleep 1
     done
 
     # Check task health after task failover
