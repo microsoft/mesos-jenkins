@@ -1,7 +1,6 @@
 # Remote log server
 $REMOTE_MESOS_BUILD_DIR = "/data/mesos-build"
 $REMOTE_SPARTAN_BUILD_DIR = "/data/spartan-build"
-$REMOTE_DCOS_NET_BUILD_DIR = "/data/net-build"
 
 # DCOS common configurations
 $STORAGE_SERVER_ADDRESS = "dcos-win.westus.cloudapp.azure.com"
@@ -52,14 +51,12 @@ $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
 $SPARTAN_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/spartan-build"
 
 # dcos-net configurations
-$DCOS_NET_SERVICE_NAME = "dcos-net"
 $DCOS_NET_DIR = Join-Path $DCOS_DIR "dcos-net"
 $DCOS_NET_GIT_REPO_DIR = Join-Path $DCOS_NET_DIR "dcos-net"
 $DCOS_NET_LIBSODIUM_GIT_DIR = Join-Path $DCOS_NET_DIR "libsodium"
 $DCOS_NET_BUILD_OUT_DIR = Join-Path $DCOS_NET_DIR "build-output"
 $DCOS_NET_BUILD_RELEASE_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "release"
 $DCOS_NET_BUILD_LOGS_DIR = Join-Path $DCOS_NET_BUILD_OUT_DIR "logs"
-$DCOS_NET_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/net-build"
 
 # Diagnostics configurations
 $DIAGNOSTICS_DIR = Join-Path $DCOS_DIR "diagnostics"
@@ -80,7 +77,6 @@ $GIT_URL = "$STORAGE_SERVER_BASE_URL/downloads/git-64-bit.exe"
 $7ZIP_URL = "http://d.7-zip.org/a/7z1700-x64.msi"
 $GOLANG_URL = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows"
-$MESOS_JENKINS_GIT_URL = "https://github.com/Microsoft/mesos-jenkins"
 $LIBSODIUM_GIT_URL = "https://github.com/jedisct1/libsodium"
 
 # Tools installation directories

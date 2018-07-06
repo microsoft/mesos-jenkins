@@ -75,14 +75,14 @@ function Get-LatestCommitID {
 }
 
 function Get-DCOSNetBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
+    $repositoryName = $GitURL.Split("/")[-1]
     $dcosNetCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$dcosNetCommitID"
+    return "${repositoryName}-${Branch}-${dcosNetCommitID}"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-DCOSNetBuildRelativePath
-    return "$DCOS_NET_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -92,11 +92,7 @@ function Get-BuildLogsUrl {
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-DCOSNetBuildRelativePath
-    return "$REMOTE_DCOS_NET_BUILD_DIR/$relativePath"
-}
-
-function Get-RemoteLatestSymlinkPath {
-    return "$REMOTE_DCOS_NET_BUILD_DIR/$Branch/latest"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Set-LatestDCOSNetCommit {
@@ -304,10 +300,8 @@ function New-RemoteSymlink {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {
