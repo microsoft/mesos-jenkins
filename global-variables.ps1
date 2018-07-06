@@ -39,14 +39,10 @@ $EPMD_SERVICE_DIR = Join-Path $EPMD_DIR "service"
 $EPMD_LOG_DIR = Join-Path $EPMD_DIR "log"
 
 # Spartan configurations
-$SPARTAN_SERVICE_NAME = "dcos-spartan"
-$SPARTAN_DEVICE_NAME = "spartan"
 $SPARTAN_DIR = Join-Path $DCOS_DIR "spartan"
-$SPARTAN_RELEASE_DIR = Join-Path $SPARTAN_DIR "release"
-$SPARTAN_LOG_DIR = Join-Path $SPARTAN_DIR "log"
-$SPARTAN_SERVICE_DIR = Join-Path $SPARTAN_DIR "service"
 $SPARTAN_GIT_REPO_DIR = Join-Path $SPARTAN_DIR "spartan"
 $SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
+$SPARTAN_RELEASE_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "release"
 $SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
 $SPARTAN_BUILD_BASE_URL = "$STORAGE_SERVER_BASE_URL/spartan-build"
 
