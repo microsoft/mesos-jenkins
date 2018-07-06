@@ -262,7 +262,13 @@ open_dcos_port() {
 }
 
 setup_remote_winrm_client() {
-    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd" "$DIR/utils/bin/wsmancmd" || {
+    local WSMANCMD_URL="http://dcos-win.westus.cloudapp.azure.com/downloads/wsmancmd"
+    curl --retry 30 "${WSMANCMD_URL}" -o wsmancmd || {
+        echo "ERROR: Failed to download wsmancmd binary from ${WSMANCMD_URL}"
+        return 1
+    }
+    chmod +x wsmancmd
+    upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd" "wsmancmd" || {
         echo "ERROR: Failed to copy wsmancmd binary to the proxy master node"
         return 1
     }
