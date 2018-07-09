@@ -109,17 +109,12 @@ function Set-VCVariables {
     } else {
         $vcPath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio $Version\VC\"
     }
-    Push-Location $vcPath
-    try {
-        $vcVars = Start-ExternalCommand { cmd.exe /c "vcvarsall.bat $Platform & set" } -ErrorMessage "Failed to get all VC variables"
-        $vcVars | Foreach-Object {
-            if ($_ -match "=") {
-                $v = $_.split("=")
-                Set-Item -Force -Path "ENV:\$($v[0])" -Value "$($v[1])"
-            }
+    $vcVars = Start-ExternalCommand { cmd.exe /c "`"${vcPath}\vcvarsall.bat`" $Platform & set" } -ErrorMessage "Failed to get all VC variables"
+    $vcVars | Foreach-Object {
+        if ($_ -match "=") {
+            $v = $_.split("=")
+            Set-Item -Force -Path "ENV:\$($v[0])" -Value "$($v[1])"
         }
-    } catch {
-        Pop-Location
     }
 }
 
