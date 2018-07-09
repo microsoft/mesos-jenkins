@@ -75,8 +75,8 @@ function Get-LatestCommitID {
 }
 
 function Get-BuildOutputsUrl {
-    $spartanCommitID = Get-LatestCommitID
-    return "$SPARTAN_BUILD_BASE_URL/$Branch/$spartanCommitID"
+    $relativePath = Get-BuildRelativePath
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -84,13 +84,19 @@ function Get-BuildLogsUrl {
     return "$buildOutUrl/logs"
 }
 
+function Get-BuildRelativePath {
+    $repositoryName = $GitURL.Split("/")[-1]
+    $commitID = Get-LatestCommitID
+    return "${repositoryName}-${Branch}-${commitID}"
+}
+
 function Get-RemoteBuildDirectoryPath {
-    $spartanCommitID = Get-LatestCommitID
-    return "$REMOTE_SPARTAN_BUILD_DIR/$Branch/$spartanCommitID"
+    $relativePath = Get-BuildRelativePath
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-RemoteLatestSymlinkPath {
-    return "$REMOTE_SPARTAN_BUILD_DIR/$Branch/latest"
+    return "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-spartan-build"
 }
 
 function Set-LatestSpartanCommit {
@@ -156,14 +162,13 @@ function Start-SpartanBuild {
         Pop-Location
     }
     Write-Output "Successfully built Spartan"
-    $spartanReleaseDir = Join-Path $SPARTAN_BUILD_OUT_DIR "release"
-    New-Directory $spartanReleaseDir
-    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\rel\spartan" "${spartanReleaseDir}\"
-    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\lib" "${spartanReleaseDir}\"
-    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\plugins" "${spartanReleaseDir}\"
+    New-Directory $SPARTAN_RELEASE_DIR
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\rel\spartan" "${SPARTAN_RELEASE_DIR}\"
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\lib" "${SPARTAN_RELEASE_DIR}\"
+    Copy-Item -Recurse "$SPARTAN_GIT_REPO_DIR\_build\default\plugins" "${SPARTAN_RELEASE_DIR}\"
     $archivePath = Join-Path $SPARTAN_BUILD_OUT_DIR "release.zip"
-    Start-ExternalCommand { & 7z.exe a -tzip $archivePath "$spartanReleaseDir\*" -sdel } -ErrorMessage "Failed to compress the Spartan build directory"
-    Remove-Item $spartanReleaseDir
+    Start-ExternalCommand { & 7z.exe a -tzip $archivePath "${SPARTAN_RELEASE_DIR}\*" -sdel } -ErrorMessage "Failed to compress the Spartan build directory"
+    Remove-Item $SPARTAN_RELEASE_DIR
 }
 
 function Copy-FilesToRemoteServer {
@@ -174,7 +179,7 @@ function Copy-FilesToRemoteServer {
         [string]$RemoteFilesPath
     )
     Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
+    Start-SCPCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY `
                      -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
 }
 
@@ -184,7 +189,7 @@ function New-RemoteDirectory {
         [string]$RemoteDirectoryPath
     )
     $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteSymlink {
@@ -195,7 +200,7 @@ function New-RemoteSymlink {
         [string]$RemoteSymlinkPath
     )
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function Start-LogServerFilesUpload {

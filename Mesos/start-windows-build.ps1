@@ -127,8 +127,6 @@ function New-Environment {
     Write-Output "Creating new tests environment"
     Start-EnvironmentCleanup # Do an environment cleanup to make sure everything is fresh
     New-Directory $MESOS_DIR
-    New-Directory $MESOS_BUILD_DIR
-    New-Directory $MESOS_BINARIES_DIR
     New-Directory $MESOS_BUILD_OUT_DIR -RemoveExisting
     New-Directory $MESOS_BUILD_LOGS_DIR
     $global:PARAMETERS["BRANCH"] = $Branch
@@ -253,7 +251,7 @@ function Copy-FilesToRemoteServer {
         [string]$RemoteFilesPath
     )
     Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
+    Start-SCPCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY `
                      -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
 }
 
@@ -263,7 +261,7 @@ function New-RemoteDirectory {
         [string]$RemoteDirectoryPath
     )
     $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteSymlink {
@@ -274,26 +272,26 @@ function New-RemoteSymlink {
         [string]$RemoteSymlinkPath
     )
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function Get-MesosBuildRelativePath {
+    $repositoryName = $GitURL.Split("/")[-1]
     if($ReviewID) {
-        return "review/$ReviewID"
+        return "${repositoryName}-review-${ReviewID}"
     }
-    $repositoryOwner = $GitURL.Split("/")[-2]
     $mesosCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$mesosCommitID"
+    return "${repositoryName}-${Branch}-${mesosCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-MesosBuildRelativePath
-    return "$REMOTE_MESOS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-MesosBuildRelativePath
-    return "$MESOS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -308,15 +306,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    if($ReviewID) {
-        # We only need to update a single symlink if this is testing a
-        # ReviewBoard Mesos patch.
-        return
-    }
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-mesos-build"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {
@@ -325,12 +316,18 @@ function Start-LogServerFilesUpload {
                        -URL $consoleUrl -Destination "$MESOS_BUILD_LOGS_DIR\console-jenkins.log"
     $remoteDirPath = Get-RemoteBuildDirectoryPath
     New-RemoteDirectory -RemoteDirectoryPath $remoteDirPath
+    ###
+    ### NOTE(ibalutoiu): We copy the build outputs to a temporary location before
+    ###                  doing the SCP to the storage server due to a bug in Jenkins
+    ###                  sometimes leading to leaked file descriptors.
+    ###
     $tempDir = Join-Path $env:TEMP "build-output"
     if(Test-Path $tempDir) {
         Remove-Item -Recurse -Force $tempDir
     }
     Copy-Item -Recurse -Force $MESOS_BUILD_OUT_DIR $tempDir
     Copy-FilesToRemoteServer "${tempDir}\*" $remoteDirPath
+    ###
     Remove-Item -Recurse -Force $tempDir
     $buildOutputsUrl = Get-BuildOutputsUrl
     $global:PARAMETERS["BUILD_OUTPUTS_URL"] = $buildOutputsUrl

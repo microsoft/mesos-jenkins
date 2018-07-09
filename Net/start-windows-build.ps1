@@ -75,14 +75,14 @@ function Get-LatestCommitID {
 }
 
 function Get-DCOSNetBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
+    $repositoryName = $GitURL.Split("/")[-1]
     $dcosNetCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$dcosNetCommitID"
+    return "${repositoryName}-${Branch}-${dcosNetCommitID}"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-DCOSNetBuildRelativePath
-    return "$DCOS_NET_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -92,11 +92,7 @@ function Get-BuildLogsUrl {
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-DCOSNetBuildRelativePath
-    return "$REMOTE_DCOS_NET_BUILD_DIR/$relativePath"
-}
-
-function Get-RemoteLatestSymlinkPath {
-    return "$REMOTE_DCOS_NET_BUILD_DIR/$Branch/latest"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Set-LatestDCOSNetCommit {
@@ -278,7 +274,7 @@ function Copy-FilesToRemoteServer {
         [string]$RemoteFilesPath
     )
     Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
+    Start-SCPCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY `
                      -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
 }
 
@@ -288,7 +284,7 @@ function New-RemoteDirectory {
         [string]$RemoteDirectoryPath
     )
     $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteSymlink {
@@ -299,15 +295,13 @@ function New-RemoteSymlink {
         [string]$RemoteSymlinkPath
     )
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-net-build"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {

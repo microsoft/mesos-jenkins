@@ -143,8 +143,6 @@ function New-TestingEnvironment {
     $global:PARAMETERS["BRANCH"] = $Branch
     Start-GitClone -Path $METRICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestMetricsCommit
-    Start-GitClone -Path $METRICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-    Start-GitClone -Path $METRICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     $env:GOPATH = $METRICS_DIR
     $goBinPath = Join-Path $GOLANG_DIR "bin"
     [System.Environment]::SetEnvironmentVariable('GOBIN', $goBinPath)
@@ -182,9 +180,9 @@ function New-DCOSMetricsPackage {
     # the dcos-go repo.
     $clusterid = "{fdb1d7c0-06cf-4d65-bb9b-a8920bb854ef}"
     $clusterid | Set-Content $MetricsClusterIdFile
-    Copy-Item -Path "$METRICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $METRICS_BUILD_BINARIES_DIR
+    Copy-Item -Path "$PSScriptRoot\utils\detect_ip.ps1" -Destination $METRICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$METRICS_GIT_REPO_DIR\*.exe" -Destination "$METRICS_BUILD_BINARIES_DIR\"
-    Copy-Item -Recurse -Path "$METRICS_MESOS_JENKINS_GIT_REPO_DIR\Metrics\config" -Destination "$METRICS_BUILD_BINARIES_DIR\config"
+    Copy-Item -Recurse -Path "$PSScriptRoot\config" -Destination "$METRICS_BUILD_BINARIES_DIR\config"
     Compress-Files -FilesDirectory "$METRICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$METRICS_BUILD_BINARIES_DIR\metrics.zip"
     Write-Output "DC/OS Metrics package was successfully generated at $METRICS_BUILD_BINARIES_DIR\metrics.zip"
 }
@@ -197,7 +195,7 @@ function Copy-FilesToRemoteServer {
         [string]$RemoteFilesPath
     )
     Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
+    Start-SCPCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY `
                      -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
 }
 
@@ -207,7 +205,7 @@ function New-RemoteDirectory {
         [string]$RemoteDirectoryPath
     )
     $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteSymlink {
@@ -218,23 +216,23 @@ function New-RemoteSymlink {
         [string]$RemoteSymlinkPath
     )
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function Get-MetricsBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
-    $MetricsCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$MetricsCommitID"
+    $repositoryName = $GitURL.Split("/")[-1]
+    $metricsCommitID = Get-LatestCommitID
+    return "${repositoryName}-${Branch}-${metricsCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-MetricsBuildRelativePath
-    return "$REMOTE_METRICS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-MetricsBuildRelativePath
-    return "$METRICS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -249,10 +247,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-metrics-build"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {

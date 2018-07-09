@@ -143,8 +143,6 @@ function New-TestingEnvironment {
     $global:PARAMETERS["BRANCH"] = $Branch
     Start-GitClone -Path $DIAGNOSTICS_GIT_REPO_DIR -URL $GitURL -Branch $Branch
     Set-LatestDiagnosticsCommit
-    Start-GitClone -Path $DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR -URL $DCOS_WINDOWS_GIT_URL
-    Start-GitClone -Path $DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR -URL $MESOS_JENKINS_GIT_URL
     $env:GOPATH = $DIAGNOSTICS_DIR
     $env:PATH = "${env:GOPATH}\bin;" + ${env:PATH}
     Write-Output "New tests environment was successfully created"
@@ -169,8 +167,8 @@ function New-DCOSDiagnosticsPackage {
     Write-Output "Creating DC/OS Diagnostics package"
     Write-Output "DIAGNOSTICS_GIT_REPO_DIR: $DIAGNOSTICS_GIT_REPO_DIR"
     New-Directory $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Copy-Item -Path "$DIAGNOSTICS_DCOS_WINDOWS_GIT_REPO_DIR\scripts\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
-    Copy-Item -Recurse -Path "$DIAGNOSTICS_MESOS_JENKINS_GIT_REPO_DIR\diagnostics\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
+    Copy-Item -Path "$PSScriptRoot\utils\detect_ip.ps1" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
+    Copy-Item -Recurse -Path "$PSScriptRoot\config" -Destination $DIAGNOSTICS_BUILD_BINARIES_DIR
     Copy-Item -Force -Path "$DIAGNOSTICS_GIT_REPO_DIR\*.exe" -Destination "$DIAGNOSTICS_BUILD_BINARIES_DIR\"
     Compress-Files -FilesDirectory "$DIAGNOSTICS_BUILD_BINARIES_DIR\" -Filter "*.*" -Archive "$DIAGNOSTICS_BUILD_BINARIES_DIR\diagnostics.zip"
     Write-Output "DC/OS Diagnostics package was successfully generated"
@@ -184,7 +182,7 @@ function Copy-FilesToRemoteServer {
         [string]$RemoteFilesPath
     )
     Write-Output "Started copying files from $LocalFilesPath to remote location at ${server}:${RemoteFilesPath}"
-    Start-SCPCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY `
+    Start-SCPCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY `
                      -LocalPath $LocalFilesPath -RemotePath $RemoteFilesPath
 }
 
@@ -194,7 +192,7 @@ function New-RemoteDirectory {
         [string]$RemoteDirectoryPath
     )
     $remoteCMD = "if [[ -d $RemoteDirectoryPath ]]; then rm -rf $RemoteDirectoryPath; fi; mkdir -p $RemoteDirectoryPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function New-RemoteSymlink {
@@ -205,23 +203,23 @@ function New-RemoteSymlink {
         [string]$RemoteSymlinkPath
     )
     $remoteCMD = "if [[ -h $RemoteSymlinkPath ]]; then unlink $RemoteSymlinkPath; fi; ln -s $RemotePath $RemoteSymlinkPath"
-    Start-SSHCommand -Server $REMOTE_LOG_SERVER -User $REMOTE_USER -Key $env:SSH_KEY -Command $remoteCMD
+    Start-SSHCommand -Server $STORAGE_SERVER_ADDRESS -User $STORAGE_SERVER_USER -Key $env:SSH_KEY -Command $remoteCMD
 }
 
 function Get-DiagnosticsBuildRelativePath {
-    $repositoryOwner = $GitURL.Split("/")[-2]
+    $repositoryName = $GitURL.Split("/")[-1]
     $diagnosticsCommitID = Get-LatestCommitID
-    return "$repositoryOwner/$Branch/$diagnosticsCommitID"
+    return "${repositoryName}-${Branch}-${diagnosticsCommitID}"
 }
 
 function Get-RemoteBuildDirectoryPath {
     $relativePath = Get-DiagnosticsBuildRelativePath
-    return "$REMOTE_DIAGNOSTICS_BUILD_DIR/$relativePath"
+    return "$ARTIFACTS_DIRECTORY/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildOutputsUrl {
     $relativePath = Get-DiagnosticsBuildRelativePath
-    return "$DIAGNOSTICS_BUILD_BASE_URL/$relativePath"
+    return "$ARTIFACTS_BASE_URL/${env:JOB_NAME}/${env:BUILD_ID}/$relativePath"
 }
 
 function Get-BuildLogsUrl {
@@ -236,10 +234,8 @@ function Get-BuildBinariesUrl {
 
 function New-RemoteLatestSymlinks {
     $remoteDirPath = Get-RemoteBuildDirectoryPath
-    $baseDir = (Split-Path -Path $remoteDirPath -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$baseDir/latest"
-    $repoDir = (Split-Path -Path $baseDir -Parent) -replace '\\', '/'
-    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath "$repoDir/latest"
+    $latestPath = "${ARTIFACTS_DIRECTORY}/${env:JOB_NAME}/latest-diagnostics-build"
+    New-RemoteSymlink -RemotePath $remoteDirPath -RemoteSymlinkPath $latestPath
 }
 
 function Start-LogServerFilesUpload {
