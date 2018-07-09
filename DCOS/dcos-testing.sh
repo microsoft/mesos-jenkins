@@ -267,7 +267,7 @@ setup_remote_winrm_client() {
         echo "ERROR: Failed to download wsmancmd binary from ${WSMANCMD_URL}"
         return 1
     }
-    chmod +x wsmancmd
+    chmod +x $WORKSPACE/wsmancmd
     upload_files_via_scp -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -f "/tmp/wsmancmd" "$WORKSPACE/wsmancmd" || {
         echo "ERROR: Failed to copy wsmancmd binary to the proxy master node"
         return 1
@@ -976,7 +976,7 @@ test_windows_agent_ungraceful_shutdown() {
             return 1
         fi
         NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
-        if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]]; then
+        if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]] && [[ ! -z $NEW_TASK_HOST ]] && [[ $NEW_TASK_HOST != "null" ]]; then
             echo "Task successfully fail-overed from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
             break
         fi
