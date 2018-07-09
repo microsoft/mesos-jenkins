@@ -105,6 +105,7 @@ def win_env(String command) {
                                      usernameVariable: 'JENKINS_USER') ]) {
         println "Powershell executes -> $command"
         powershell(script: """ 
+                            \$ErrorActionPreference = "Stop"                    
                             $command
                             exit \$LASTEXITCODE
                            """)
@@ -114,12 +115,15 @@ def win_env(String command) {
 // Closures
 def e2eTesting = { dcos_e2e_testing_env('mesos-jenkins/DCOS/start-dcos-e2e-testing.sh') }
 def buildDiagnostics = { win_env('& mesos-jenkins/Diagnostics/start-windows-build.ps1') }
-def buildMesos = { win_env('& mesos-jenkins/Mesos/start-windows-build.ps1') }
+def buildMetrics = { win_env('& mesos-jenkins/Metrics/start-windows-build.ps1') }
+def buildSpartan = { win_env('& mesos-jenkins/Spartan/start-windows-build.ps1') }
+// Remove msys2 from $env:PATH as this is not required for the Mesos build 
+def buildMesos = { win_env(""" $newPath = $env:Path -split ';' | Where-Object { $_ -ne "C:\\Program Files\\msys2\\usr\\bin" }
+                               $env:Path = $newPath -join ';'
+                               & mesos-jenkins/Mesos/start-windows-build.ps1""") }
 // Net build needs Erlang 9.2
 def buildNet = { win_env("""\${env:PATH} = "\${env:ProgramFiles}\\erl9.2\\bin;" + \${env:PATH} 
                             & mesos-jenkins/Net/start-windows-build.ps1""") }
-def buildMetrics = { win_env('& mesos-jenkins/Metrics/start-windows-build.ps1') }
-def buildSpartan = { win_env('& mesos-jenkins/Spartan/start-windows-build.ps1') }
 
 // Pipeline Main script
 parallel "Linux init" :        { checkoutPRcode('dummy-slave') },
