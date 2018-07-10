@@ -1,65 +1,43 @@
-def notifyGithub(String buildContext, String result) {
-   switch (result) {
-      case 'STARTED':
-         setGitHubPullRequestStatus(context: buildContext, message: "Build started", state: 'PENDING')
-         break
-      case 'FAILURE':
-         setGitHubPullRequestStatus(context: buildContext, message: "Build error", state: 'ERROR')
-         break
-      case 'UNSTABLE':
-         setGitHubPullRequestStatus(context: buildContext, message: "Tests are broken", state: 'FAILURE')
-         break
-      case 'SUCCESS':
-         setGitHubPullRequestStatus(context: buildContext, message: "All is good", state: 'SUCCESS')
-         break
-   }
-}
-
 def withGithubNotifier(String buildContext, Closure<Void> job) {
-   notifyGithub(buildContext, 'STARTED')
+   setGitHubPullRequestStatus(context: buildContext, message: 'Build started', state: "PENDING")
    try {
         job()
-        notifyGithub(buildContext, 'SUCCESS')
+        setGitHubPullRequestStatus(context: buildContext, message: 'Build status: SUCCESS', state: "SUCCESS")
         
    } catch(e) {
         echo 'Err: Build failed with Error -> ' + e.toString()
-        notifyGithub(buildContext, 'FAILURE')
+        setGitHubPullRequestStatus(context: buildContext, message: 'Build status: FAILURE', state: "ERROR")
         throw e
    }
 }
 
 def runBuild(String buildContext, String nodeName, Closure<Void> task) {
     node(nodeName) {
-        withGithubNotifier ( buildContext, task )
+        stage(buildContext.tokenize('/').last()) {
+            checkoutPRcode()
+            withGithubNotifier ( buildContext, task )
+        }
     }
 }
 
-def checkoutPRcode(String nodeName) {
-    node(nodeName) {
-        cleanWs()
-        checkout([
-            $class: 'GitSCM', 
-            branches: [[name: "origin-pull/pull/${GITHUB_PR_NUMBER}/merge"]], 
-            doGenerateSubmoduleConfigurations: false, 
-            extensions: [[
-                $class: 'RelativeTargetDirectory', 
-                relativeTargetDir: 'mesos-jenkins'
-            ]], 
-            submoduleCfg: [], 
-            userRemoteConfigs: [[
-                credentialsId: 'f9c8b624-50d0-4f77-a22b-c12c755e24cb', 
-                refspec: "+refs/pull/${GITHUB_PR_NUMBER}/merge:refs/remotes/origin-pull/pull/${GITHUB_PR_NUMBER}/merge", 
-                url: "${GITHUB_REPO_GIT_URL}"
-            ]]
-        ])
-        if (nodeName == 'windows-build-server') {
-            dir('dcos-metrics') { git url: 'https://github.com/dcos/dcos-metrics.git' } 
-            dir('dcos-diagnostics') { git url: 'https://github.com/dcos/dcos-diagnostics' } 
-            dir('dcos-net') { git url: 'https://github.com/dcos/dcos-net.git' } 
-            dir('spartan') { git url: 'https://github.com/dcos/spartan.git' } 
-            dir('mesos') { git url: 'https://github.com/apache/mesos.git' } 
-        }
-    }
+def checkoutPRcode() {
+    cleanWs()
+    checkout([
+        $class: 'GitSCM', 
+        branches: [[name: "origin-pull/pull/${GITHUB_PR_NUMBER}/merge"]], 
+        doGenerateSubmoduleConfigurations: false, 
+        extensions: [
+            [$class: 'RelativeTargetDirectory', relativeTargetDir: 'mesos-jenkins'],
+            [$class: 'CleanBeforeCheckout'],
+            [$class: 'CleanCheckout']
+        ], 
+        submoduleCfg: [], 
+        userRemoteConfigs: [[
+            credentialsId: 'f9c8b624-50d0-4f77-a22b-c12c755e24cb', 
+            refspec: "+refs/pull/${GITHUB_PR_NUMBER}/merge:refs/remotes/origin-pull/pull/${GITHUB_PR_NUMBER}/merge", 
+            url: "${GITHUB_REPO_GIT_URL}"
+        ]]
+    ])
 }
 
 // Linux environment for dcos e2e test
@@ -100,35 +78,29 @@ def dcos_e2e_testing_env(String command) {
 // Windows Environment for running powershell scripts
 def win_env(String command) {
     withCredentials([file(credentialsId: 'ae8d8ce4-a601-4e1b-9b53-4bb117fc3451', variable: 'SSH_KEY'),
-                    usernamePassword(credentialsId: '8d70c82f-6959-49ad-a553-e7906ad47710',
+                     usernamePassword(credentialsId: '8d70c82f-6959-49ad-a553-e7906ad47710',
                                      passwordVariable: 'JENKINS_PASSWORD', 
                                      usernameVariable: 'JENKINS_USER') ]) {
         println "Powershell executes -> $command"
-        powershell(script: """ 
-                            \$ErrorActionPreference = "Stop"                    
-                            $command
-                            exit \$LASTEXITCODE
-                           """)
+        PowerShellWrapper(command)
     }
+}
+
+def PowerShellWrapper(psCmd) {
+    psCmd = psCmd.replaceAll("\r", "").replaceAll("\n", "")
+    bat "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command \"\$ErrorActionPreference='Stop';[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;$psCmd;EXIT \$global:LastExitCode\""
 }
 
 // Closures
 def e2eTesting = { dcos_e2e_testing_env('mesos-jenkins/DCOS/start-dcos-e2e-testing.sh') }
-def buildDiagnostics = { win_env('& mesos-jenkins/Diagnostics/start-windows-build.ps1') }
-def buildMetrics = { win_env('& mesos-jenkins/Metrics/start-windows-build.ps1') }
-def buildSpartan = { win_env('& mesos-jenkins/Spartan/start-windows-build.ps1') }
-// Remove msys2 from $env:PATH as this is not required for the Mesos build 
-def buildMesos = { win_env(""" $newPath = $env:Path -split ';' | Where-Object { $_ -ne "C:\\Program Files\\msys2\\usr\\bin" }
-                               $env:Path = $newPath -join ';'
-                               & mesos-jenkins/Mesos/start-windows-build.ps1""") }
+def buildDiagnostics = { win_env('mesos-jenkins/Diagnostics/start-windows-build.ps1') }
+def buildMesos = { win_env(" \$newPath = \$env:Path -split ';' | Where-Object { \$_ -ne 'C:\\Program Files\\msys2\\usr\\bin\' } ; \$env:Path = \$newPath -join ';' ; & mesos-jenkins/Mesos/start-windows-build.ps1") }
 // Net build needs Erlang 9.2
-def buildNet = { win_env("""\${env:PATH} = "\${env:ProgramFiles}\\erl9.2\\bin;" + \${env:PATH} 
-                            & mesos-jenkins/Net/start-windows-build.ps1""") }
+def buildNet = { win_env("\$env:PATH = '${env:ProgramFiles}\\erl9.2\\bin;${env:PATH}' ; & mesos-jenkins/Net/start-windows-build.ps1") }
+def buildMetrics = { win_env("mesos-jenkins/Metrics/start-windows-build.ps1") }
+def buildSpartan = { win_env('mesos-jenkins/Spartan/start-windows-build.ps1') }
 
 // Pipeline Main script
-parallel "Linux init" :        { checkoutPRcode('dummy-slave') },
-         "Windows init" :      { checkoutPRcode('windows-build-server') }
-
 parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-build', 'windows-build-server',   buildDiagnostics) },
          "Net build" :         { runBuild('jenkins/net-build',         'windows-build-server',   buildNet) },
          "Mesos build" :       { runBuild('jenkins/mesos-build',       'windows-build-server',   buildMesos) }, 
@@ -136,3 +108,4 @@ parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-build', 'windows-
          "Metrics build" :     { runBuild('jenkins/metrics-build',     'windows-build-server',   buildMetrics) }, 
          "E2E Testing" :       { runBuild('jenkins/e2e-testing',       'dummy-slave',            e2eTesting) }
 
+ 
