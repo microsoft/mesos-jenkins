@@ -869,7 +869,7 @@ test_windows_agent_graceful_shutdown() {
             return 1
         fi
         NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
-        if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]]; then
+        if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]] && [[ ! -z $NEW_TASK_HOST ]] && [[ $NEW_TASK_HOST != "null" ]]; then
             echo "Task successfully migrated from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
             break
         else
