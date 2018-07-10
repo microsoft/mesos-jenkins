@@ -1,4 +1,4 @@
-The `acs-engine-dcos-deploy.sh` script is used to spawn a DC/OS environment in Azure.
+The `dcos-engine-deploy.sh` script is used to spawn a DC/OS environment in Azure.
 
 Requirements:
 - Ubuntu >= 14.04;

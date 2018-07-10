@@ -44,7 +44,7 @@ validate_extra_hybrid_deployment_params() {
 }
 
 validate_prerequisites() {
-    for TOOL in az acs-engine; do
+    for TOOL in az dcos-engine; do
         which $TOOL > /dev/null || {
             echo "ERROR: Couldn't find $TOOL in PATH"
             exit 1
@@ -76,22 +76,22 @@ TEMPLATES_DIR="$BASE_DIR/templates"
 
 # Generate the Azure ARM deploy files
 if [[ ! -z $DCOS_VERSION ]]; then
-    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/stable/${DCOS_DEPLOYMENT_TYPE}.json"
+    DCOS_TEMPLATE="$TEMPLATES_DIR/dcos-engine/stable/${DCOS_DEPLOYMENT_TYPE}.json"
 else
-    ACS_TEMPLATE="$TEMPLATES_DIR/acs-engine/testing/${DCOS_DEPLOYMENT_TYPE}.json"
+    DCOS_TEMPLATE="$TEMPLATES_DIR/dcos-engine/testing/${DCOS_DEPLOYMENT_TYPE}.json"
 fi
 if [[ -z $DCOS_DEPLOY_DIR ]]; then
     DCOS_DEPLOY_DIR=$(mktemp -d -t "dcos-deploy-XXXXXXXXXX")
 else
     mkdir -p $DCOS_DEPLOY_DIR
 fi
-ACS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/acs-engine-template.json"
+DCOS_RENDERED_TEMPLATE="${DCOS_DEPLOY_DIR}/dcos-engine-template.json"
 eval "cat << EOF
-$(cat $ACS_TEMPLATE)
+$(cat $DCOS_TEMPLATE)
 EOF
-" > $ACS_RENDERED_TEMPLATE
-acs-engine generate --output-directory $DCOS_DEPLOY_DIR $ACS_RENDERED_TEMPLATE
-rm -rf ./translations # Left-over after running 'acs-engine generate'
+" > $DCOS_RENDERED_TEMPLATE
+dcos-engine generate --output-directory $DCOS_DEPLOY_DIR $DCOS_RENDERED_TEMPLATE
+rm -rf ./translations # Left-over after running 'dcos-engine generate'
 
 if [[ ! -z $BUILD_ARTIFACTS_DIR ]] && [[ -d $BUILD_ARTIFACTS_DIR ]]; then
     cp -rf $DCOS_DEPLOY_DIR ${BUILD_ARTIFACTS_DIR}/
