@@ -725,6 +725,7 @@ test_dcos_windows_apps() {
     for ROLE in "${AGENT_ROLES[@]}"; do
         test_windows_agent_graceful_shutdown "${ROLE}" || return 1
         test_windows_agent_ungraceful_shutdown "${ROLE}" || return 1
+        test_windows_agent_chaos "${ROLE}" || return 1
     done
 }
 
@@ -1022,6 +1023,57 @@ test_windows_agent_ungraceful_shutdown() {
         return 1
     fi
 
+}
+
+test_windows_agent_chaos() {
+    local AGENT_ROLE="$1"
+    if [[ "${AGENT_ROLE}" == "*" ]]; then
+        local APP_ID="test-windows-chaos-private-agent"
+    else
+        local APP_ID="test-windows-chaos-public-agent"
+    fi
+    # eval-ing template and deleting hostname constraint, also set instances number to 2
+    eval "cat <<-EOF
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE | jq -r 'del(.constraints[1])' | jq -r ".instances = 2")
+	EOF
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
+
+    echo "Deploying a Windows Marathon application on DC/OS"
+
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application"
+        return 1
+    }
+    
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
+    
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
+    local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
+    
+    #
+    #### Killing the tasks
+    #
+
+    local TASK_IDS=$(dcos marathon task list | grep $APP_NAME | awk '{print$5}')
+    for TASK_ID in $TASK_IDS; do
+        dcos marathon task kill "$TASK_ID"
+    done
+
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
+    echo "Chaos testing successful for '$AGENT_ROLE' nodes!"
+
+    remove_dcos_marathon_app $APP_NAME || return 1
 }
 
 test_iis() {
