@@ -4,7 +4,7 @@
     [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-mesos-build/latest-mesos-build/binaries/mesos-binaries.zip",
     [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-net-build/latest-net-build/release.zip",
     [string]$SpartanPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-spartan-build/latest-spartan-build/release.zip",
-    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce",
+    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1",
     [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json",
     [string]$GithubPRHeadSha
 )
