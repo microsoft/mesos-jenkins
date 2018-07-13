@@ -725,8 +725,10 @@ test_dcos_windows_apps() {
     for ROLE in "${AGENT_ROLES[@]}"; do
         test_windows_agent_graceful_shutdown "${ROLE}" || return 1
         test_windows_agent_ungraceful_shutdown "${ROLE}" || return 1
-        test_windows_agent_chaos "${ROLE}" || return 1
     done
+    
+    # Resiliency testing
+    test_windows_agent_resiliency || return 1
 }
 
 test_windows_agent_recovery() {
@@ -1025,16 +1027,13 @@ test_windows_agent_ungraceful_shutdown() {
 
 }
 
-test_windows_agent_chaos() {
-    local AGENT_ROLE="$1"
-    if [[ "${AGENT_ROLE}" == "*" ]]; then
-        local APP_ID="test-windows-chaos-private-agent"
-    else
-        local APP_ID="test-windows-chaos-public-agent"
-    fi
-    # eval-ing template and deleting hostname constraint, also set instances number to 2
+test_windows_agent_resiliency() {
+    local AGENT_ROLE="slave_public"
+    local APP_ID="test-windows-resiliency-public-agent"
+
+    # eval-ing template and deleting hostname constraint, also set instances number to number of public windows agents
     eval "cat <<-EOF
-	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE | jq -r 'del(.constraints[1])' | jq -r ".instances = 2")
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE | jq -r 'del(.constraints[1])' | jq -r ".instances = $WIN_PUBLIC_AGENT_COUNT")
 	EOF
 	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
 
@@ -1054,7 +1053,7 @@ test_windows_agent_chaos() {
     }
     local PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
     local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
-    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
+    test_dcos_task_connectivity "$APP_NAME" "$WIN_AGENT_PUBLIC_ADDRESS" "slave_public" "$PORT" || return 1
     
     #
     #### Killing the tasks
@@ -1070,8 +1069,8 @@ test_windows_agent_chaos() {
         dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
         return 1
     }
-    test_dcos_task_connectivity "$APP_NAME" "$AGENT_HOSTNAME" "$AGENT_ROLE" "$PORT" || return 1
-    echo "Chaos testing successful for '$AGENT_ROLE' nodes!"
+    test_dcos_task_connectivity "$APP_NAME" "$WIN_AGENT_PUBLIC_ADDRESS" "slave_public" "$PORT" || return 1
+    echo "Resiliency testing successful for Windows public nodes!"
 
     remove_dcos_marathon_app $APP_NAME || return 1
 }
