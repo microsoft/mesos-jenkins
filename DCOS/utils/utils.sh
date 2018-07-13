@@ -13,7 +13,7 @@ check_open_port() {
             echo "ERROR: Port $PORT didn't open at $ADDRESS within $TIMEOUT seconds"
             return 1
         fi
-        nc -v -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
+        nc -w 5 -z "$ADDRESS" "$PORT" &>/dev/null && break || sleep 1
     done
 }
 
