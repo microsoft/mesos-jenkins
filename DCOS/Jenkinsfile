@@ -14,30 +14,10 @@ def withGithubNotifier(String buildContext, Closure<Void> job) {
 def runBuild(String buildContext, String nodeName, Closure<Void> task) {
     node(nodeName) {
         stage(buildContext.tokenize('/').last()) {
-            checkoutPRcode()
+            checkout scm
             withGithubNotifier ( buildContext, task )
         }
     }
-}
-
-def checkoutPRcode() {
-    cleanWs()
-    checkout([
-        $class: 'GitSCM', 
-        branches: [[name: "origin-pull/pull/${GITHUB_PR_NUMBER}/merge"]], 
-        doGenerateSubmoduleConfigurations: false, 
-        extensions: [
-            [$class: 'RelativeTargetDirectory', relativeTargetDir: 'mesos-jenkins'],
-            [$class: 'CleanBeforeCheckout'],
-            [$class: 'CleanCheckout']
-        ], 
-        submoduleCfg: [], 
-        userRemoteConfigs: [[
-            credentialsId: 'f9c8b624-50d0-4f77-a22b-c12c755e24cb', 
-            refspec: "+refs/pull/${GITHUB_PR_NUMBER}/merge:refs/remotes/origin-pull/pull/${GITHUB_PR_NUMBER}/merge", 
-            url: "${GITHUB_REPO_GIT_URL}"
-        ]]
-    ])
 }
 
 // Linux environment for dcos e2e test
