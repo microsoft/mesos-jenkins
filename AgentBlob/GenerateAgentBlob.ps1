@@ -111,26 +111,12 @@ function New-DCOSWindowsAgentBlob {
     Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
     Remove-Item -Force -Path $dcoswindowsArchive
     Copy-Item -Recurse -Path "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts" -Destination $setupScripts
-    ###
-    # TODO(ibalutoiu): For backwards compatibility we also copy the scripts file to
-    #                  AGENT_BLOB_DIR\dcos-windows\scripts (the expected location atm).
-    #                  The following lines will be removed, only we fully transition
-    #                  to consume the agent Blob setup scripts from AGENT_BLOB_DIR\scripts
-    ###
     New-Item -ItemType Directory -Path "${blobDir}\dcos-windows"
     Copy-Item -Recurse -Force -Path $setupScripts -Destination "${blobDir}\dcos-windows\"
-    ###
-    # - Copy the init script and the pre-provision scripts for the CI
+    # - Copy the main init script
     $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\DCOSWindowsAgentSetup.ps1"
-    if(!(Test-Path $initScript)) {
-        ###
-        # TODO(ibalutoiu): The DCOSWindowsAgentSetup.ps1 location should be in the
-        #                  repository root directory. Remove the old location, once
-        #                  it is not used anymore
-        $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts\DCOSWindowsAgentSetup.ps1"
-        ###
-    }
     Copy-Item -Path $initScript -Destination "$($global:PARAMETERS['ARTIFACTS_DIR'])\DCOSWindowsAgentSetup.ps1"
+    # - Copy the pre-provision scripts for the CI
     Copy-Item -Recurse -Path "$PSScriptRoot\..\DCOS\preprovision" -Destination "$($global:PARAMETERS['ARTIFACTS_DIR'])\preprovision"
     Remove-Item -Recurse -Force -Path $dcoswindowsTmpDir
 
