@@ -2,11 +2,11 @@ def withGithubNotifier(String buildContext, Closure<Void> job) {
    setGitHubPullRequestStatus(context: buildContext, message: 'Build started', state: "PENDING")
    try {
         job()
-        setGitHubPullRequestStatus(context: buildContext, message: 'Build status: SUCCESS', state: "SUCCESS")
+        setGitHubPullRequestStatus(context: buildContext, message: 'Job status: SUCCESS', state: "SUCCESS")
         
    } catch(e) {
         echo 'Err: Build failed with Error -> ' + e.toString()
-        setGitHubPullRequestStatus(context: buildContext, message: 'Build status: FAILURE', state: "ERROR")
+        setGitHubPullRequestStatus(context: buildContext, message: 'Job status: FAILURE', state: "ERROR")
         throw e
    }
 }
