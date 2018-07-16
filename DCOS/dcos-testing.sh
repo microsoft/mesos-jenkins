@@ -726,6 +726,9 @@ test_dcos_windows_apps() {
         test_windows_agent_graceful_shutdown "${ROLE}" || return 1
         test_windows_agent_ungraceful_shutdown "${ROLE}" || return 1
     done
+    
+    # Resiliency testing
+    test_windows_agent_resiliency || return 1
 }
 
 test_windows_agent_recovery() {
@@ -1022,6 +1025,54 @@ test_windows_agent_ungraceful_shutdown() {
         return 1
     fi
 
+}
+
+test_windows_agent_resiliency() {
+    local AGENT_ROLE="slave_public"
+    local APP_ID="test-windows-resiliency-public-agent"
+
+    # eval-ing template and deleting hostname constraint, also set instances number to number of public windows agents
+    eval "cat <<-EOF
+	$(cat $WINDOWS_APP_CONTAINER_TEMPLATE | jq -r 'del(.constraints[1])' | jq -r ".instances = $WIN_PUBLIC_AGENT_COUNT")
+	EOF
+	" > $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE
+
+    echo "Deploying a Windows Marathon application on DC/OS"
+
+    dcos marathon app add $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE || {
+        echo "ERROR: Failed to deploy the Windows Marathon application"
+        return 1
+    }
+    
+    local APP_NAME=$(get_marathon_application_name $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
+    
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    local PORT=$(get_marathon_application_host_port $WINDOWS_APP_CONTAINER_RENDERED_TEMPLATE)
+    local AGENT_HOSTNAME=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
+    test_dcos_task_connectivity "$APP_NAME" "$WIN_AGENT_PUBLIC_ADDRESS" "slave_public" "$PORT" || return 1
+    
+    #
+    #### Killing the tasks
+    #
+
+    local TASK_IDS=$(dcos marathon task list | grep $APP_NAME | awk '{print$5}')
+    for TASK_ID in $TASK_IDS; do
+        dcos marathon task kill "$TASK_ID"
+    done
+
+    $DIR/utils/check-marathon-app-health.py --name $APP_NAME || {
+        echo "ERROR: Failed to get $APP_NAME application health checks"
+        dcos marathon app show $APP_NAME > "${TEMP_LOGS_DIR}/dcos-marathon-${APP_NAME}-app-details.json"
+        return 1
+    }
+    test_dcos_task_connectivity "$APP_NAME" "$WIN_AGENT_PUBLIC_ADDRESS" "slave_public" "$PORT" || return 1
+    echo "Resiliency testing successful for Windows public nodes!"
+
+    remove_dcos_marathon_app $APP_NAME || return 1
 }
 
 test_iis() {
