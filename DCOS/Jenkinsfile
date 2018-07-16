@@ -101,11 +101,11 @@ def buildMetrics = { win_env("mesos-jenkins/Metrics/start-windows-build.ps1") }
 def buildSpartan = { win_env('mesos-jenkins/Spartan/start-windows-build.ps1') }
 
 // Pipeline Main script
-parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-build', 'windows-build-server',   buildDiagnostics) },
-         "Net build" :         { runBuild('jenkins/net-build',         'windows-build-server',   buildNet) },
-         "Mesos build" :       { runBuild('jenkins/mesos-build',       'windows-build-server',   buildMesos) }, 
-         "Spartan build" :     { runBuild('jenkins/spartan-build',     'windows-build-server',   buildSpartan) },
-         "Metrics build" :     { runBuild('jenkins/metrics-build',     'windows-build-server',   buildMetrics) }, 
+parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-testing', 'windows-build-server',   buildDiagnostics) },
+         "Net build" :         { runBuild('jenkins/net-testing',         'windows-build-server',   buildNet) },
+         "Mesos build" :       { runBuild('jenkins/mesos-testing',       'windows-build-server',   buildMesos) }, 
+         "Spartan build" :     { runBuild('jenkins/spartan-testing',     'windows-build-server',   buildSpartan) },
+         "Metrics build" :     { runBuild('jenkins/metrics-testing',     'windows-build-server',   buildMetrics) }, 
          "E2E Testing" :       { runBuild('jenkins/e2e-testing',       'dummy-slave',            e2eTesting) }
 
  
