@@ -348,7 +348,7 @@ function Start-FileDownload {
         $params += '--insecure'
     }
     $params += @('-o', $Destination, $URL)
-    $p = Start-Process -FilePath 'curl.exe' -ArgumentList $params -Wait -PassThru
+    $p = Start-Process -FilePath 'curl.exe' -NoNewWindow -ArgumentList $params -Wait -PassThru
     if($p.ExitCode -ne 0) {
         Throw "Fail to download $URL"
     }
