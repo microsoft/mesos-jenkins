@@ -139,6 +139,14 @@ try {
     }
 
     #
+    # Remove all the cached Docker images
+    #
+    docker.exe image rm $(docker.exe image ls -q)
+    if($LASTEXITCODE) {
+        Throw "Failed to remove cached Docker images"
+    }
+
+    #
     # Pre-pull CI images
     #
     Start-ExecuteWithRetry -ScriptBlock { docker.exe pull "microsoft/iis:windowsservercore-1803" } `
