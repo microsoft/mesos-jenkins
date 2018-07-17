@@ -30,8 +30,8 @@ function New-AzureRmSession {
         $subscription = $null
     }
     if($subscription) {
-        Write-Host "AzureRm session is already created"
-        return
+        # Disconnect any account if it's logged
+        Remove-AzureRmAccount -Confirm:$false
     }
     if(!$env:CLIENT_ID -or !$env:CLIENT_SECRET -or !$env:TENANT_ID) {
         Set-CredentialsFromEnvFile
