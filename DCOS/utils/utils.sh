@@ -39,6 +39,9 @@ run_ssh_command() {
             -c)
                 local COMMAND=$2
                 shift;;
+            -t)
+                local TIMEOUT=$2
+                shift;;
             -*)
                 local PARAM=$1
                 echo "unknown parameter $PARAM"
@@ -57,8 +60,15 @@ run_ssh_command() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
+    if [ -z $TIMEOUT ]; then
+        local TIMEOUT="30m"
+    fi
     check_open_port $HOST $PORT || return 1
-    ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${REMOTE_USER}@${HOST} "$COMMAND"
+    timeout --signal SIGKILL $TIMEOUT ssh -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY -p "$PORT" ${REMOTE_USER}@${HOST} "$COMMAND"
+    if [[ $? -eq 137 ]]; then
+        echo "ERROR: The timeout of $TIMEOUT is reached for the SSH command: ${REMOTE_USER}@${HOST} '${COMMAND}'"
+        return 1
+    fi
 }
 
 upload_files_via_scp() {
@@ -79,6 +89,9 @@ upload_files_via_scp() {
                 shift;;
             -p)
                 local PORT=$2
+                shift;;
+            -t)
+                local TIMEOUT=$2
                 shift;;
             -f)
                 local REMOTE_PATH=$2
@@ -102,8 +115,15 @@ upload_files_via_scp() {
     if [ -z $SSH_KEY ]; then
         local SSH_KEY="$HOME/.ssh/id_rsa"
     fi
+    if [ -z $TIMEOUT ]; then
+        local TIMEOUT="30m"
+    fi
     check_open_port $HOST $PORT || return 1
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${REMOTE_USER}@${HOST}:${REMOTE_PATH}
+    timeout --signal SIGKILL $TIMEOUT scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY $LOCAL_PATH ${REMOTE_USER}@${HOST}:${REMOTE_PATH}
+    if [[ $? -eq 137 ]]; then
+        echo "ERROR: The timeout of $TIMEOUT is reached for the SCP command: $LOCAL_PATH ${REMOTE_USER}@${HOST}:${REMOTE_PATH}"
+        return 1
+    fi
 }
 
 download_files_via_scp() {
@@ -124,6 +144,9 @@ download_files_via_scp() {
                 shift;;
             -p)
                 local PORT=$2
+                shift;;
+            -t)
+                local TIMEOUT=$2
                 shift;;
             -f)
                 local REMOTE_PATH=$2
@@ -150,8 +173,15 @@ download_files_via_scp() {
     if [[ -z $REMOTE_USER ]]; then
         local REMOTE_USER="azureuser"
     fi
+    if [ -z $TIMEOUT ]; then
+        local TIMEOUT="30m"
+    fi
     check_open_port $HOST $PORT || return 1
-    scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${REMOTE_USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
+    timeout --signal SIGKILL $TIMEOUT scp -r -P "$PORT" -o 'LogLevel=quiet' -o 'PasswordAuthentication=no' -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i $SSH_KEY ${REMOTE_USER}@${HOST}:${REMOTE_PATH} $LOCAL_PATH
+    if [[ $? -eq 137 ]]; then
+        echo "ERROR: The timeout of $TIMEOUT is reached for the SCP command: $LOCAL_PATH ${REMOTE_USER}@${HOST}:${REMOTE_PATH}"
+        return 1
+    fi
 }
 
 mount_smb_share() {
