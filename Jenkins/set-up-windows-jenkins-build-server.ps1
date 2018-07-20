@@ -231,8 +231,8 @@ function Install-Docker {
         Remove-Item $dockerRegKey
     }
     $installDir = Join-Path $env:ProgramFiles "Docker"
-    $dockerUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce/docker.exe"
-    $dockerdUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18.03.1-ce/dockerd.exe"
+    $dockerUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1/docker.exe"
+    $dockerdUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1/dockerd.exe"
     Start-BitsTransfer $dockerUrl -Destination "$installDir\docker.exe"
     Start-BitsTransfer $dockerdUrl -Destination "$installDir\dockerd.exe"
     Add-ToSystemPath -Path $installDir
