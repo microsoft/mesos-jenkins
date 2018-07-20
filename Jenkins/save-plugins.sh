@@ -20,6 +20,6 @@ def plugins = jenkins.model.Jenkins.instance.getPluginManager().getPlugins()
 plugins.each {println "\${it.getShortName()}:\${it.getVersion()}"}
 EOF
 
-java -jar $JENKINS_CLI -s $JENKINS_URL groovy --username "$1" --password "$2" = < $PLUGINS_GROOVY > $DIR/plugins.txt
+java -jar $JENKINS_CLI -http -auth "${1}:${2}" -s $JENKINS_URL groovy = < $PLUGINS_GROOVY > $DIR/plugins.txt
 
 rm $JENKINS_CLI $PLUGINS_GROOVY
