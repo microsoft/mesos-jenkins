@@ -16,9 +16,6 @@
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
         "osType": "Windows",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        },
         "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
         "ports": [
              80,
@@ -33,10 +30,7 @@
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
         "osType": "Windows",
-        "dnsPrefix": "",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        }
+        "dnsPrefix": ""
       },
       {
         "name": "${LINUX_AGENT_PUBLIC_POOL}",
@@ -44,9 +38,6 @@
         "vmSize": "${LINUX_AGENT_SIZE}",
         "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        },
         "ports": [
              80,
              443,
@@ -58,10 +49,7 @@
         "count": 1,
         "vmSize": "${LINUX_AGENT_SIZE}",
         "osType": "Linux",
-        "dnsPrefix": "",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        }
+        "dnsPrefix": ""
       }
     ],
     "windowsProfile": {
