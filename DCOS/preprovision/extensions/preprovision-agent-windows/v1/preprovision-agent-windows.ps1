@@ -231,11 +231,13 @@ function Write-MesosSecretFiles {
         Remove-Item -Recurse -Force $MESOS_ETC_SERVICE_DIR
     }
     New-Item -ItemType "Directory" -Path $MESOS_ETC_SERVICE_DIR -Force
+    $utf8NoBOM = New-Object System.Text.UTF8Encoding $false
     $credentials = @{
         "principal" = "mycred1"
         "secret" = "mysecret1"
     }
-    ConvertTo-Json -InputObject $credentials -Compress | Out-File -PSPath "$MESOS_ETC_SERVICE_DIR\credential.json" -Encoding utf8
+    $json = ConvertTo-Json -InputObject $credentials -Compress
+    [System.IO.File]::WriteAllLines("$MESOS_ETC_SERVICE_DIR\credential.json", $json, $utf8NoBOM)
     $httpCredentials = @{
         "credentials" = @(
             @{
@@ -244,7 +246,8 @@ function Write-MesosSecretFiles {
             }
         )
     }
-    ConvertTo-Json -InputObject $httpCredentials -Compress | Out-File -PSPath "$MESOS_ETC_SERVICE_DIR\http_credential.json" -Encoding utf8
+    $json = ConvertTo-Json -InputObject $httpCredentials -Compress
+    [System.IO.File]::WriteAllLines("$MESOS_ETC_SERVICE_DIR\http_credential.json", $json, $utf8NoBOM)
     # Create the Mesos service environment file with authentication enabled
     $serviceEnv = @(
         "MESOS_AUTHENTICATE_HTTP_READONLY=true",
