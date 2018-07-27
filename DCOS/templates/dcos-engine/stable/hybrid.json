@@ -8,25 +8,14 @@
     "masterProfile": {
       "count": 3,
       "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
-      "vmSize": "${LINUX_MASTER_SIZE}",
-      "preProvisionExtension": {
-        "name": "preprovision-master-linux",
-        "singleOrAll": "All"
-      }
+      "vmSize": "${LINUX_MASTER_SIZE}"
     },
     "agentPoolProfiles": [
       {
         "name": "${WIN_AGENT_PUBLIC_POOL}",
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
-        "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
-        },
         "osType": "Windows",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        },
         "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
         "ports": [
              80,
@@ -40,29 +29,15 @@
         "name": "${WIN_AGENT_PRIVATE_POOL}",
         "count": 1,
         "vmSize": "${WIN_AGENT_SIZE}",
-        "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
-        },
         "osType": "Windows",
-        "dnsPrefix": "",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        }
+        "dnsPrefix": ""
       },
       {
         "name": "${LINUX_AGENT_PUBLIC_POOL}",
         "count": 1,
         "vmSize": "${LINUX_AGENT_SIZE}",
-        "preProvisionExtension": {
-            "name": "preprovision-agent-linux-public",
-            "singleOrAll": "All"
-        },
         "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        },
         "ports": [
              80,
              443,
@@ -73,15 +48,8 @@
         "name": "${LINUX_AGENT_PRIVATE_POOL}",
         "count": 1,
         "vmSize": "${LINUX_AGENT_SIZE}",
-        "preProvisionExtension": {
-            "name": "preprovision-agent-linux-private",
-            "singleOrAll": "All"
-        },
         "osType": "Linux",
-        "dnsPrefix": "",
-        "customNodeLabels": {
-          "infrastructure": "ci"
-        }
+        "dnsPrefix": ""
       }
     ],
     "windowsProfile": {

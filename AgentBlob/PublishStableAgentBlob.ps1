@@ -11,6 +11,7 @@ $RESOURCE_GROUP_NAME = "dcos-prod-cdn"
 $STORAGE_ACCOUNT_NAME = "dcosprodcdn"
 $CONTAINER_NAME = "dcos-windows"
 $CDN_PROFILE_NAME = "dcos-prod-mirror"
+$DCOS_WINDOWS_TO_UPDATE = @("1-11-0", "1-11-2")
 
 
 function New-AzureRmSession {
@@ -51,15 +52,16 @@ function Publish-BuildArtifacts {
     }
     $context = New-AzureStorageContext -StorageAccountName $STORAGE_ACCOUNT_NAME -StorageAccountKey $key.Value
     $fileNames = @("7z1801-x64.msi", "DCOSWindowsAgentSetup.ps1", "windowsAgentBlob.zip")
-    $blobBaseDir = "1-11-2"
     foreach($fileName in $fileNames) {
         $file = Join-Path $ArtifactsDirectory $fileName
         if(!(Test-Path $file)) {
             Throw "Cannot find the file $fileName into the artifacts directory"
         }
-        Write-Output "Uploading $fileName to the Azure storage account blob: ${blobBaseDir}/${fileName}"
-        Set-AzureStorageBlobContent -Container $CONTAINER_NAME -Blob "${blobBaseDir}/${fileName}" -File $file `
-                                    -Context $context -Confirm:$false -Force
+        foreach($version in $DCOS_WINDOWS_TO_UPDATE) {
+            Write-Output "Uploading $fileName to the Azure storage account blob: ${version}/${fileName}"
+            Set-AzureStorageBlobContent -Container $CONTAINER_NAME -Blob "${version}/${fileName}" -File $file `
+                                        -Context $context -Confirm:$false -Force
+        }
     }
     Write-Output "Purging the CDN cached assets"
     Get-AzureRmCdnEndpoint -ResourceGroupName $RESOURCE_GROUP_NAME -ProfileName $CDN_PROFILE_NAME | `
