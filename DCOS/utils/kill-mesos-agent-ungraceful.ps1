@@ -22,8 +22,8 @@ if ($LastExitCode -ne 0) {
     exit 1
 }
 if ([string]::IsNullOrEmpty($check)) {
-    $imagePath = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\$mesosServiceName' -Name ImagePath).ImagePath
-    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\$mesosServiceName' -Name ImagePath -Value "$imagePath --recovery_timeout=1mins"
+    $imagePath = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\$mesosServiceName" -Name ImagePath).ImagePath
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\$mesosServiceName" -Name ImagePath -Value "$imagePath --recovery_timeout=1mins"
 }
 
 $mesosServiceObjStart = Start-Service $mesosServiceName -PassThru
