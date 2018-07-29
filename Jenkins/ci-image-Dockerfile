@@ -1,0 +1,7 @@
+FROM microsoft/nanoserver:1803
+
+ADD webserver.exe /webserver.exe
+
+ADD MD5.exe /MD5.exe
+
+CMD webserver.exe
