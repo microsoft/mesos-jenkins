@@ -614,7 +614,7 @@ test_dcos_dns() {
     #
     # Tries to resolve 'leader.mesos' and 'master.masos' from all the Windows
     # slaves. A remote PowerShell command is executed via WinRM. This ensures
-    # that the DC/OS dns component on Windows (Spartan or dcos-net) is correctly
+    # that the DC/OS dns component on Windows (dcos-net) is correctly
     # set up
     #
     echo "Testing DC/OS DNS on the Windows slaves"
@@ -1177,7 +1177,7 @@ collect_windows_agents_logs() {
         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "source /tmp/utils.sh && mount_smb_share $IP $WIN_AGENT_ADMIN $WIN_AGENT_ADMIN_PASSWORD && mkdir -p $AGENT_LOGS_DIR && cp -rf /mnt/$IP/AzureData $AGENT_LOGS_DIR/" || return 1
         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/environment ]]; then cp /mnt/$IP/DCOS/environment $AGENT_LOGS_DIR/; fi" || return 1
         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/Program\ Files/Docker/dockerd.log ]]; then cp /mnt/$IP/Program\ Files/Docker/dockerd.log $AGENT_LOGS_DIR/; fi" || return 1
-        for SERVICE in "epmd" "mesos" "spartan" "diagnostics" "dcos-net"; do
+        for SERVICE in "epmd" "mesos" "diagnostics" "dcos-net"; do
             run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/$SERVICE/log ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp -rf /mnt/$IP/DCOS/$SERVICE/log $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
             run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c  "if [[ -e /mnt/$IP/DCOS/$SERVICE/service/environment-file ]] ; then mkdir -p $AGENT_LOGS_DIR/$SERVICE && cp /mnt/$IP/DCOS/$SERVICE/service/environment-file $AGENT_LOGS_DIR/$SERVICE/ ; fi" || return 1
         done

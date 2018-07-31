@@ -13,13 +13,6 @@ $MESOS_BUILD_OUT_DIR = Join-Path $MESOS_DIR "build-output"
 $MESOS_BUILD_LOGS_DIR = Join-Path $MESOS_BUILD_OUT_DIR "logs"
 $MESOS_BUILD_BINARIES_DIR = Join-Path $MESOS_BUILD_OUT_DIR "binaries"
 
-# Spartan configurations
-$SPARTAN_DIR = Join-Path $DCOS_DIR "spartan"
-$SPARTAN_GIT_REPO_DIR = Join-Path $SPARTAN_DIR "spartan"
-$SPARTAN_BUILD_OUT_DIR = Join-Path $SPARTAN_DIR "build-output"
-$SPARTAN_RELEASE_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "release"
-$SPARTAN_BUILD_LOGS_DIR = Join-Path $SPARTAN_BUILD_OUT_DIR "logs"
-
 # dcos-net configurations
 $DCOS_NET_DIR = Join-Path $DCOS_DIR "dcos-net"
 $DCOS_NET_GIT_REPO_DIR = Join-Path $DCOS_NET_DIR "dcos-net"
