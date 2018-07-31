@@ -54,10 +54,6 @@ $PACKAGES = @{
         "url" = "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "vcredist_2013.exe"
     }
-    "otp_193" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl8.3.zip"
-        "local_file" = Join-Path $PACKAGES_DIRECTORY "erl8.3.zip"
-    }
     "otp_202" = @{
         "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl9.2.zip"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "erl9.2.zip"
@@ -375,28 +371,6 @@ function Install-Dig {
     }
 }
 
-function Install-OPT193 {
-    Install-CITool -InstallerPath $PACKAGES["2013_runtime"]["local_file"] `
-                   -ArgumentList @("/install", "/passive")
-    $installDir = Join-Path $env:ProgramFiles "erl8.3"
-    try {
-        Install-ZipCITool -ZipPath $PACKAGES["otp_193"]["local_file"] `
-                          -InstallDirectory $installDir `
-                          -EnvironmentPath @("$installDir\bin")
-    } catch {
-        Remove-Item -Recurse -Force $installDir
-        Throw
-    }
-    $config = @(
-        "[erlang]",
-        "Bindir=$("$installDir\erts-8.3\bin" -replace '\\', '\\')",
-        "Progname=erl",
-        "Rootdir=$($installDir -replace '\\', '\\')"
-    )
-    Set-Content -Path "$installDir\bin\erl.ini" -Value $config
-    Set-Content -Path "$installDir\erts-8.3\bin\erl.ini" -Value $config
-}
-
 function Install-OPT202 {
     Install-CITool -InstallerPath $PACKAGES["2013_runtime"]["local_file"] `
                    -ArgumentList @("/install", "/passive")
@@ -441,7 +415,6 @@ try {
     Install-Maven
     Install-Msys2
     Install-Dig
-    Install-OPT193
     Install-OPT202
     Install-PowerShellModules
     # TODO: Configure git user and e-mail
