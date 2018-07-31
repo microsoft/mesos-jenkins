@@ -866,14 +866,15 @@ test_windows_agent_graceful_shutdown() {
     echo "Waiting with a timeout of 3mins for DCOS to migrate the task from $AGENT_HOSTNAME..."
     local NEW_TASK_HOST=""
     SECONDS=0
+    TIMEOUT=180
     while true; do
-        if [[ $SECONDS -gt 180 ]]; then
+        if [[ $SECONDS -gt $TIMEOUT ]]; then
             echo "ERROR: task for $APP_NAME didn't migrate from $AGENT_HOSTNAME within $TIMEOUT seconds"
             return 1
         fi
         NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
         if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]] && [[ ! -z $NEW_TASK_HOST ]] && [[ $NEW_TASK_HOST != "null" ]]; then
-            echo "Task successfully migrated from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
+            echo "Task successfully migrated from $AGENT_HOSTNAME to $NEW_TASK_HOST"
             break
         else
             sleep 1
@@ -973,14 +974,15 @@ test_windows_agent_ungraceful_shutdown() {
     echo "Waiting with a timeout of 5mins for DCOS to fail the task over from $AGENT_HOSTNAME..."
     local NEW_TASK_HOST=""
     SECONDS=0
+    TIMEOUT=300
     while true; do
-        if [[ $SECONDS -gt 300 ]]; then
+        if [[ $SECONDS -gt $TIMEOUT ]]; then
             echo "ERROR: task for $APP_NAME didn't migrate from $AGENT_HOSTNAME within $TIMEOUT seconds"
             return 1
         fi
         NEW_TASK_HOST=$(dcos marathon app show $APP_NAME | jq -r ".tasks[0].host")
         if [[ $NEW_TASK_HOST != $AGENT_HOSTNAME ]] && [[ ! -z $NEW_TASK_HOST ]] && [[ $NEW_TASK_HOST != "null" ]]; then
-            echo "Task successfully fail-overed from $AGENT_HOSTNAME to $NEW_TASK_HOST"    
+            echo "Task successfully fail-overed from $AGENT_HOSTNAME to $NEW_TASK_HOST"
             break
         fi
         sleep 1
