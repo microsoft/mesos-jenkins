@@ -78,38 +78,33 @@ function Start-MetricsCIProcess {
         [Parameter(Mandatory=$false)]
         [string[]]$ArgumentList,
         [Parameter(Mandatory=$true)]
-        [string]$StdoutFileName,
-        [Parameter(Mandatory=$true)]
-        [string]$StderrFileName,
+        [string]$LogFileName,
         [Parameter(Mandatory=$true)]
         [string]$BuildErrorMessage
     )
-    $stdoutFile = Join-Path $METRICS_BUILD_LOGS_DIR $StdoutFileName
-    $stderrFile = Join-Path $METRICS_BUILD_LOGS_DIR $StderrFileName
-    New-Item -ItemType File -Path $stdoutFile -Force
-    New-Item -ItemType File -Path $stderrFile -Force
+    $logFile = Join-Path $METRICS_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $stdoutUrl = "${logsUrl}/${StdoutFileName}"
-    $stderrUrl = "${logsUrl}/${StderrFileName}"
+    $logFileUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
     }
     try {
-        Wait-ProcessToFinish -ProcessPath $ProcessPath -ArgumentList $ArgumentList `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
+        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File $logFile
+        if($LASTEXITCODE) {
+            Throw "Failed to execute: $command"
+        }
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logFileUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Stdout log available at: $stdoutUrl"
-        Write-Output "Stderr log available at: $stderrUrl"
+        Write-Output "Log available at: $logFileUrl"
     }
 }
 
@@ -155,10 +150,9 @@ function Start-DCOSMetricsBuild {
     try {
         New-Item -ItemType directory -Path ".\build" -Force
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
-                                    -StdoutFileName "metrics-build-stdout.log" `
-                                    -StderrFileName "metrics-build-stderr.log" `
-                                    -ArgumentList @(".\scripts\build.ps1", "collector") `
-                                    -BuildErrorMessage "Metrics failed to build."
+                                -LogFileName "metrics-build.log" `
+                                -ArgumentList @(".\scripts\build.ps1", "collector") `
+                                -BuildErrorMessage "Metrics failed to build."
         Start-ExternalCommand { & go.exe get .\... } -ErrorMessage "Failed to setup the dependent packages"
         Copy-Item -Path "$METRICS_GIT_REPO_DIR\build\collector\dcos-metrics-collector-*" -Destination "$METRICS_GIT_REPO_DIR/dcos-metrics.exe"
     } finally {
@@ -295,10 +289,9 @@ function Start-DCOSMetricsUnitTests {
     Push-Location $METRICS_GIT_REPO_DIR
     try {
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
-                                    -StdoutFileName "metrics-unitests-stdout.log" `
-                                    -StderrFileName "metrics-unitests-stderr.log" `
-                                    -ArgumentList @(".\scripts\test.ps1", "collector unit") `
-                                    -BuildErrorMessage "Metrics unittests failed."
+                                -LogFileName "metrics-unitests.log" `
+                                -ArgumentList @(".\scripts\test.ps1", "collector unit") `
+                                -BuildErrorMessage "Metrics unittests failed."
     } finally {
         Pop-Location
     }
