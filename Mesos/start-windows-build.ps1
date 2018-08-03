@@ -175,7 +175,7 @@ function Start-StoutTestsBuild {
     Write-Output "stout-tests were successfully built"
 }
 
-function Start-StdoutTestsRun {
+function Start-StoutTestsRun {
     Write-Output "Started Mesos stout-tests run"
     Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\stout\tests\Debug\stout-tests.exe" `
                          -StdoutFileName "stout-tests-stdout.log" -StderrFileName "stout-tests-stderr.log" `
@@ -368,9 +368,9 @@ function Start-TempDirCleanup {
 function Start-MesosCITesting {
     try {
         Start-StoutTestsBuild
-        Start-StdoutTestsRun
+        Start-StoutTestsRun
     } catch {
-        Write-Output "stdout-tests failed"
+        Write-Output "stout-tests failed"
     }
     try {
         Start-LibprocessTestsBuild
