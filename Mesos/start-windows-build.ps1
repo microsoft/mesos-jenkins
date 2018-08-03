@@ -35,45 +35,40 @@ function Start-MesosCIProcess {
         [Parameter(Mandatory=$false)]
         [string[]]$ArgumentList,
         [Parameter(Mandatory=$true)]
-        [string]$StdoutFileName,
-        [Parameter(Mandatory=$true)]
-        [string]$StderrFileName,
+        [string]$LogFileName,
         [Parameter(Mandatory=$true)]
         [string]$BuildErrorMessage
     )
-    $stdoutFile = Join-Path $MESOS_BUILD_LOGS_DIR $StdoutFileName
-    $stderrFile = Join-Path $MESOS_BUILD_LOGS_DIR $StderrFileName
-    New-Item -ItemType File -Path $stdoutFile
-    New-Item -ItemType File -Path $stderrFile
+    $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $stdoutUrl = "${logsUrl}/${StdoutFileName}"
-    $stderrUrl = "${logsUrl}/${StderrFileName}"
+    $logUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
     }
     try {
-        Wait-ProcessToFinish -ProcessPath $ProcessPath -ArgumentList $ArgumentList `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
+        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File $logFile
+        if($LASTEXITCODE) {
+            Throw "Failed to execute: $ProcessPath $($ArgumentList -join ' ')"
+        }
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Stdout log available at: $stdoutUrl"
-        Write-Output "Stderr log available at: $stderrUrl"
+        Write-Output "Log file available at: $logUrl"
     }
 }
 
 function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
-    Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "get-review-ids-stdout.log" -StderrFileName "get-review-ids-stderr.log" `
+    Start-MesosCIProcess -ProcessPath "python.exe" -LogFileName "get-review-ids.log" `
                          -ArgumentList @("$PSScriptRoot\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
                          -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
@@ -92,8 +87,9 @@ function Add-ReviewBoardPatch {
                 $buildErrorMsg = "Failed to apply the dependent review: $id."
             }
             # TODO(andschwa): Move this back to `support\apply-reviews.py` after the Python 2 deprecation is complete.
-            Start-MesosCIProcess -ProcessPath "python.exe" -StdoutFileName "apply-review-${id}-stdout.log" -StderrFileName "apply-review-${id}-stderr.log" `
-                                 -ArgumentList @(".\support\python3\apply-reviews.py", "-n", "-r", $id) -BuildErrorMessage $buildErrorMsg
+            Start-MesosCIProcess -ProcessPath "python.exe" -LogFileName "apply-review-${id}.log" `
+                                 -ArgumentList @(".\support\python3\apply-reviews.py", "-n", "-r", $id) `
+                                 -BuildErrorMessage $buildErrorMsg
         } finally {
             Pop-Location
         }
@@ -154,7 +150,7 @@ function Start-MesosBuild {
         } else {
             $parameters += "-DENABLE_LIBWINIO=ON"
         }
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-cmake-stdout.log" -StderrFileName "mesos-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -LogFileName "mesos-cmake.log" `
                              -ArgumentList $parameters -BuildErrorMessage "Mesos failed to build."
     } finally {
         Pop-Location
@@ -166,7 +162,7 @@ function Start-StoutTestsBuild {
     Write-Output "Started Mesos stout-tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "stout-tests-cmake-stdout.log" -StderrFileName "stout-tests-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -LogFileName "stout-tests-cmake.log" `
                              -ArgumentList @("--build", ".", "--target", "stout-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos stout-tests failed to build."
     } finally {
@@ -175,11 +171,10 @@ function Start-StoutTestsBuild {
     Write-Output "stout-tests were successfully built"
 }
 
-function Start-StdoutTestsRun {
+function Start-StoutTestsRun {
     Write-Output "Started Mesos stout-tests run"
     Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\stout\tests\Debug\stout-tests.exe" `
-                         -StdoutFileName "stout-tests-stdout.log" -StderrFileName "stout-tests-stderr.log" `
-                         -BuildErrorMessage "Some Mesos stout-tests tests failed."
+                         -LogFileName "stout-tests.log" -BuildErrorMessage "Some Mesos stout-tests tests failed."
     Write-Output "stout-tests PASSED"
 }
 
@@ -187,7 +182,7 @@ function Start-LibprocessTestsBuild {
     Write-Output "Started Mesos libprocess-tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "libprocess-tests-cmake-stdout.log" -StderrFileName "libprocess-tests-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -LogFileName "libprocess-tests-cmake.log" `
                              -ArgumentList @("--build", ".", "--target", "libprocess-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos libprocess-tests failed to build"
     } finally {
@@ -199,8 +194,7 @@ function Start-LibprocessTestsBuild {
 function Start-LibprocessTestsRun {
     Write-Output "Started Mesos libprocess-tests run"
     Start-MesosCIProcess -ProcessPath "$MESOS_DIR\3rdparty\libprocess\src\tests\Debug\libprocess-tests.exe" `
-                         -StdoutFileName "libprocess-tests-stdout.log" -StderrFileName "libprocess-tests-stderr.log" `
-                         -BuildErrorMessage "Some Mesos libprocess-tests failed."
+                         -LogFileName "libprocess-tests.log" -BuildErrorMessage "Some Mesos libprocess-tests failed."
     Write-Output "libprocess-tests PASSED"
 }
 
@@ -208,7 +202,7 @@ function Start-MesosTestsBuild {
     Write-Output "Started Mesos tests build"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-tests-cmake-stdout.log" -StderrFileName "mesos-tests-cmake-stderr.log" `
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -LogFileName "mesos-tests-cmake.log" `
                              -ArgumentList @("--build", ".", "--target", "mesos-tests", "--config", "Debug", "-- /maxcpucount") `
                              -BuildErrorMessage "Mesos tests failed to build."
     } finally {
@@ -220,8 +214,7 @@ function Start-MesosTestsBuild {
 function Start-MesosTestsRun {
     Write-Output "Started Mesos tests run"
     Start-MesosCIProcess -ProcessPath "$MESOS_DIR\src\mesos-tests.exe" -ArgumentList @('--verbose') `
-                         -StdoutFileName "mesos-tests-stdout.log" -StderrFileName "mesos-tests-stderr.log" `
-                         -BuildErrorMessage "Some Mesos tests failed."
+                         -LogFileName "mesos-tests.log" -BuildErrorMessage "Some Mesos tests failed."
     Write-Output "mesos-tests PASSED"
 }
 
@@ -229,8 +222,9 @@ function New-MesosBinaries {
     Write-Output "Started building Mesos binaries"
     Push-Location $MESOS_DIR
     try {
-        Start-MesosCIProcess -ProcessPath "cmake.exe" -StdoutFileName "mesos-binaries-cmake-stdout.log" -StderrFileName "mesos-binaries-cmake-stderr.log" `
-                             -ArgumentList @("--build", ".", "--config", "Release", "-- /maxcpucount") -BuildErrorMessage "Mesos binaries failed to build."
+        Start-MesosCIProcess -ProcessPath "cmake.exe" -LogFileName "mesos-binaries-cmake.log" `
+                             -ArgumentList @("--build", ".", "--config", "Release", "-- /maxcpucount") `
+                             -BuildErrorMessage "Mesos binaries failed to build."
     } finally {
         Pop-Location
     }
@@ -368,9 +362,9 @@ function Start-TempDirCleanup {
 function Start-MesosCITesting {
     try {
         Start-StoutTestsBuild
-        Start-StdoutTestsRun
+        Start-StoutTestsRun
     } catch {
-        Write-Output "stdout-tests failed"
+        Write-Output "stout-tests failed"
     }
     try {
         Start-LibprocessTestsBuild
