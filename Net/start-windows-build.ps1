@@ -31,39 +31,34 @@ function Start-DCOSNetCIProcess {
         [Parameter(Mandatory=$false)]
         [string[]]$ArgumentList,
         [Parameter(Mandatory=$true)]
-        [string]$StdoutFileName,
-        [Parameter(Mandatory=$true)]
-        [string]$StderrFileName,
+        [string]$LogFileName,
         [Parameter(Mandatory=$true)]
         [string]$BuildErrorMessage
     )
-    $stdoutFile = Join-Path $DCOS_NET_BUILD_LOGS_DIR $StdoutFileName
-    $stderrFile = Join-Path $DCOS_NET_BUILD_LOGS_DIR $StderrFileName
-    New-Item -ItemType File -Path $stdoutFile
-    New-Item -ItemType File -Path $stderrFile
+    $logFile = Join-Path $DCOS_NET_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $stdoutUrl = "${logsUrl}/${StdoutFileName}"
-    $stderrUrl = "${logsUrl}/${StderrFileName}"
+    $logUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
     }
     try {
-        Wait-ProcessToFinish -ProcessPath $ProcessPath -ArgumentList $ArgumentList `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
+        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File $logFile
+        if($LASTEXITCODE) {
+            Throw "Failed to execute: $command"
+        }
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logsUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
 
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Stdout log available at: $stdoutUrl"
-        Write-Output "Stderr log available at: $stderrUrl"
+        Write-Output "Log available at: $logsUrl"
     }
 }
 
@@ -147,10 +142,9 @@ function Start-LibsodiumBuild {
     Set-WindowsSDK -VCXProjFile "$DCOS_NET_LIBSODIUM_GIT_DIR\builds\msvc\vs2017\libsodium\libsodium.vcxproj" -Version "10.0.17134.0"
     Write-Output "Starting the libsodium build"
     try {
-        Start-DCOSNetCIProcess -ProcessPath "MSBuild.exe" `
+        Start-DCOSNetCIProcess -ProcessPath "MSBuild.exe" -LogFileName "libsodium-build.log" `
                                -ArgumentList @('builds\msvc\vs2017\libsodium.sln', '/nologo', '/target:Build', '/p:Platform=x64', '/p:Configuration="DynRelease"') `
-                               -BuildErrorMessage "dcos-net common tests run was not successful" `
-                               -StdoutFileName "libsodium-build-stdout.log" -StderrFileName "libsodium-build-stderr.log"
+                               -BuildErrorMessage "Failed to build libsodium dependency"
     } finally {
         Pop-Location
     }
@@ -167,8 +161,7 @@ function Start-DCOSNetBuild {
     Write-Output "Starting the dcos-net build"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "windows", "release") `
-                               -StdoutFileName "dcos-net-make-stdout.log" -StderrFileName "dcos-net-make-stderr.log" `
-                               -BuildErrorMessage "dcos-net failed to build."
+                               -LogFileName "dcos-net-make.log" -BuildErrorMessage "dcos-net failed to build."
     } finally {
         Pop-Location
     }
@@ -179,10 +172,9 @@ function Start-CommonTests {
     Push-Location $DCOS_NET_GIT_REPO_DIR
     Write-Output "Starting the dcos-net common tests"
     try {
-        Start-DCOSNetCIProcess -ProcessPath "escript.exe" `
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -LogFileName "dcos-net-common-tests.log" `
                                -ArgumentList @(".\rebar3", "as", "test,windows", "ct", "--suite=apps/dcos_dns/test/dcos_dns_SUITE") `
-                               -BuildErrorMessage "dcos-net common tests run was not successful" `
-                               -StdoutFileName "dcos-net-common-tests-stdout.log" -StderrFileName "dcos-net-common-tests-stderr.log"
+                               -BuildErrorMessage "dcos-net common tests run was not successful"
     } finally {
         Pop-Location
     }
@@ -194,8 +186,8 @@ function Start-EUnitTests {
     Write-Output "Starting the dcos-net eunit tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "eunit") `
-                               -BuildErrorMessage "dcos-net eunit tests run was not successful" `
-                               -StdoutFileName "dcos-net-eunit-tests-stdout.log" -StderrFileName "dcos-net-eunit-tests-stderr.log"
+                               -LogFileName "dcos-net-eunit-tests.log" `
+                               -BuildErrorMessage "dcos-net eunit tests run was not successful"
     } finally {
         Pop-Location
     }
@@ -207,8 +199,8 @@ function Start-XrefTests {
     Write-Output "Starting the dcos-net xref tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "xref") `
-                               -BuildErrorMessage "dcos-net xref tests run was not successful" `
-                               -StdoutFileName "dcos-net-xref-tests-stdout.log" -StderrFileName "dcos-net-xref-tests-stderr.log"
+                               -LogFileName "dcos-net-xref-tests.log" `
+                               -BuildErrorMessage "dcos-net xref tests run was not successful"
     } finally {
         Pop-Location
     }
@@ -220,8 +212,8 @@ function Start-CoverTests {
     Write-Output "Starting the dcos-net coverage tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "cover") `
-                               -BuildErrorMessage "dcos-net coverage tests run was not successful" `
-                               -StdoutFileName "dcos-net-cover-tests-stdout.log" -StderrFileName "dcos-net-cover-tests-stderr.log"
+                               -LogFileName "dcos-net-cover-tests.log" `
+                               -BuildErrorMessage "dcos-net coverage tests run was not successful"
     } finally {
         Pop-Location
     }
@@ -233,22 +225,21 @@ function Start-DialyzerTests {
     Write-Output "Starting the dcos-net dialyzer tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "dialyzer") `
-                               -BuildErrorMessage "dcos-net coverage tests run was not successful" `
-                               -StdoutFileName "dcos-net-dialyzer-tests-stdout.log" -StderrFileName "dcos-net-dialyzer-tests-stderr.log"
+                               -LogFileName "dcos-net-dialyzer-tests.log" `
+                               -BuildErrorMessage "dcos-net dialyzer tests run was not successful"
     } finally {
         Pop-Location
     }
     Write-Output "Successfully finished dcos-net dialyzer tests run"
 }
 
-
 function Start-EdocTests {
     Push-Location $DCOS_NET_GIT_REPO_DIR
     Write-Output "Starting the dcos-net edoc tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "edoc") `
-                               -BuildErrorMessage "dcos-net edoc tests run was not successful" `
-                               -StdoutFileName "dcos-net-edoc-tests-stdout.log" -StderrFileName "dcos-net-edoc-tests-stderr.log"
+                               -LogFileName "dcos-net-edoc-tests.log" `
+                               -BuildErrorMessage "dcos-net edoc tests run was not successful"
     } finally {
         Pop-Location
     }
