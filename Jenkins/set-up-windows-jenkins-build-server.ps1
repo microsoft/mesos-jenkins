@@ -249,6 +249,10 @@ function Install-Git {
     if($LASTEXITCODE) {
         Throw "Failed to set git global config core.autocrlf true"
     }
+    git.exe config --system core.symlinks true
+    if($LASTEXITCODE) {
+        Throw "Failed to set git system config core.symlinks true"
+    }
 }
 
 function Install-CMake {
