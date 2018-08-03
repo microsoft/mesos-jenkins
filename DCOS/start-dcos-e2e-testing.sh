@@ -57,8 +57,8 @@ check_exit_code true
 run_fluentd_tests
 check_exit_code true
 
-# - Run the autoscale testing
-run_dcos_autoscale_job
+# - Run the scalability testing
+run_dcos_scalability_job
 check_exit_code true
 
 # - Successfully exit the job
