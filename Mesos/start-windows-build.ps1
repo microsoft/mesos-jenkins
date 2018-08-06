@@ -47,7 +47,7 @@ function Start-MesosCIProcess {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
     }
     try {
-        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File $logFile
+        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File -FilePath $logFile -Encoding utf8
         if($LASTEXITCODE) {
             Throw "Failed to execute: $ProcessPath $($ArgumentList -join ' ')"
         }
