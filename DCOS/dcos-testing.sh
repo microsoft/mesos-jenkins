@@ -1307,19 +1307,19 @@ create_testing_environment() {
     }
 }
 
-run_dcos_autoscale_job() {
+run_dcos_scalability_job() {
     curl "${JENKINS_URL}/jnlpJars/jenkins-cli.jar" -o $JENKINS_CLI || {
         echo "ERROR: Failed to download jenkins-cli.jar from ${JENKINS_URL}"
         return 1
     }
-    AUTOSCALE_JOB_NAME="dcos-testing-autoscale"
-    echo "Triggering ${AUTOSCALE_JOB_NAME} job for the current DC/OS cluster"
+    SCALABILITY_JOB_NAME="dcos-testing-scalability"
+    echo "Triggering ${SCALABILITY_JOB_NAME} job for the current DC/OS cluster"
 
-    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_URL build $AUTOSCALE_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
-    AUTOSCALE_EXIT_CODE=$?
-    AUTOSCALE_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
+    OUTPUT=$(java -jar $JENKINS_CLI -http -auth $JENKINS_USER:$JENKINS_PASSWORD -s $JENKINS_URL build $SCALABILITY_JOB_NAME -s -p RESOURCE_GROUP=$AZURE_RESOURCE_GROUP)
+    SCALABILITY_EXIT_CODE=$?
+    SCALABILITY_JOB_NUMBER=$(echo $OUTPUT | grep -Eo '[0-9]+' | head -1)
 
-    JOB_URL="${JENKINS_URL}/job/${AUTOSCALE_JOB_NAME}/${AUTOSCALE_JOB_NUMBER}"
+    JOB_URL="${JENKINS_URL}/job/${SCALABILITY_JOB_NAME}/${SCALABILITY_JOB_NUMBER}"
     echo "Finished $JOB_URL"
 
     echo "Console output from the scale testing job:"
@@ -1328,12 +1328,12 @@ run_dcos_autoscale_job() {
         return 1
     }
 
-    if [[ $AUTOSCALE_EXIT_CODE -ne 0 ]]; then
-        echo "DC/OS autoscale testing job failed"
+    if [[ $SCALABILITY_EXIT_CODE -ne 0 ]]; then
+        echo "DC/OS scalability testing job failed"
         return 1
     fi
 
-    echo "DC/OS autoscale testing job succeeded"
+    echo "DC/OS scalability testing job succeeded"
     return 0
 }
 

@@ -67,7 +67,7 @@ Pester is a BDD based test runner, a framework for running Unit Tests to execute
 # Run test script
 
 ## Change location to the Pester tests directory
-`$ cd <mesos_jenkins_directory_path>\DCOS\autoscale-testing`
+`$ cd <mesos_jenkins_directory_path>\DCOS\scalability-testing`
 
 ## Run all tests
 `$ invoke-pester`
