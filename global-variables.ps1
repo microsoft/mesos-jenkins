@@ -37,7 +37,7 @@ $METRICS_BUILD_BINARIES_DIR = Join-Path $METRICS_BUILD_OUT_DIR "binaries"
 
 # Installers & git repositories URLs
 $GIT_URL = "$STORAGE_SERVER_BASE_URL/downloads/git-64-bit.exe"
-$7ZIP_URL = "http://d.7-zip.org/a/7z1700-x64.msi"
+$7ZIP_URL = "https://www.7-zip.org/a/7z1805-x64.msi"
 $GOLANG_URL = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
 $DCOS_WINDOWS_GIT_URL = "https://github.com/dcos/dcos-windows"
 $LIBSODIUM_GIT_URL = "https://github.com/jedisct1/libsodium"
