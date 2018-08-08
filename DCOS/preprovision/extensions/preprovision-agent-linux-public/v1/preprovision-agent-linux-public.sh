@@ -72,5 +72,5 @@ elif [[ -e "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json" ]]; then
     python $UPDATE_CONFIG_SCRIPT "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json"
 fi
 
-systemctl restart dcos-checks-poststart.service || echo skipped
+systemctl restart dcos-checks-poststart.service
 EOF
