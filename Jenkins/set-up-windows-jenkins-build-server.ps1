@@ -278,6 +278,11 @@ function Install-Python36 {
                    -ArgumentList @("/quiet", "InstallAllUsers=1", "TargetDir=`"$installDir`"") `
                    -EnvironmentPath @($installDir, "$installDir\Scripts")
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1
+    Write-Output "Installing pip package: chardet"
+    pip.exe install -U chardet
+    if($LASTEXITCODE) {
+        Throw "Failed to install pip package: chardet"
+    }
 }
 
 function Install-Putty {
