@@ -134,11 +134,6 @@ function Start-CIAgentSetup {
     if($LASTEXITCODE -ne 0) {
         Throw "Failed to configure WinRM"
     }
-    # Remove all the cached Docker images
-    docker.exe image rm $(docker.exe image ls -q)
-    if($LASTEXITCODE) {
-        Throw "Failed to remove cached Docker images"
-    }
     # Pre-pull CI images
     $images = @(
         "microsoft/windowsservercore:1803",
