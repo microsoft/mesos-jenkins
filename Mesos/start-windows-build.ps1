@@ -41,7 +41,7 @@ function Start-MesosCIProcess {
     )
     $logFile = Join-Path $MESOS_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $logUrl = "${logsUrl}/${LogFileName}"
+    $logFileUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
@@ -55,13 +55,13 @@ function Start-MesosCIProcess {
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($logUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logFileUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Log file available at: $logUrl"
+        Write-Output "Log file available at: $logFileUrl"
     }
 }
 

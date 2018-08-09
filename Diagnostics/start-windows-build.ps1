@@ -78,38 +78,33 @@ function Start-DiagnosticsCIProcess {
         [Parameter(Mandatory=$false)]
         [string[]]$ArgumentList,
         [Parameter(Mandatory=$true)]
-        [string]$StdoutFileName,
-        [Parameter(Mandatory=$true)]
-        [string]$StderrFileName,
+        [string]$LogFileName,
         [Parameter(Mandatory=$true)]
         [string]$BuildErrorMessage
     )
-    $stdoutFile = Join-Path $DIAGNOSTICS_BUILD_LOGS_DIR $StdoutFileName
-    $stderrFile = Join-Path $DIAGNOSTICS_BUILD_LOGS_DIR $StderrFileName
-    New-Item -ItemType File -Path $stdoutFile -Force
-    New-Item -ItemType File -Path $stderrFile -Force
+    $logFile = Join-Path $DIAGNOSTICS_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $stdoutUrl = "${logsUrl}/${StdoutFileName}"
-    $stderrUrl = "${logsUrl}/${StderrFileName}"
+    $logFileUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
     }
     try {
-        Wait-ProcessToFinish -ProcessPath $ProcessPath -ArgumentList $ArgumentList `
-                             -StandardOutput $stdoutFile -StandardError $stderrFile
+        cmd.exe /C "$ProcessPath $($ArgumentList -join ' ') 2>&1" | Out-File $logFile
+        if($LASTEXITCODE) {
+            Throw "Failed to execute: $command"
+        }
         $msg = "Successfully executed: $command"
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($stdoutUrl, $stderrUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logFileUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Stdout log available at: $stdoutUrl"
-        Write-Output "Stderr log available at: $stderrUrl"
+        Write-Output "Log available at: $logFileUrl"
     }
 }
 
@@ -153,8 +148,7 @@ function Start-DCOSDiagnosticsBuild {
     Push-Location $DIAGNOSTICS_GIT_REPO_DIR
     try {
         Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
-                                    -StdoutFileName "diagnostics-build-stdout.log" `
-                                    -StderrFileName "diagnostics-build-stderr.log" `
+                                    -LogFileName "diagnostics-build.log" `
                                     -ArgumentList @(".\scripts\make.ps1", "build") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
@@ -282,8 +276,7 @@ function Start-DCOSDiagnosticsUnitTests {
     Push-Location $DIAGNOSTICS_GIT_REPO_DIR
     try {
         Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
-                                    -StdoutFileName "diagnostics-unitests-stdout.log" `
-                                    -StderrFileName "diagnostics-unitests-stderr.log" `
+                                    -LogFileName "diagnostics-unitests.log" `
                                     -ArgumentList @(".\scripts\make.ps1", "test") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
