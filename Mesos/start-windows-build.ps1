@@ -275,7 +275,7 @@ function Get-MesosBuildRelativePath {
         return "${repositoryName}-review-${ReviewID}"
     }
     $mesosCommitID = Get-LatestCommitID
-    return "${repositoryName}-${Branch}-${mesosCommitID}"
+    return "${repositoryName}"
 }
 
 function Get-RemoteBuildDirectoryPath {
