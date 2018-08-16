@@ -38,7 +38,6 @@ def dcos_e2e_testing_env(String command) {
                                       usernameVariable: 'DOCKER_HUB_USER')]) {
     withEnv(["DCOS_DEPLOYMENT_TYPE=hybrid",
              "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
-             "DCOS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos/builds/latest/dcos_generate_config.sh",
              "MASTER_WHITELISTED_IPS=13.66.169.239 13.66.171.181 13.66.173.101 13.66.215.214 13.77.172.69",
              "AUTOCLEAN=true",
              "SET_CLEANUP_TAG=true",
