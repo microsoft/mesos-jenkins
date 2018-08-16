@@ -63,14 +63,14 @@ def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
     logs_msg = ''
     for url in logs_urls:
         response = urllib2.urlopen(url)
-        char_encoding = chardet.detect(response.read())['encoding']
-        log_content = response.read().decode(char_encoding)
-        if log_content == '':
+        log_bytes = response.read()
+        log_str = log_bytes.decode(chardet.detect(log_bytes)['encoding'])
+        if log_str == '':
             continue
         file_name = url.split('/')[-1]
         logs_msg += "- [%s](%s):\n\n" % (file_name, url)
         logs_msg += "```\n"
-        log_tail = log_content.split("\n")[-LOG_TAIL_LIMIT:]
+        log_tail = log_str.split("\n")[-LOG_TAIL_LIMIT:]
         logs_msg += "\n".join(log_tail)
         logs_msg += "```\n\n"
     if logs_msg == '':
