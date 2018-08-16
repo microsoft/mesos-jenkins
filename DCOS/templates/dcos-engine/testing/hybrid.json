@@ -1,138 +1,142 @@
 {
-    "apiVersion": "vlabs",
-    "properties": {
-        "orchestratorProfile": {
-            "orchestratorType": "DCOS",
-            "orchestratorRelease": "1.11",
-            "linuxBootstrapProfile": {
-                "bootstrapURL": "${DCOS_BOOTSTRAP_URL}"
-            },
-            "windowsBootstrapProfile": {
-                "bootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
-            }
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "DCOS",
+      "orchestratorRelease": "1.11",
+      "linuxBootstrapProfile": {
+        "bootstrapURL": "${DCOS_BOOTSTRAP_URL}"
+      },
+      "windowsBootstrapProfile": {
+        "bootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
+      }
+    },
+    "masterProfile": {
+      "count": ${LINUX_MASTER_COUNT},
+      "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
+      "vmSize": "${LINUX_MASTER_SIZE}",
+      "preProvisionExtension": {
+        "name": "preprovision-master-linux",
+        "singleOrAll": "All"
+      }
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "${WIN_AGENT_PUBLIC_POOL}",
+        "count": ${WIN_PUBLIC_AGENT_COUNT},
+        "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
         },
-        "masterProfile": {
-            "count": "${LINUX_MASTER_COUNT}",
-            "dnsPrefix": "${LINUX_MASTER_DNS_PREFIX}",
-            "vmSize": "${LINUX_MASTER_SIZE}",
-            "preProvisionExtension": {
-                "name": "preprovision-master-linux",
-                "singleOrAll": "All"
-            }
+        "osType": "Windows",
+        "customNodeLabels": {
+          "infrastructure": "ci"
         },
-        "agentPoolProfiles": [{
-                "name": "${WIN_AGENT_PUBLIC_POOL}",
-                "count": "${WIN_PUBLIC_AGENT_COUNT}",
-                "vmSize": "${WIN_AGENT_SIZE}",
-                "preProvisionExtension": {
-                    "name": "preprovision-agent-windows",
-                    "singleOrAll": "All"
-                },
-                "osType": "Windows",
-                "customNodeLabels": {
-                    "infrastructure": "ci"
-                },
-                "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
-                "ports": [
-                    80,
-                    443,
-                    8080,
-                    3389,
-                    5986,
-                    31500
-                ]
-            },
-            {
-                "name": "${WIN_AGENT_PRIVATE_POOL}",
-                "count": "${WIN_PRIVATE_AGENT_COUNT}",
-                "vmSize": "${WIN_AGENT_SIZE}",
-                "preProvisionExtension": {
-                    "name": "preprovision-agent-windows",
-                    "singleOrAll": "All"
-                },
-                "osType": "Windows",
-                "dnsPrefix": "",
-                "customNodeLabels": {
-                    "infrastructure": "ci"
-                }
-            },
-            {
-                "name": "${LINUX_AGENT_PUBLIC_POOL}",
-                "count": "${LINUX_PUBLIC_AGENT_COUNT}",
-                "vmSize": "${LINUX_AGENT_SIZE}",
-                "preProvisionExtension": {
-                    "name": "preprovision-agent-linux-public",
-                    "singleOrAll": "All"
-                },
-                "osType": "Linux",
-                "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
-                "customNodeLabels": {
-                    "infrastructure": "ci"
-                },
-                "ports": [
-                    80,
-                    443,
-                    22
-                ]
-            },
-            {
-                "name": "${LINUX_AGENT_PRIVATE_POOL}",
-                "count": "${LINUX_PRIVATE_AGENT_COUNT}",
-                "vmSize": "${LINUX_AGENT_SIZE}",
-                "preProvisionExtension": {
-                    "name": "preprovision-agent-linux-private",
-                    "singleOrAll": "All"
-                },
-                "osType": "Linux",
-                "dnsPrefix": "",
-                "customNodeLabels": {
-                    "infrastructure": "ci"
-                }
-            }
-        ],
-        "windowsProfile": {
-            "adminUsername": "${WIN_AGENT_ADMIN}",
-            "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
-            "WindowsPublisher": "MicrosoftWindowsServer",
-            "WindowsOffer": "WindowsServerSemiAnnual",
-            "WindowsSku": "Datacenter-Core-1803-with-Containers-smalldisk"
+        "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
+        "ports": [
+             80,
+             443,
+             8080,
+             3389,
+             5986,
+             31500
+          ]
+      },
+      {
+        "name": "${WIN_AGENT_PRIVATE_POOL}",
+        "count": ${WIN_PRIVATE_AGENT_COUNT},
+        "vmSize": "${WIN_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-windows",
+            "singleOrAll": "All"
         },
-        "linuxProfile": {
-            "adminUsername": "${LINUX_ADMIN}",
-            "ssh": {
-                "publicKeys": [{
-                    "keyData": "${LINUX_PUBLIC_SSH_KEY}"
-                }]
-            }
+        "osType": "Windows",
+        "dnsPrefix": "",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        }
+      },
+      {
+        "name": "${LINUX_AGENT_PUBLIC_POOL}",
+        "count": ${LINUX_PUBLIC_AGENT_COUNT},
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-public",
+            "singleOrAll": "All"
         },
-        "extensionProfiles": [{
-                "name": "preprovision-agent-linux-public",
-                "version": "v1",
-                "extensionParameters": "parameters",
-                "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
-                "script": "preprovision-agent-linux-public.sh"
-            },
-            {
-                "name": "preprovision-agent-linux-private",
-                "version": "v1",
-                "extensionParameters": "parameters",
-                "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
-                "script": "preprovision-agent-linux-private.sh"
-            },
-            {
-                "name": "preprovision-master-linux",
-                "version": "v1",
-                "extensionParameters": "parameters",
-                "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
-                "script": "preprovision-master-linux.sh"
-            },
-            {
-                "name": "preprovision-agent-windows",
-                "version": "v1",
-                "extensionParameters": "parameters",
-                "rootURL": "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/preprovision/",
-                "script": "preprovision-agent-windows.ps1"
-            }
+        "osType": "Linux",
+        "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        },
+        "ports": [
+             80,
+             443,
+             22
+          ]
+      },
+      {
+        "name": "${LINUX_AGENT_PRIVATE_POOL}",
+        "count": ${LINUX_PRIVATE_AGENT_COUNT},
+        "vmSize": "${LINUX_AGENT_SIZE}",
+        "preProvisionExtension": {
+            "name": "preprovision-agent-linux-private",
+            "singleOrAll": "All"
+        },
+        "osType": "Linux",
+        "dnsPrefix": "",
+        "customNodeLabels": {
+          "infrastructure": "ci"
+        }
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "${WIN_AGENT_ADMIN}",
+      "adminPassword": "${WIN_AGENT_ADMIN_PASSWORD}",
+      "WindowsPublisher": "MicrosoftWindowsServer",
+      "WindowsOffer": "WindowsServerSemiAnnual",
+      "WindowsSku": "Datacenter-Core-1803-with-Containers-smalldisk"
+    },
+    "linuxProfile": {
+      "adminUsername": "${LINUX_ADMIN}",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "${LINUX_PUBLIC_SSH_KEY}"
+          }
         ]
-    }
+      }
+    },
+    "extensionProfiles": [
+      {
+        "name": "preprovision-agent-linux-public",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "script": "preprovision-agent-linux-public.sh"
+      },
+      {
+        "name": "preprovision-agent-linux-private",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "script": "preprovision-agent-linux-private.sh"
+      },
+      {
+        "name": "preprovision-master-linux",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "script": "preprovision-master-linux.sh"
+      },
+      {
+        "name": "preprovision-agent-windows",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "script": "preprovision-agent-windows.ps1"
+      }
+    ]
+  }
 }
