@@ -107,8 +107,6 @@ function New-DCOSWindowsAgentBlob {
     Expand-Archive -Path $dcoswindowsArchive -DestinationPath $dcoswindowsTmpDir -Force
     Remove-Item -Force -Path $dcoswindowsArchive
     Copy-Item -Recurse -Path "${dcoswindowsTmpDir}\dcos-windows-${fileName}\scripts" -Destination $setupScripts
-    New-Item -ItemType Directory -Path "${blobDir}\dcos-windows"
-    Copy-Item -Recurse -Force -Path $setupScripts -Destination "${blobDir}\dcos-windows\"
     # - Copy the main init script
     $initScript = "${dcoswindowsTmpDir}\dcos-windows-${fileName}\DCOSWindowsAgentSetup.ps1"
     Copy-Item -Path $initScript -Destination "$($global:PARAMETERS['ARTIFACTS_DIR'])\DCOSWindowsAgentSetup.ps1"

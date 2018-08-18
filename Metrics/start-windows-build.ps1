@@ -216,7 +216,7 @@ function New-RemoteSymlink {
 function Get-MetricsBuildRelativePath {
     $repositoryName = $GitURL.Split("/")[-1]
     $metricsCommitID = Get-LatestCommitID
-    return "${repositoryName}-${Branch}-${metricsCommitID}"
+    return "${repositoryName}"
 }
 
 function Get-RemoteBuildDirectoryPath {

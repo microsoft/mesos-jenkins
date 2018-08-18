@@ -72,7 +72,7 @@ function Get-LatestCommitID {
 function Get-DCOSNetBuildRelativePath {
     $repositoryName = $GitURL.Split("/")[-1]
     $dcosNetCommitID = Get-LatestCommitID
-    return "${repositoryName}-${Branch}-${dcosNetCommitID}"
+    return "${repositoryName}"
 }
 
 function Get-BuildOutputsUrl {

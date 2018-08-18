@@ -50,7 +50,7 @@ def public_linux_slaves_addresses():
     for slave in slaves:
         if("public_ip" in slave["attributes"].keys() and
            "os" in slave["attributes"].keys() and
-           slave["attributes"]["os"] == "linux"):
+           slave["attributes"]["os"] == "Linux"):
             addresses.append(mesos.parse_pid(slave["pid"])[1])
     return addresses
 
@@ -61,6 +61,6 @@ def private_linux_slaves_addresses():
     for slave in slaves:
         if("public_ip" not in slave["attributes"].keys() and
            "os" in slave["attributes"].keys() and
-           slave["attributes"]["os"] == "linux"):
+           slave["attributes"]["os"] == "Linux"):
             addresses.append(mesos.parse_pid(slave["pid"])[1])
     return addresses

@@ -1,3 +1,8 @@
+def DIAGNOSTICS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-diagnostics/binaries/diagnostics.zip"
+def METRICS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-metrics/binaries/metrics.zip"
+def MESOS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/mesos/binaries/mesos-binaries.zip"
+def DCOS_NET_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-net/release.zip"
+
 def withGithubNotifier(String buildContext, Closure<Void> job) {
    setGitHubPullRequestStatus(context: buildContext, message: 'Build started', state: "PENDING")
    try {
@@ -32,8 +37,7 @@ def dcos_e2e_testing_env(String command) {
                                       passwordVariable: 'DOCKER_HUB_USER_PASSWORD',
                                       usernameVariable: 'DOCKER_HUB_USER')]) {
     withEnv(["DCOS_DEPLOYMENT_TYPE=hybrid",
-             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/latest",
-             "DCOS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos/builds/latest/dcos_generate_config.sh",
+             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
              "MASTER_WHITELISTED_IPS=13.66.169.239 13.66.171.181 13.66.173.101 13.66.215.214 13.77.172.69",
              "AUTOCLEAN=true",
              "SET_CLEANUP_TAG=true",
@@ -71,16 +75,28 @@ def PowerShellWrapper(psCmd) {
     bat "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command \"\$ErrorActionPreference='Stop';[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;$psCmd;EXIT \$global:LastExitCode\""
 }
 
-// Closures
 def e2eTesting = { dcos_e2e_testing_env('mesos-jenkins/DCOS/start-dcos-e2e-testing.sh') }
 def buildDiagnostics = { win_env('mesos-jenkins/Diagnostics/start-windows-build.ps1') }
 def buildMesos = { win_env(" \$newPath = \$env:Path -split ';' | Where-Object { \$_ -ne 'C:\\Program Files\\msys2\\usr\\bin\' } ; \$env:Path = \$newPath -join ';' ; & mesos-jenkins/Mesos/start-windows-build.ps1") }
-def buildNet = { win_env("mesos-jenkins/Net/start-windows-build.ps1") }
-def buildMetrics = { win_env("mesos-jenkins/Metrics/start-windows-build.ps1") }
+def buildNet = { win_env('mesos-jenkins/Net/start-windows-build.ps1') }
+def buildMetrics = { win_env('mesos-jenkins/Metrics/start-windows-build.ps1') }
+def buildBlob = { win_env("""
+    mesos-jenkins/AgentBlob/GenerateAgentBlob.ps1 
+        -DiagnosticsPackageUrl ${DIAGNOSTICS_PACKAGE_URL} 
+        -MetricsPackageUrl ${METRICS_PACKAGE_URL} 
+        -MesosPackageUrl ${MESOS_PACKAGE_URL} 
+        -DcosNetPackageUrl ${DCOS_NET_PACKAGE_URL} ; 
+    if(\$LASTEXITCODE) { exit 1 } ;
+    & mesos-jenkins/AgentBlob/PublishTestingAgentBlob.ps1 
+        -ArtifactsDirectory $WORKSPACE/artifacts 
+        -ReleaseVersion ${JOB_NAME}-${BUILD_ID}
+    """) }
 
 // Pipeline Main script
 parallel "Diagnostics build" : { runBuild('jenkins/diagnostics-testing', 'windows-build-server',   buildDiagnostics) },
          "Net build" :         { runBuild('jenkins/net-testing',         'windows-build-server',   buildNet) },
          "Mesos build" :       { runBuild('jenkins/mesos-testing',       'windows-build-server',   buildMesos) }, 
-         "Metrics build" :     { runBuild('jenkins/metrics-testing',     'windows-build-server',   buildMetrics) }, 
-         "E2E Testing" :       { runBuild('jenkins/e2e-testing',       'dummy-slave',            e2eTesting) }
+         "Metrics build" :     { runBuild('jenkins/metrics-testing',     'windows-build-server',   buildMetrics) }
+
+if (currentBuild.result == null) { runBuild('jenkins/GenerateAgentBlob',         'windows-build-server',   buildBlob) }
+if (currentBuild.result == null) { runBuild('jenkins/e2e-testing',               'dummy-slave',            e2eTesting) }
