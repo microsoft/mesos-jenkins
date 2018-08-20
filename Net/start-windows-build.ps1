@@ -37,7 +37,7 @@ function Start-DCOSNetCIProcess {
     )
     $logFile = Join-Path $DCOS_NET_BUILD_LOGS_DIR $LogFileName
     $logsUrl = Get-BuildLogsUrl
-    $logUrl = "${logsUrl}/${LogFileName}"
+    $logFileUrl = "${logsUrl}/${LogFileName}"
     $command = $ProcessPath -replace '\\', '\\'
     if($ArgumentList.Count) {
         $ArgumentList | Foreach-Object { $command += " $($_ -replace '\\', '\\')" }
@@ -51,14 +51,14 @@ function Start-DCOSNetCIProcess {
     } catch {
         $msg = "Failed command: $command"
         $global:PARAMETERS["BUILD_STATUS"] = 'FAIL'
-        $global:PARAMETERS["LOGS_URLS"] += $($logsUrl)
+        $global:PARAMETERS["LOGS_URLS"] += $($logFileUrl)
         $global:PARAMETERS["FAILED_COMMAND"] = $command
 
         Write-Output "Exception: $($_.ToString())"
         Throw $BuildErrorMessage
     } finally {
         Write-Output $msg
-        Write-Output "Log available at: $logsUrl"
+        Write-Output "Log available at: $logFileUrl"
     }
 }
 
