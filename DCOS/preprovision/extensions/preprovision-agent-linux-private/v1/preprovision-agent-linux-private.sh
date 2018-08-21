@@ -72,9 +72,5 @@ elif [[ -e "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json" ]]; then
     python $UPDATE_CONFIG_SCRIPT "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json"
 fi
 
-echo -e "\nExecStartPre=/opt/mesosphere/bin/bootstrap dcos-metrics-agent" >> /etc/systemd/system/dcos-telegraf.service
-systemctl daemon-reload
-systemctl restart dcos-telegraf
-
 systemctl restart dcos-checks-poststart.service
 EOF
