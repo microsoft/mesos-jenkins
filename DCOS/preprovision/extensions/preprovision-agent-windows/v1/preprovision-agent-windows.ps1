@@ -262,5 +262,5 @@ try {
     Write-Log "The pre-provision setup for the DC/OS Windows node failed"
     Write-Log "preprovision-agent-windows-setup.ps1 exception: $_.ToString()"
     Write-Log $_.ScriptStackTrace
-    Throw $_
+    exit 1
 }
