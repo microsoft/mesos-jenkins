@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+These common helper classes help to manage the connection between the
+machine and ReviewBoard.
+"""
+
 from datetime import datetime
 import json
 import sys
@@ -31,14 +36,17 @@ class ReviewError(Exception):
 
 
 class ReviewBoardHandler(object):
+    """Handler class for ReviewBoard API operations."""
 
     def __init__(self, user=None, password=None):
         self.user = user
         self.password = password
         self._opener_installed = False
 
-    def _review_ids(self, review_request, review_ids=[]):
-        """Helper function for the 'get_review_ids' method"""
+    def _review_ids(self, review_request, review_ids=None):
+        """Helper function for the 'get_review_ids' method."""
+        if review_ids is None:
+            review_ids = []
         if review_request["status"] != "submitted":
             review_ids.append(review_request["id"])
         else:
@@ -46,7 +54,7 @@ class ReviewBoardHandler(object):
                   "submitted" % (review_request["id"]))
         for review in review_request["depends_on"]:
             review_url = review["href"]
-            print("Dependent review: %s " % review_url)
+            print("Dependent review: %s" % review_url)
             dependent_review = self.api(review_url)["review_request"]
             if dependent_review["id"] in review_ids:
                 raise ReviewError("Circular dependency detected for "
@@ -55,7 +63,7 @@ class ReviewBoardHandler(object):
             self._review_ids(dependent_review, review_ids)
 
     def api(self, url, data=None):
-        """Call the ReviewBoard API."""
+        """Calls the ReviewBoard API."""
         if self._opener_installed is False:
             auth_handler = urllib2.HTTPBasicAuthHandler()
             auth_handler.add_password(
@@ -76,7 +84,7 @@ class ReviewBoardHandler(object):
             # raise the error after printing the message
             raise
 
-    def get_review_ids(self, review_request):
+    def get_dependent_review_ids(self, review_request):
         """Returns the review requests' ids (together with any potential
            dependent review requests' ids) that need to be applied for the
            current review request. Their order is ascending with respect to
@@ -87,12 +95,12 @@ class ReviewBoardHandler(object):
         return list(reversed(review_ids))
 
     def post_review(self, review_request, message, text_type='markdown'):
-        """Post a review on the review board."""
+        """Posts a review on the review board."""
         valid_text_types = ['markdown', 'plain']
         if text_type not in valid_text_types:
-            raise Exception("Invalid %s text type when trying "
-                            "to post review. Valid text "
-                            "types are: %s" % (text_type, valid_text_types))
+            raise Exception("Invalid %s text type when trying"
+                            " to post review. Valid text"
+                            " types are: %s" % (text_type, valid_text_types))
         review_request_url = "%s/r/%s" % (REVIEWBOARD_URL,
                                           review_request['id'])
         print("Posting to review request: %s\n%s" % (review_request_url,
@@ -104,14 +112,14 @@ class ReviewBoardHandler(object):
         self.api(review_url, data)
 
     def needs_verification(self, review_request):
-        """Return True if this review request needs to be verified."""
-        print("Checking if review: %s needs verification" % (
+        """Returns True if this review request needs to be verified."""
+        print("Checking if review %s needs verification" % (
             review_request["id"]))
         rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
 
         # Now apply this review if not yet submitted.
         if review_request["status"] == "submitted":
-            print("The review is already already submitted")
+            print("The review is already submitted")
             return False
 
         # Skip if the review blocks another review.
@@ -130,24 +138,28 @@ class ReviewBoardHandler(object):
                 print("Latest review timestamp: %s" % review_time)
                 break
         if not review_time:
-            # Never reviewed, the review request needs to be verified
+            # Never reviewed, the review request needs to be verified.
             print("Patch never verified, needs verification")
             return True
 
-        # Every patch must have a diff
-        latest_diff_url = review_request["links"]["latest_diff"]["href"]
-        latest_diff = self.api(latest_diff_url)
+        # Every patch must have a diff.
+        latest_diff = self.api(review_request["links"]["diffs"]["href"])
 
         # Get the timestamp of the latest diff.
-        timestamp = latest_diff["diff"]["timestamp"]
+        timestamp = latest_diff["diffs"][-1]["timestamp"]
         diff_time = datetime.strptime(timestamp, rb_date_format)
         print("Latest diff timestamp: %s" % diff_time)
+
+        # NOTE: We purposefully allow the bot to run again on empty reviews
+        # so that users can re-trigger the build.
         if review_time < diff_time:
-            # There is a new diff, needs verification
-            print("There is a new diff, needs verification")
+            # There is a new diff, needs verification.
+            print("This patch has been updated since its last review, needs"
+                  " verification.")
             return True
 
-        # TODO: Apply this check recursively up the dependency chain.
+        # TODO(dragoshsch): Apply this check recursively up the dependency
+        # chain.
         changes_url = review_request["links"]["changes"]["href"]
         changes = self.api(changes_url)
         dependency_time = None
