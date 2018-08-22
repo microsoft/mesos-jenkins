@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,10 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This file is used to post review results to the ReviewBoard.
+"""
+
 import argparse
 import sys
 import urllib.request as urllib2
-import chardet
 
 from common import ReviewBoardHandler, REVIEWBOARD_URL  # noqa
 
@@ -27,6 +30,7 @@ LOG_TAIL_LIMIT = 30
 
 
 def parse_parameters():
+    """Method for parsing arguments for argparse."""
     parser = argparse.ArgumentParser(
         description="Post review results to Review Board")
     parser.add_argument("-u", "--user", type=str, required=True,
@@ -40,37 +44,42 @@ def parse_parameters():
     parser.add_argument("-o", "--outputs-url", type=str, required=True,
                         help="The output build artifacts URL")
     parser.add_argument("-l", "--logs-urls", type=str, required=False,
-                        help="The URLs for the logs to be included in the "
-                              "posted build message")
+                        help="The URLs for the logs to be included in the"
+                             " posted build message")
     parser.add_argument("--applied-reviews", type=str, required=False,
-                        help="The Review IDs that have been applied for the "
-                             "current patch")
+                        help="The Review IDs that have been applied for the"
+                             " current patch")
     parser.add_argument("--failed-command", type=str, required=False,
-                        help="The command that failed during the build "
-                             "process")
+                        help="The command that failed during the build"
+                             " process")
     return parser.parse_args()
 
 
-def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
+def get_build_message(message, outputs_url, logs_urls=None,
+                      applied_reviews=None,
                       failed_command=None):
+    """Retrieves build message."""
+    if logs_urls is None:
+        logs_urls = []
+    if applied_reviews is None:
+        applied_reviews = []
     build_msg = "%s\n\n" % message
-    if len(applied_reviews) > 0:
+    if applied_reviews:
         build_msg += "Reviews applied: `%s`\n\n" % applied_reviews
-    if len(failed_command) > 0:
+    if failed_command:
         build_msg += "Failed command: `%s`\n\n" % failed_command
-    build_msg += ("All the build artifacts available "
-                  "at: %s\n\n" % (outputs_url))
+    build_msg += ("All the build artifacts available"
+                  " at: %s\n\n" % (outputs_url))
     logs_msg = ''
     for url in logs_urls:
         response = urllib2.urlopen(url)
-        log_bytes = response.read()
-        log_str = log_bytes.decode(chardet.detect(log_bytes)['encoding'])
-        if log_str == '':
+        log_content = response.read().decode(sys.getdefaultencoding())
+        if log_content == '':
             continue
         file_name = url.split('/')[-1]
         logs_msg += "- [%s](%s):\n\n" % (file_name, url)
         logs_msg += "```\n"
-        log_tail = log_str.split("\n")[-LOG_TAIL_LIMIT:]
+        log_tail = log_content.split("\n")[-LOG_TAIL_LIMIT:]
         logs_msg += "\n".join(log_tail)
         logs_msg += "```\n\n"
     if logs_msg == '':
@@ -80,6 +89,7 @@ def get_build_message(message, outputs_url, logs_urls=[], applied_reviews=[],
 
 
 def main():
+    """Posts build result to the ReviewBoard"""
     parameters = parse_parameters()
     review_request_url = "%s/api/review-requests/%s/" % (REVIEWBOARD_URL,
                                                          parameters.review_id)
