@@ -69,7 +69,7 @@ function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
     Start-MesosCIProcess -ProcessPath "python.exe" -LogFileName "get-review-ids.log" `
-                         -ArgumentList @("$PSScriptRoot\utils\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
+                         -ArgumentList @("$MESOS_GIT_REPO_DIR\support\python3\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
                          -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
     if(!$reviewIDs) {
