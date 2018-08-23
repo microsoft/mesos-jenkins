@@ -8,9 +8,9 @@ foreach($name in "dcos-mesos-slave", "dcos-mesos-slave-public") {
 if(!$mesosServiceName) {
     Throw "Cannot find the Mesos slave agent"
 }
-
+$timeout_30s = New-TimeSpan -Seconds 30
 $mesosServiceObj = Stop-Service $mesosServiceName -PassThru
-$mesosServiceObj.WaitForStatus('Stopped','00:00:30')
+$mesosServiceObj.WaitForStatus('Stopped',$timeout_30s)
 if ($mesosServiceObj.Status -ne 'Stopped') {
     Write-Output "Failed to stop the service"
     exit 1
@@ -27,7 +27,7 @@ if ([string]::IsNullOrEmpty($check)) {
 }
 
 $mesosServiceObjStart = Start-Service $mesosServiceName -PassThru
-$mesosServiceObjStart.WaitForStatus('Running','00:00:30')
+$mesosServiceObjStart.WaitForStatus('Running',$timeout_30s)
 if ($mesosServiceObjStart.Status -ne 'Running') {
     Write-Output "Failed to start the service back up"
     exit 1
@@ -45,10 +45,11 @@ if ($LastExitCode -ne 0) {
     exit 1
 }
 
+$timeout_1min = New-TimeSpan -Minutes 1
 taskkill /IM mesos-agent.exe /F 2>&1 >$null
 if ($LastExitCode -eq 0) {
     $mesosServiceObj = Get-Service $mesosServiceName
-    $mesosServiceObj.WaitForStatus('Stopped','00:01:00')
+    $mesosServiceObj.WaitForStatus('Stopped',$timeout_1min)
     if ($mesosServiceObj.Status -ne 'Stopped') { 
         Write-Output "FAILURE"
     } else {
