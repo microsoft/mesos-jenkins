@@ -18,7 +18,7 @@ echo "Starting time: $(date)"
 source $DIR/dcos-testing.sh
 
 # - Install latest DCOS Engine internal stable build
-DCOS_ENGINE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-engine/stable-candidate/latest/linux-amd64/dcos-engine"
+DCOS_ENGINE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-engine/stable-candidate/dcos-windows-bootstrap/latest/linux-amd64/dcos-engine"
 mkdir -p $WORKSPACE/bin && \
 curl $DCOS_ENGINE_URL -o $WORKSPACE/bin/dcos-engine && \
 chmod +x $WORKSPACE/bin/dcos-engine && \
