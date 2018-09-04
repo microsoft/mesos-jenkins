@@ -59,11 +59,11 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "erl9.2.zip"
     }
     "maven" = @{
-        "url" = "http://mirrors.m247.ro/apache/maven/maven-3/3.5.3/binaries/apache-maven-3.5.3-bin.zip"
+        "url" = "http://apache.javapipe.com/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.zip"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "maven.zip"
     }
     "openssl" = @{
-        "url" = "https://slproweb.com/download/Win64OpenSSL-1_0_2o.exe"
+        "url" = "https://slproweb.com/download/Win64OpenSSL-1_0_2p.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "openssl.exe"
     }
 }
