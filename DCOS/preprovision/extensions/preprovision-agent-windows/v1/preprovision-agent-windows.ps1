@@ -202,16 +202,20 @@ function Install-FluentdAgent () {
 
 function Register-FluentdService () {
     Write-Output "Registering fluentd service..."
-    fluentd --reg-winsvc i
-    if ($LASTEXITCODE) {
-        Throw "Failed to register fluentd Windows service. ExitCode = $LASTEXITCODE"
+    $serviceName = "fluentdwinsvc"
+    $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if(!$svc) {
+        fluentd --reg-winsvc i
+        if ($LASTEXITCODE) {
+            Throw "Failed to register fluentd Windows service. ExitCode = $LASTEXITCODE"
+        }
     }
     fluentd --reg-winsvc-fluentdopt "-c $env:SystemDrive/opt/td-agent/etc/td-agent/td-agent.conf -o $env:SystemDrive/opt/td-agent/td-agent.log"
     if ($LASTEXITCODE) {
         Throw "Failed to set options for fluentd Windows service. ExitCode = $LASTEXITCODE"
     }
     Write-Output "Starting fluentd service..."
-    Start-Service "fluentdwinsvc"
+    Start-Service $serviceName
 }
 
 function Start-FluentdSetup {
