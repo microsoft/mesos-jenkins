@@ -217,25 +217,9 @@ function Install-Docker {
     $service = Get-Service "Docker" -ErrorAction SilentlyContinue
     if($service) {
         Stop-Service "Docker"
-        sc.exe delete "Docker"
-        if($LASTEXITCODE) {
-            Throw "ERROR: Failed to delete existing Docker service"
-        }
     }
-    $dockerRegKey = "HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\docker"
-    if(Test-Path $dockerRegKey) {
-        Remove-Item $dockerRegKey
-    }
-    $installDir = Join-Path $env:ProgramFiles "Docker"
-    $dockerUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1/docker.exe"
-    $dockerdUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1/dockerd.exe"
-    Start-BitsTransfer $dockerUrl -Destination "$installDir\docker.exe"
-    Start-BitsTransfer $dockerdUrl -Destination "$installDir\dockerd.exe"
-    Add-ToSystemPath -Path $installDir
-    dockerd.exe --register-service
-    if($LASTEXITCODE) {
-        Throw "ERROR: Failed to register Docker as a Windows service"
-    }
+    Install-Module -Name "DockerMsftProvider" -Force
+    Install-Package -Name "Docker" -ProviderName "DockerMsftProvider" -Force -MinimumVersion "18.03.1-ee-1"
     Start-Service "Docker"
 }
 
