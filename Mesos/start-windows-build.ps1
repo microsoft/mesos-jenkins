@@ -69,7 +69,7 @@ function Add-ReviewBoardPatch {
     Write-Output "Applying Reviewboard patch(es) over Mesos $Branch branch"
     $tempFile = Join-Path $env:TEMP "mesos_dependent_review_ids"
     Start-MesosCIProcess -ProcessPath "python.exe" -LogFileName "get-review-ids.log" `
-                         -ArgumentList @("$MESOS_GIT_REPO_DIR\support\python3\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
+                         -ArgumentList @("$MESOS_GIT_REPO_DIR\support\get-review-ids.py", "-r", $ReviewID, "-o", $tempFile) `
                          -BuildErrorMessage "Failed to get dependent review IDs for the current patch."
     $reviewIDs = Get-Content $tempFile
     if(!$reviewIDs) {
@@ -86,9 +86,8 @@ function Add-ReviewBoardPatch {
             } else {
                 $buildErrorMsg = "Failed to apply the dependent review: $id."
             }
-            # TODO(andschwa): Move this back to `support\apply-reviews.py` after the Python 2 deprecation is complete.
             Start-MesosCIProcess -ProcessPath "python.exe" -LogFileName "apply-review-${id}.log" `
-                                 -ArgumentList @(".\support\python3\apply-reviews.py", "-n", "-r", $id) `
+                                 -ArgumentList @(".\support\apply-reviews.py", "-n", "-r", $id) `
                                  -BuildErrorMessage $buildErrorMsg
         } finally {
             Pop-Location
