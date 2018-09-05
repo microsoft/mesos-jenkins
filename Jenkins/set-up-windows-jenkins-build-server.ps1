@@ -11,7 +11,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "vs_2017_community.exe"
     }
     "git" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/git-64-bit.exe"
+        "url" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/git-64-bit.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "git.exe"
     }
     "cmake" = @{
@@ -39,11 +39,11 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "go.msi"
     }
     "msys2" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/msys2-x64.zip"
+        "url" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/msys2-x64.zip"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "msys2.zip"
     }
     "dig" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/dig-x64.zip"
+        "url" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/dig-x64.zip"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "dig.zip"
     }
     "2012_runtime" = @{
@@ -55,7 +55,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "vcredist_2013.exe"
     }
     "otp_202" = @{
-        "url" = "http://dcos-win.westus.cloudapp.azure.com/downloads/erl9.2.zip"
+        "url" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/erl9.2.zip"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "erl9.2.zip"
     }
     "maven" = @{

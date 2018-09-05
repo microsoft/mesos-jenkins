@@ -33,7 +33,7 @@
     }
   },
   "uris": [
-    "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
+    "http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
   ],
   "healthChecks": [
     {

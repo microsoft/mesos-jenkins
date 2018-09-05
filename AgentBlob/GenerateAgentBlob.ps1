@@ -1,9 +1,9 @@
 ﻿Param(
-    [string]$DiagnosticsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-diagnostics-build/latest-diagnostics-build/binaries/diagnostics.zip",
-    [string]$MetricsPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-metrics-build/latest-metrics-build/binaries/metrics.zip",
-    [string]$MesosPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-mesos-build/latest-mesos-build/binaries/mesos-binaries.zip",
-    [string]$DcosNetPackageUrl="http://dcos-win.westus.cloudapp.azure.com/artifacts/dcos-net-build/latest-net-build/release.zip",
-    [string]$DockerBinariesBaseUrl="http://dcos-win.westus.cloudapp.azure.com/downloads/docker/18-03-1-ee-1",
+    [string]$DiagnosticsPackageUrl="http://dcos-win.westus2.cloudapp.azure.com/artifacts/dcos-diagnostics-build/latest-diagnostics-build/binaries/diagnostics.zip",
+    [string]$MetricsPackageUrl="http://dcos-win.westus2.cloudapp.azure.com/artifacts/dcos-metrics-build/latest-metrics-build/binaries/metrics.zip",
+    [string]$MesosPackageUrl="http://dcos-win.westus2.cloudapp.azure.com/artifacts/dcos-mesos-build/latest-mesos-build/binaries/mesos-binaries.zip",
+    [string]$DcosNetPackageUrl="http://dcos-win.westus2.cloudapp.azure.com/artifacts/dcos-net-build/latest-net-build/release.zip",
+    [string]$DockerBinariesBaseUrl="http://dcos-win.westus2.cloudapp.azure.com/downloads/docker/18-03-1-ee-1",
     [string]$ParametersFile="${env:TEMP}\generate-blob-parameters.json",
     [string]$GithubPRHeadSha
 )
@@ -21,17 +21,17 @@ Import-Module $ciUtils
 
 $SOURCE_FILES = @{
     "MicrosoftWDKInstallers.cab"  = "https://download.microsoft.com/download/7/D/D/7DD48DE6-8BDA-47C0-854A-539A800FAA90/wdk/Installers/787bee96dbd26371076b37b13c405890.cab"
-    "httpd-2.4.33-win64-VC15.zip" = "http://dcos-win.westus.cloudapp.azure.com/downloads/httpd-2.4.33-win64-VC15.zip"
+    "httpd-2.4.33-win64-VC15.zip" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/httpd-2.4.33-win64-VC15.zip"
     "VC_redist_2013_x64.exe"      = "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
     "VC_redist_2017_x64.exe"      = "https://download.visualstudio.microsoft.com/download/pr/11687625/2cd2dba5748dc95950a5c42c2d2d78e4/VC_redist.x64.exe"
     "docker.exe"                  = "${DockerBinariesBaseUrl}/docker.exe"
     "dockerd.exe"                 = "${DockerBinariesBaseUrl}/dockerd.exe"
-    "service-wrapper.exe"         = "http://dcos-win.westus.cloudapp.azure.com/downloads/service-wrapper.exe"
+    "service-wrapper.exe"         = "http://dcos-win.westus2.cloudapp.azure.com/downloads/service-wrapper.exe"
     "mesos.zip"                   = $MesosPackageUrl
     "dcos-net.zip"                = $DcosNetPackageUrl
     "metrics.zip"                 = $MetricsPackageUrl
     "diagnostics.zip"             = $DiagnosticsPackageUrl
-    "handles.exe"                 = "http://dcos-win.westus.cloudapp.azure.com/downloads/handles.exe"
+    "handles.exe"                 = "http://dcos-win.westus2.cloudapp.azure.com/downloads/handles.exe"
 }
 $ARTIFACTS_DIR = Join-Path $env:WORKSPACE "artifacts"
 $7ZIP_DOWNLOAD_URL = "https://7-zip.org/a/7z1801-x64.msi"

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-CI_WEB_ROOT="http://dcos-win.westus.cloudapp.azure.com"
-
 
 validate_simple_deployment_params() {
     if [[ -z $AZURE_SERVICE_PRINCIPAL_ID ]]; then echo "ERROR: Parameter AZURE_SERVICE_PRINCIPAL_ID is not set"; exit 1; fi
@@ -27,7 +25,7 @@ validate_simple_deployment_params() {
         exit 1
     fi
     if [[ -z $DCOS_WINDOWS_BOOTSTRAP_URL ]]; then
-        export DCOS_WINDOWS_BOOTSTRAP_URL="$CI_WEB_ROOT/dcos-windows/testing/windows-agent-blob/latest"
+        export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/latest"
     fi
     if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
         export DCOS_BOOTSTRAP_URL="https://mesosdcosci.blob.core.windows.net/dcos/testing/serviceb/dcos_generate_config.sh"

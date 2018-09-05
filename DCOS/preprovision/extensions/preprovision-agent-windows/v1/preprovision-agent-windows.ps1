@@ -96,7 +96,7 @@ function Add-ToSystemPath {
 
 function Install-Git {
     Write-Log "Enter Install-Git"
-    $gitInstallerURL = "http://dcos-win.westus.cloudapp.azure.com/downloads/git-64-bit.exe"
+    $gitInstallerURL = "http://dcos-win.westus2.cloudapp.azure.com/downloads/git-64-bit.exe"
     $gitInstallDir = Join-Path $env:ProgramFiles "Git"
     $gitPaths = @("$gitInstallDir\cmd", "$gitInstallDir\bin")
     if(Test-Path $gitInstallDir) {
@@ -150,7 +150,7 @@ function Start-CIAgentSetup {
     # We're using the updated service wrapper for this.
     $serviceName = "Docker"
     $dockerHome = Join-Path $env:ProgramFiles "Docker"
-    $wrapperUrl = "http://dcos-win.westus.cloudapp.azure.com/downloads/service-wrapper.exe"
+    $wrapperUrl = "http://dcos-win.westus2.cloudapp.azure.com/downloads/service-wrapper.exe"
     Stop-Service $serviceName
     sc.exe delete $serviceName
     if($LASTEXITCODE) {
