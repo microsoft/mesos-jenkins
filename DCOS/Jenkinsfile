@@ -1,7 +1,7 @@
-def DIAGNOSTICS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-diagnostics/binaries/diagnostics.zip"
-def METRICS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-metrics/binaries/metrics.zip"
-def MESOS_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/mesos/binaries/mesos-binaries.zip"
-def DCOS_NET_PACKAGE_URL = "http://dcos-win.westus.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-net/release.zip"
+def DIAGNOSTICS_PACKAGE_URL = "http://dcos-win.westus2.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-diagnostics/binaries/diagnostics.zip"
+def METRICS_PACKAGE_URL = "http://dcos-win.westus2.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-metrics/binaries/metrics.zip"
+def MESOS_PACKAGE_URL = "http://dcos-win.westus2.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/mesos/binaries/mesos-binaries.zip"
+def DCOS_NET_PACKAGE_URL = "http://dcos-win.westus2.cloudapp.azure.com/artifacts/mesos-jenkins-pr-testing/${BUILD_ID}/dcos-net/release.zip"
 
 def withGithubNotifier(String buildContext, Closure<Void> job) {
    setGitHubPullRequestStatus(context: buildContext, message: 'Build started', state: "PENDING")
@@ -37,7 +37,7 @@ def dcos_e2e_testing_env(String command) {
                                       passwordVariable: 'DOCKER_HUB_USER_PASSWORD',
                                       usernameVariable: 'DOCKER_HUB_USER')]) {
     withEnv(["DCOS_DEPLOYMENT_TYPE=hybrid",
-             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
+             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
              "AUTOCLEAN=true",
              "SET_CLEANUP_TAG=true",
              "AZURE_KEYVAULT_NAME=ci-key-vault",

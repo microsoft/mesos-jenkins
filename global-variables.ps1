@@ -1,7 +1,7 @@
 # DCOS common configurations
-$STORAGE_SERVER_ADDRESS = "dcos-win.westus.cloudapp.azure.com"
+$STORAGE_SERVER_ADDRESS = "192.10.1.12"
 $STORAGE_SERVER_USER = "jenkins"
-$STORAGE_SERVER_BASE_URL = "http://dcos-win.westus.cloudapp.azure.com"
+$STORAGE_SERVER_BASE_URL = "http://dcos-win.westus2.cloudapp.azure.com"
 $ARTIFACTS_DIRECTORY = "/storage/data/artifacts"
 $ARTIFACTS_BASE_URL = "${STORAGE_SERVER_BASE_URL}/artifacts"
 $DCOS_DIR = Join-Path "D:" "DCOS"

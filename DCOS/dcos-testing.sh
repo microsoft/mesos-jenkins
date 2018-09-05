@@ -88,12 +88,12 @@ FETCHER_HTTPS_TEMPLATE="$DIR/templates/marathon/fetcher-https.json"
 FETCHER_HTTPS_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-https.json"
 FETCHER_LOCAL_TEMPLATE="$DIR/templates/marathon/fetcher-local.json"
 FETCHER_LOCAL_RENDERED_TEMPLATE="${WORKSPACE}/fetcher-local.json"
-FETCHER_LOCAL_FILE_URL="http://dcos-win.westus.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
+FETCHER_LOCAL_FILE_URL="http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/fetcher-test.zip"
 FETCHER_FILE_MD5="07d6bb2d5baed0c40396c229259caa71"
-LOG_SERVER_ADDRESS="dcos-win.westus.cloudapp.azure.com"
+LOG_SERVER_ADDRESS="192.10.1.12"
 LOG_SERVER_USER="jenkins"
 REMOTE_LOGS_DIR="/data/artifacts/${JOB_NAME}"
-LOGS_BASE_URL="http://dcos-win.westus.cloudapp.azure.com/artifacts/${JOB_NAME}"
+LOGS_BASE_URL="http://dcos-win.westus2.cloudapp.azure.com/artifacts/${JOB_NAME}"
 UTILS_FILE="$DIR/utils/utils.sh"
 BUILD_OUTPUTS_URL="$LOGS_BASE_URL/$BUILD_ID"
 PARAMETERS_FILE="$WORKSPACE/build-parameters.txt"
@@ -262,7 +262,7 @@ open_dcos_port() {
 }
 
 setup_remote_winrm_client() {
-    local WSMANCMD_URL="http://dcos-win.westus.cloudapp.azure.com/downloads/wsmancmd"
+    local WSMANCMD_URL="http://dcos-win.westus2.cloudapp.azure.com/downloads/wsmancmd"
     curl -s --retry 30 "${WSMANCMD_URL}" -o $WORKSPACE/wsmancmd || {
         echo "ERROR: Failed to download wsmancmd binary from ${WSMANCMD_URL}"
         return 1
