@@ -28,7 +28,7 @@ validate_simple_deployment_params() {
         export DCOS_WINDOWS_BOOTSTRAP_URL="http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/latest"
     fi
     if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
-        export DCOS_BOOTSTRAP_URL="https://mesosdcosci.blob.core.windows.net/dcos/testing/serviceb/dcos_generate_config.sh"
+        export DCOS_BOOTSTRAP_URL="https://dcosci.blob.core.windows.net/dcos/testing/master/dcos_generate_config.sh"
     fi
 }
 
