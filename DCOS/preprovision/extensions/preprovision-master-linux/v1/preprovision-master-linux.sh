@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+set -e
+
+[[ -e /usr/bin/chmod ]] || ln -s /bin/chmod /usr/bin/chmod
+[[ -e /usr/bin/chown ]] || ln -s /bin/chown /usr/bin/chown
 
 mkdir -p /etc/ethos/
 touch /etc/ethos/dcos-mesos-master-secrets
