@@ -173,7 +173,7 @@ function Start-CommonTests {
     Write-Output "Starting the dcos-net common tests"
     try {
         Start-DCOSNetCIProcess -ProcessPath "escript.exe" -LogFileName "dcos-net-common-tests.log" `
-                               -ArgumentList @(".\rebar3", "as", "test,windows", "ct", "--suite=apps/dcos_dns/test/dcos_dns_SUITE") `
+                               -ArgumentList @(".\rebar3", "as", "test,windows", "ct", "--suite=apps/dcos_dns/test/dcos_dns_SUITE", "-v") `
                                -BuildErrorMessage "dcos-net common tests run was not successful"
     } finally {
         Pop-Location
@@ -185,7 +185,7 @@ function Start-EUnitTests {
     Push-Location $DCOS_NET_GIT_REPO_DIR
     Write-Output "Starting the dcos-net eunit tests"
     try {
-        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "eunit") `
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test,windows", "eunit", "-v") `
                                -LogFileName "dcos-net-eunit-tests.log" `
                                -BuildErrorMessage "dcos-net eunit tests run was not successful"
     } finally {
@@ -198,7 +198,7 @@ function Start-XrefTests {
     Push-Location $DCOS_NET_GIT_REPO_DIR
     Write-Output "Starting the dcos-net xref tests"
     try {
-        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "xref") `
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test,windows", "xref") `
                                -LogFileName "dcos-net-xref-tests.log" `
                                -BuildErrorMessage "dcos-net xref tests run was not successful"
     } finally {
@@ -211,7 +211,7 @@ function Start-CoverTests {
     Push-Location $DCOS_NET_GIT_REPO_DIR
     Write-Output "Starting the dcos-net coverage tests"
     try {
-        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test", "cover") `
+        Start-DCOSNetCIProcess -ProcessPath "escript.exe" -ArgumentList @(".\rebar3", "as", "test,windows", "cover") `
                                -LogFileName "dcos-net-cover-tests.log" `
                                -BuildErrorMessage "dcos-net coverage tests run was not successful"
     } finally {
