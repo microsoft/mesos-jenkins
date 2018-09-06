@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 mkdir -p /etc/ethos/
 touch /etc/ethos/dcos-mesos-master-secrets
