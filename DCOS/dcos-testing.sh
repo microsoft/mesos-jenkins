@@ -863,7 +863,7 @@ test_windows_agent_graceful_shutdown() {
         return 1
     fi
 
-    TIMEOUT=180
+    TIMEOUT=600
     echo "Waiting with a timeout of $(($TIMEOUT / 60)) mins for DCOS to migrate the task from $AGENT_HOSTNAME"
     local NEW_TASK_HOST=""
     SECONDS=0
@@ -971,7 +971,7 @@ test_windows_agent_ungraceful_shutdown() {
         return 1
     fi
 
-    TIMEOUT=300
+    TIMEOUT=600
     echo "Waiting with a timeout of $(($TIMEOUT / 60)) mins for DCOS to fail the task over from $AGENT_HOSTNAME"
     local NEW_TASK_HOST=""
     SECONDS=0
