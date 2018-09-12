@@ -38,8 +38,9 @@ Describe "Fluentd logging" {
 
     It "Can restart service to update config" {
         # Requires Admin rights
-        Restart-Service -Name fluentdwinsvc
-        $service = Get-Service fluentdwinsvc
+        $service = Restart-Service -Name fluentdwinsvc -PassThru
+        $timeout = New-TimeSpan -Minutes 1
+        $service.WaitForStatus("Running", $timeout)
         $service.Status | Should Be "Running"
     }
 
