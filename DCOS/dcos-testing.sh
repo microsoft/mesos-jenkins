@@ -1113,6 +1113,25 @@ run_functional_tests() {
     test_dcos_windows_apps || return 1
 }
 
+run_win_bootstrap_node_functional_tests() {
+    #
+    # Run the following DC/OS functional tests:
+    #  - Compare Azure VM IPs with DCOS IPs
+    #  - Test if the custom attributes are set
+    #  - Test if the Mesos master - agent authentication is enabled
+    #  - Test DC/OS DNS functionality from the Windows node
+    #  - Test a DC/OS Windows task with IIS web server
+    #
+    compare_azure_vms_and_dcos_agents || return 1
+    test_custom_attributes || return 1
+    test_master_agent_authentication || return 1
+    test_dcos_dns || return 1
+    test_iis || return 1
+    #
+    # TODO(ibalutoiu): Add test_dcos_windows_apps adapted for deployments with Windows bootstrap node
+    #
+}
+
 collect_linux_masters_logs() {
     #
     # Collects the Linux masters' logs and downloads them via SCP on the
