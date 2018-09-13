@@ -2,14 +2,20 @@
 
 export AZURE_RESOURCE_GROUP="${JOB_NAME}-${BUILD_ID}"
 export LINUX_ADMIN="azureuser"
-export WIN_AGENT_PUBLIC_POOL="winpubpool"
-export WIN_AGENT_PRIVATE_POOL="winpripool"
 export LINUX_AGENT_PUBLIC_POOL="linpubpool"
 export LINUX_AGENT_PRIVATE_POOL="linpripool"
 export LINUX_MASTER_DNS_PREFIX="dcos-testing-lin-master-${BUILD_ID}"
-export WIN_AGENT_DNS_PREFIX="dcos-testing-win-agent-${BUILD_ID}"
 export LINUX_AGENT_DNS_PREFIX="dcos-testing-lin-agent-${BUILD_ID}"
+export LINUX_MASTER_COUNT="3"
+export LINUX_PUBLIC_AGENT_COUNT="1"
+export LINUX_PRIVATE_AGENT_COUNT="1"
 export WIN_AGENT_ADMIN="azureuser"
+export WIN_AGENT_PUBLIC_POOL="winpubpool"
+export WIN_AGENT_PRIVATE_POOL="winpripool"
+export WIN_AGENT_DNS_PREFIX="dcos-testing-win-agent-${BUILD_ID}"
+export WIN_PUBLIC_AGENT_COUNT="2"
+export WIN_PRIVATE_AGENT_COUNT="2"
+
 if [[ -z $AZURE_REGION ]]; then
     echo "ERROR: Parameter AZURE_REGION is not set"
     exit 1
@@ -23,25 +29,6 @@ if [[ -z $DOCKER_HUB_USER ]]; then
 fi
 if [[ -z $DOCKER_HUB_USER_PASSWORD ]]; then
     echo "ERROR: Parameter DOCKER_HUB_USER_PASSWORD is not set"
-    exit 1
-fi
-
-if [[ "$DCOS_DEPLOYMENT_TYPE" = "simple" ]]; then
-    export DCOS_AZURE_PROVIDER_PACKAGE_ID="5a6b7b92820dc4a7825c84f0a96e012e0fcc8a6b"
-    export LINUX_MASTER_COUNT="1"
-    export LINUX_PUBLIC_AGENT_COUNT="0"
-    export LINUX_PRIVATE_AGENT_COUNT="0"
-    export WIN_PUBLIC_AGENT_COUNT="1"
-    export WIN_PRIVATE_AGENT_COUNT="0"
-elif [[ "$DCOS_DEPLOYMENT_TYPE" = "hybrid" ]]; then
-    export DCOS_AZURE_PROVIDER_PACKAGE_ID="327392a609d77d411886216d431e00581a8612f7"
-    export LINUX_MASTER_COUNT="3"
-    export LINUX_PUBLIC_AGENT_COUNT="1"
-    export LINUX_PRIVATE_AGENT_COUNT="1"
-    export WIN_PUBLIC_AGENT_COUNT="2"
-    export WIN_PRIVATE_AGENT_COUNT="2"
-else
-    echo "ERROR: $DCOS_DEPLOYMENT_TYPE DCOS_DEPLOYMENT_TYPE is not supported"
     exit 1
 fi
 if [[ -z $DCOS_DIR ]]; then
@@ -1270,7 +1257,7 @@ check_exit_code() {
         collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
     fi
     upload_logs || echo "ERROR: Failed to upload logs to log server"
-    MSG="Failed to test the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+    MSG="Failed to test the Azure Hybrid DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
     export STATUS="FAIL"
     echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
@@ -1379,7 +1366,7 @@ successfully_exit_dcos_testing_job() {
     # - Collect all the logs in the DC/OS deployments
     collect_dcos_nodes_logs || echo "ERROR: Failed to collect DC/OS nodes logs"
     upload_logs || echo "ERROR: Failed to upload logs to log server"
-    MSG="Successfully tested the Azure $DCOS_DEPLOYMENT_TYPE DC/OS deployment with "
+    MSG="Successfully tested the Azure Hybrid DC/OS deployment with "
     MSG+="the latest builds from: ${DCOS_WINDOWS_BOOTSTRAP_URL}"
     export STATUS="PASS"
     echo "EMAIL_TITLE=[${JOB_NAME}] ${STATUS}" >> $PARAMETERS_FILE
