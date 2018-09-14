@@ -26,8 +26,8 @@
         "count": ${WIN_PUBLIC_AGENT_COUNT},
         "vmSize": "${WIN_AGENT_SIZE}",
         "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
+          "name": "preprovision-agent-windows",
+          "singleOrAll": "All"
         },
         "osType": "Windows",
         "customNodeLabels": {
@@ -35,21 +35,21 @@
         },
         "dnsPrefix": "${WIN_AGENT_DNS_PREFIX}",
         "ports": [
-             80,
-             443,
-             8080,
-             3389,
-             5986,
-             31500
-          ]
+          80,
+          443,
+          8080,
+          3389,
+          5986,
+          31500
+        ]
       },
       {
         "name": "${WIN_AGENT_PRIVATE_POOL}",
         "count": ${WIN_PRIVATE_AGENT_COUNT},
         "vmSize": "${WIN_AGENT_SIZE}",
         "preProvisionExtension": {
-            "name": "preprovision-agent-windows",
-            "singleOrAll": "All"
+          "name": "preprovision-agent-windows",
+          "singleOrAll": "All"
         },
         "osType": "Windows",
         "dnsPrefix": "",
@@ -62,8 +62,8 @@
         "count": ${LINUX_PUBLIC_AGENT_COUNT},
         "vmSize": "${LINUX_AGENT_SIZE}",
         "preProvisionExtension": {
-            "name": "preprovision-agent-linux-public",
-            "singleOrAll": "All"
+          "name": "preprovision-agent-linux-public",
+          "singleOrAll": "All"
         },
         "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
@@ -71,18 +71,18 @@
           "infrastructure": "ci"
         },
         "ports": [
-             80,
-             443,
-             22
-          ]
+          80,
+          443,
+          22
+        ]
       },
       {
         "name": "${LINUX_AGENT_PRIVATE_POOL}",
         "count": ${LINUX_PRIVATE_AGENT_COUNT},
         "vmSize": "${LINUX_AGENT_SIZE}",
         "preProvisionExtension": {
-            "name": "preprovision-agent-linux-private",
-            "singleOrAll": "All"
+          "name": "preprovision-agent-linux-private",
+          "singleOrAll": "All"
         },
         "osType": "Linux",
         "dnsPrefix": "",
