@@ -29,6 +29,10 @@
           "name": "preprovision-agent-windows",
           "singleOrAll": "All"
         },
+        "postProvisionExtension": {
+          "name": "postinstall-agent-windows",
+          "singleOrAll": "All"
+        },
         "osType": "Windows",
         "customNodeLabels": {
           "infrastructure": "ci"
@@ -49,6 +53,10 @@
         "vmSize": "${WIN_AGENT_SIZE}",
         "preProvisionExtension": {
           "name": "preprovision-agent-windows",
+          "singleOrAll": "All"
+        },
+        "postProvisionExtension": {
+          "name": "postinstall-agent-windows",
           "singleOrAll": "All"
         },
         "osType": "Windows",
@@ -136,6 +144,13 @@
         "extensionParameters": "parameters",
         "rootURL": "https://dcosci.blob.core.windows.net/provision",
         "script": "preprovision-agent-windows-win-bootstrap-node.ps1"
+      },
+      {
+        "name": "postinstall-agent-windows",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
+        "script": "postinstall-agent-windows.ps1"
       }
     ]
   }
