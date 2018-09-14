@@ -73,6 +73,10 @@
           "name": "preprovision-agent-linux-public",
           "singleOrAll": "All"
         },
+        "postProvisionExtension": {
+          "name": "postinstall-agent-linux",
+          "singleOrAll": "All"
+        },
         "osType": "Linux",
         "dnsPrefix": "${LINUX_AGENT_DNS_PREFIX}",
         "customNodeLabels": {
@@ -90,6 +94,10 @@
         "vmSize": "${LINUX_AGENT_SIZE}",
         "preProvisionExtension": {
           "name": "preprovision-agent-linux-private",
+          "singleOrAll": "All"
+        },
+        "postProvisionExtension": {
+          "name": "postinstall-agent-linux",
           "singleOrAll": "All"
         },
         "osType": "Linux",
@@ -130,6 +138,13 @@
         "extensionParameters": "parameters",
         "rootURL": "https://dcosci.blob.core.windows.net/provision",
         "script": "preprovision-agent-linux-private.sh"
+      },
+      {
+        "name": "postinstall-agent-linux",
+        "version": "v1",
+        "extensionParameters": "parameters",
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
+        "script": "postinstall-agent-linux.sh"
       },
       {
         "name": "preprovision-master-linux",
