@@ -113,29 +113,29 @@
         "name": "preprovision-agent-linux-public",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
         "script": "preprovision-agent-linux-public.sh"
       },
       {
         "name": "preprovision-agent-linux-private",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
         "script": "preprovision-agent-linux-private.sh"
       },
       {
         "name": "preprovision-master-linux",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
         "script": "preprovision-master-linux.sh"
       },
       {
         "name": "preprovision-agent-windows",
         "version": "v1",
         "extensionParameters": "parameters",
-        "rootURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}/preprovision/",
-        "script": "preprovision-agent-windows.ps1"
+        "rootURL": "https://dcosci.blob.core.windows.net/provision",
+        "script": "preprovision-agent-windows-win-bootstrap-node.ps1"
       }
     ]
   }

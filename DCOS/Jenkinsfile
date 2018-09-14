@@ -36,8 +36,7 @@ def dcos_e2e_testing_env(String command) {
                      usernamePassword(credentialsId: '49dc70d1-13d5-4b52-8944-d62f5a2474e3',
                                       passwordVariable: 'DOCKER_HUB_USER_PASSWORD',
                                       usernameVariable: 'DOCKER_HUB_USER')]) {
-    withEnv(["DCOS_DEPLOYMENT_TYPE=hybrid",
-             "DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
+    withEnv(["DCOS_WINDOWS_BOOTSTRAP_URL=http://dcos-win.westus2.cloudapp.azure.com/dcos-windows/testing/windows-agent-blob/${JOB_NAME}-${BUILD_ID}",
              "AUTOCLEAN=true",
              "SET_CLEANUP_TAG=true",
              "AZURE_KEYVAULT_NAME=ci-secrets",

@@ -33,7 +33,7 @@
     }
   },
   "uris": [
-    "https://github.com/Microsoft/mesos-jenkins/raw/master/DCOS/resources/fetcher-test.zip"
+    "https://dcosci.blob.core.windows.net/resources/fetcher-test.zip"
   ],
   "healthChecks": [
     {

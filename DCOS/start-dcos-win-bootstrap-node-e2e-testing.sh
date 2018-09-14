@@ -19,7 +19,7 @@ source $DIR/dcos-testing.sh
 
 # - Install latest DCOS Engine internal stable build
 mkdir -p $WORKSPACE/bin && \
-curl -L -s --retry 30 "http://dcos-win.westus2.cloudapp.azure.com/dcos-engine/stable-candidate/v0.2.1/linux-amd64/dcos-engine" -o $WORKSPACE/bin/dcos-engine && \
+curl -L -s --retry 30 "http://dcos-win.westus2.cloudapp.azure.com/dcos-engine/stable-candidate/master/latest/linux-amd64/dcos-engine" -o $WORKSPACE/bin/dcos-engine && \
 chmod +x $WORKSPACE/bin/dcos-engine && \
 export PATH="$WORKSPACE/bin:$PATH"
 check_exit_code false
@@ -48,8 +48,8 @@ check_exit_code true
 create_testing_environment
 check_exit_code true
 
-# - Run the functional tests
-run_functional_tests
+# - Run the functional tests (for deployments with Windows bootstrap node)
+run_win_bootstrap_node_functional_tests
 check_exit_code true
 
 # - Run fluentd tests
