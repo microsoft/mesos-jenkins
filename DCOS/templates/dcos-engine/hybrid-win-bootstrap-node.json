@@ -130,14 +130,14 @@
         "version": "v1",
         "extensionParameters": "parameters",
         "rootURL": "https://dcosci.blob.core.windows.net/provision",
-        "script": "preprovision-agent-linux-public.sh"
+        "script": "preprovision-agent-linux-private-win-bootstrap-node.sh"
       },
       {
         "name": "preprovision-agent-linux-private",
         "version": "v1",
         "extensionParameters": "parameters",
         "rootURL": "https://dcosci.blob.core.windows.net/provision",
-        "script": "preprovision-agent-linux-private.sh"
+        "script": "preprovision-agent-linux-public-win-bootstrap-node.sh"
       },
       {
         "name": "postinstall-agent-linux",
