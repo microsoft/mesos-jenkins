@@ -32,4 +32,3 @@ elif [[ -e "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json" ]]; then
 fi
 
 systemctl restart dcos-checks-poststart.service
-EOF
