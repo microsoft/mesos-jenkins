@@ -54,9 +54,9 @@ $PACKAGES = @{
         "url" = "https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "vcredist_2013.exe"
     }
-    "otp_202" = @{
-        "url" = "http://dcos-win.westus2.cloudapp.azure.com/downloads/erl9.2.zip"
-        "local_file" = Join-Path $PACKAGES_DIRECTORY "erl9.2.zip"
+    "erlang" = @{
+        "url" = "http://erlang.org/download/otp_win64_21.0.1.exe"
+        "local_file" = Join-Path $PACKAGES_DIRECTORY "otp_win64.exe"
     }
     "maven" = @{
         "url" = "http://apache.javapipe.com/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.zip"
@@ -364,26 +364,13 @@ function Install-Dig {
     }
 }
 
-function Install-OPT202 {
+function Install-Erlang {
     Install-CITool -InstallerPath $PACKAGES["2013_runtime"]["local_file"] `
                    -ArgumentList @("/install", "/passive")
-    $installDir = Join-Path $env:ProgramFiles "erl9.2"
-    try {
-        Install-ZipCITool -ZipPath $PACKAGES["otp_202"]["local_file"] `
-                          -InstallDirectory $installDir `
-                          -EnvironmentPath @("$installDir\bin")
-    } catch {
-        Remove-Item -Recurse -Force $installDir
-        Throw
-    }
-    $config = @(
-        "[erlang]",
-        "Bindir=$("$installDir\erts-9.2\bin" -replace '\\', '\\')",
-        "Progname=erl",
-        "Rootdir=$($installDir -replace '\\', '\\')"
-    )
-    Set-Content -Path "$installDir\bin\erl.ini" -Value $config
-    Set-Content -Path "$installDir\erts-9.2\bin\erl.ini" -Value $config
+    $installDir = Join-Path $env:ProgramFiles "erlang"
+    Install-CITool -InstallerPath $PACKAGES["erlang"]["local_file"] `
+                   -ArgumentList @("/S", "/D=$installDir") `
+                   -EnvironmentPath @("$installDir\bin")
 }
 
 function Install-PowerShellModules {
@@ -408,7 +395,7 @@ try {
     Install-Maven
     Install-Msys2
     Install-Dig
-    Install-OPT202
+    Install-Erlang
     Install-PowerShellModules
     # TODO: Configure git user and e-mail
     # TODO: Generate SSH keypair
