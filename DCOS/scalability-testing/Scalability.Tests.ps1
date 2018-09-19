@@ -98,7 +98,7 @@ function Confirm-DCOSAgentsGoodMetrics {
         [Parameter(Mandatory=$true)]
         [string]$ResourceGroupName
     )
-    $mesosAuth = Confirm-MesosAuthentication
+    $mesosAuth = Confirm-MesosAuthentication -ResourceGroupName $ResourceGroupName
     if($mesosAuth) {
         Throw "Mesos authentication is enabled. dcos-metrics doesn't with with this feature enabled."
     }
