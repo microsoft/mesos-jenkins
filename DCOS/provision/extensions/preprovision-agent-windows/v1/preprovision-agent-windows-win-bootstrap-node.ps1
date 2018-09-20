@@ -201,23 +201,48 @@ function Install-FluentdAgent () {
 
 function Register-FluentdService () {
     Write-Output "Registering fluentd service..."
-    $serviceName = "fluentdwinsvc"
-    $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-    if(!$svc) {
-        fluentd --reg-winsvc i
-        if ($LASTEXITCODE) {
-            Throw "Failed to register fluentd Windows service. ExitCode = $LASTEXITCODE"
-        }
+    fluentd --reg-winsvc i
+    if ($LASTEXITCODE) {
+        Throw "Failed to register fluentd Windows service. ExitCode = $LASTEXITCODE"
     }
-    fluentd --reg-winsvc-fluentdopt "-c $env:SystemDrive/opt/td-agent/etc/td-agent/td-agent.conf -o $env:SystemDrive/opt/td-agent/td-agent.log"
+    $configFile = Join-Path $env:SystemDrive "opt/td-agent/etc/td-agent/td-agent.conf"
+    $logFile = Join-Path $env:SystemDrive "opt/td-agent/td-agent.log"
+    Set-Content -Path $configFile -Encoding Ascii -Value @"
+<source>
+  @type forward
+</source>
+<source>
+  @type tail
+  path C:/AzureData/fluentd-testing/stdout
+  tag log.stdout
+  refresh_interval 5s
+  format none
+  read_from_head true
+  pos_file C:/AzureData/fluentd-testing/stdout.pos
+</source>
+<match log.*>
+  @type file
+  path C:/AzureData/fluentd-testing/logs
+  <buffer>
+    @type file
+    flush_mode immediate
+  </buffer>
+</match>
+"@
+    fluentd --reg-winsvc-fluentdopt "-c $configFile -o $logFile"
     if ($LASTEXITCODE) {
         Throw "Failed to set options for fluentd Windows service. ExitCode = $LASTEXITCODE"
     }
     Write-Output "Starting fluentd service..."
-    Start-Service $serviceName
+    Start-Service "fluentdwinsvc"
 }
 
 function Start-FluentdSetup {
+    $fluentdTestingDir = Join-Path $env:SystemDrive "AzureData\fluentd-testing"
+    if(Test-Path $fluentdTestingDir) {
+        Remove-Item -Recurse -Force -Path $fluentdTestingDir
+    }
+    New-Item -ItemType "Directory" -Path $fluentdTestingDir
     Install-FluentdAgent
     Register-FluentdService
 }
