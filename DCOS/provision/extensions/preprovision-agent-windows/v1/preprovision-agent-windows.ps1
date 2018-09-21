@@ -279,7 +279,7 @@ function Write-MesosSecretFiles {
         "MESOS_HTTP_CREDENTIALS=$MESOS_ETC_SERVICE_DIR\http_credential.json",
         "MESOS_CREDENTIAL=$MESOS_ETC_SERVICE_DIR\credential.json"
     )
-    Set-Content -Path "${MESOS_ETC_SERVICE_DIR}\environment-file" -Value $serviceEnv -Encoding utf8
+    Set-Content -Path "${MESOS_ETC_SERVICE_DIR}\environment-file" -Value $serviceEnv -Encoding "default"
 }
 
 try {
