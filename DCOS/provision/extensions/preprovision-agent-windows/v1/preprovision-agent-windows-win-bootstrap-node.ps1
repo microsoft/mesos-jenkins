@@ -278,7 +278,7 @@ function Write-MesosSecretFiles {
         "`$env:MESOS_HTTP_CREDENTIALS=`"$MESOS_CREDENTIALS_DIR\http_credential.json`"",
         "`$env:MESOS_CREDENTIAL=`"$MESOS_CREDENTIALS_DIR\credential.json`""
     )
-    Set-Content -Path "$MESOS_CREDENTIALS_DIR\auth-env.ps1" -Value $serviceEnv -Encoding utf8
+    Set-Content -Path "$MESOS_CREDENTIALS_DIR\auth-env.ps1" -Value $serviceEnv -Encoding "default"
 }
 
 try {
