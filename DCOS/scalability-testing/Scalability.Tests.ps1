@@ -256,11 +256,35 @@ Describe "Scale up check" {
     $skipFlag = $mesosAuth
 
     It "Are all nodes healthy" -Skip:$skipFlag {
-        Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+        # Allow the agents a 10 minutes timeout to become healthy after scale-up
+        $retryCount = 20
+        do {
+            $agentsGoodHealth = Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP
+            if($agentsGoodHealth) {
+                Write-Host "The agents are in good health now!"
+                break
+            }
+            Write-Host "The agents are not in good health yet. Retry count=$retryCount"
+            Start-Sleep -Seconds 30
+            $retryCount -= 1
+        } while($retryCount -gt 0)
+        $agentsGoodHealth | Should be $true
     }
 
     It "Are all nodes metric service running fine" -Skip:$skipFlag {
-        Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+        # Allow the agents metrics a 10 minutes timeout to become healthy after scale-up
+        $retryCount = 20
+        do {
+            $agentsGoodMetrics = Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP
+            if($agentsGoodMetrics) {
+                Write-Host "The agents have good metrics now!"
+                break
+            }
+            Write-Host "The agents don't have good metrics yet. Retry count=$retryCount"
+            Start-Sleep -Seconds 30
+            $retryCount -= 1
+        } while($retryCount -gt 0)
+        $agentsGoodMetrics | Should be $true
     }
 }
 
@@ -318,10 +342,34 @@ Describe "Scale down check" {
     $skipFlag = $mesosAuth
 
     It "Are all nodes healthy" -Skip:$skipFlag {
-        Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+        # Allow the agents a 10 minutes timeout to become healthy after scale-down
+        $retryCount = 20
+        do {
+            $agentsGoodHealth = Confirm-DCOSAgentsHealth -ResourceGroupName $env:RESOURCE_GROUP
+            if($agentsGoodHealth) {
+                Write-Host "Agents are in good health now!"
+                break
+            }
+            Write-Host "Agents are not yet in good health. Retry count=$retryCount"
+            Start-Sleep -Seconds 30
+            $retryCount -= 1
+        } while($retryCount -gt 0)
+        $agentsGoodHealth | Should be $true
     }
 
     It "Are all nodes metric service running fine" -Skip:$skipFlag {
-        Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP | Should be $true
+        # Allow the agents metrics a 10 minutes timeout to become healthy after scale-down
+        $retryCount = 20
+        do {
+            $agentsGoodMetrics = Confirm-DCOSAgentsGoodMetrics -ResourceGroupName $env:RESOURCE_GROUP
+            if($agentsGoodMetrics) {
+                Write-Host "The agents have good metrics now!"
+                break
+            }
+            Write-Host "The agents don't have good metrics yet. Retry count=$retryCount"
+            Start-Sleep -Seconds 30
+            $retryCount -= 1
+        } while($retryCount -gt 0)
+        $agentsGoodMetrics | Should be $true
     }
 }

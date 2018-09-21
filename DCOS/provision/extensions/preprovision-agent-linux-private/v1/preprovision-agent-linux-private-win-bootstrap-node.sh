@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-[[ -e /usr/bin/chmod ]] || ln -s /bin/chmod /usr/bin/chmod
-[[ -e /usr/bin/chown ]] || ln -s /bin/chown /usr/bin/chown
-
 mkdir -p /etc/ethos/
 touch /etc/ethos/dcos-mesos-agent-secret
 chmod 600 /etc/ethos/dcos-mesos-agent-secret
@@ -27,9 +24,10 @@ cat > /etc/ethos/dcos-mesos-agent-http-credentials << EOF
 }
 EOF
 
-mkdir -p /etc/systemd/system/dcos-mesos-slave.service.d
+MESOS_SYSTEMD_DIR="/etc/systemd/system/dcos-mesos-slave.service.d"
+mkdir -p $MESOS_SYSTEMD_DIR
 echo "[Service]
 Environment=MESOS_AUTHENTICATE_HTTP_READONLY=true
 Environment=MESOS_AUTHENTICATE_HTTP_READWRITE=true
 Environment=MESOS_HTTP_CREDENTIALS=/etc/ethos/dcos-mesos-agent-http-credentials
-Environment=MESOS_CREDENTIAL=/etc/ethos/dcos-mesos-agent-secret" > /etc/systemd/system/dcos-mesos-slave.service.d/10-dcos-mesos-agent-auth.conf
+Environment=MESOS_CREDENTIAL=/etc/ethos/dcos-mesos-agent-secret" > $MESOS_SYSTEMD_DIR/10-dcos-mesos-agent-auth.conf
