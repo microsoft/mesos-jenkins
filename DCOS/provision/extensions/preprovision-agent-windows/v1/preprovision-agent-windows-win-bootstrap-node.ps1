@@ -145,6 +145,12 @@ function Start-CIAgentSetup {
                                -MaxRetryCount 30 -RetryInterval 3 `
                                -RetryMessage "Failed to pre-pull $img Docker image. Retrying"
     }
+    # - Enable Windows Error Reporting (WER)
+    $parentPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+    New-Item -Name "LocalDumps" -Path $parentPath
+    New-ItemProperty -Name "DumpCount" -Path "$parentPath\LocalDumps" -PropertyType DWord -Value 1000
+    New-ItemProperty -Name "DumpType" -Path "$parentPath\LocalDumps" -PropertyType DWord -Value 2
+    Enable-WindowsErrorReporting
 }
 
 function Install-FluentdAgent () {
