@@ -38,11 +38,11 @@ for SERVICE in "epmd" "mesos" "diagnostics" "dcos-net"; do
     fi
 done
 for ITEM in "/mnt/$ADDRESS/DCOS/environment" \
-            "/mnt/$ADDRESS/Program\ Files/Docker/dockerd.log" \
+            "/mnt/$ADDRESS/Program Files/Docker/dockerd.log" \
             "/mnt/$ADDRESS/var/log" \
             "/mnt/$ADDRESS/etc"; do
-    if [[ -e $ITEM ]]; then
-        cp -rf $ITEM $TMP_LOGS_DIR/
+    if [[ -e "$ITEM" ]]; then
+        cp -rf "$ITEM" $TMP_LOGS_DIR/
     fi
 done
 if [[ -e "/mnt/$ADDRESS/opt/mesosphere/etc" ]]; then
