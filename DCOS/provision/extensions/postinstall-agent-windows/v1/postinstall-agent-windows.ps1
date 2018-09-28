@@ -2,25 +2,112 @@ $ErrorActionPreference = "Stop"
 
 $DCOS_DIR = Join-Path $env:SystemDrive "opt\mesosphere"
 
+
+function Start-ExecuteWithRetry {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [ScriptBlock]$ScriptBlock,
+        [int]$MaxRetryCount=10,
+        [int]$RetryInterval=3,
+        [string]$RetryMessage,
+        [array]$ArgumentList=@()
+    )
+    $currentErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $retryCount = 0
+    while ($true) {
+        try {
+            $res = Invoke-Command -ScriptBlock $ScriptBlock `
+                                  -ArgumentList $ArgumentList
+            $ErrorActionPreference = $currentErrorActionPreference
+            return $res
+        } catch [System.Exception] {
+            $retryCount++
+            if ($retryCount -gt $MaxRetryCount) {
+                $ErrorActionPreference = $currentErrorActionPreference
+                Throw
+            } else {
+                if($RetryMessage) {
+                    Write-Output $RetryMessage
+                } elseif($_) {
+                    Write-Output $_.ToString()
+                }
+                Start-Sleep $RetryInterval
+            }
+        }
+    }
+}
+
+function Start-FileDownloadWithCurl {
+    Param(
+        [Parameter(Mandatory=$true)]
+        [string]$URL,
+        [Parameter(Mandatory=$true)]
+        [string]$Destination,
+        [Parameter(Mandatory=$false)]
+        [int]$RetryCount=10
+    )
+    $params = @('-fLsS', '-o', "`"${Destination}`"", "`"${URL}`"")
+    Start-ExecuteWithRetry -ScriptBlock {
+        $p = Start-Process -FilePath 'curl.exe' -NoNewWindow -ArgumentList $params -Wait -PassThru
+        if($p.ExitCode -ne 0) {
+            Throw "Fail to download $URL"
+        }
+    } -MaxRetryCount $RetryCount -RetryInterval 3 -RetryMessage "Failed to download ${URL}. Retrying"
+}
+
+#
+# Enable Docker debug logging and capture stdout and stderr to a file.
+# We're using the updated service wrapper for this.
+#
+$serviceName = "Docker"
+$dockerHome = Join-Path $env:ProgramFiles "Docker"
+$wrapperUrl = "http://dcos-win.westus2.cloudapp.azure.com/downloads/service-wrapper.exe"
+Stop-Service $serviceName
+sc.exe delete $serviceName
+if($LASTEXITCODE) {
+    Throw "Failed to delete service: $serviceName"
+}
+Start-FileDownloadWithCurl -URL $wrapperUrl -Destination "${dockerHome}\service-wrapper.exe" -RetryCount 30
+$binPath = ("`"${dockerHome}\service-wrapper.exe`" " +
+            "--service-name `"$serviceName`" " +
+            "--exec-start-pre `"powershell.exe if(Test-Path '${env:ProgramData}\docker\docker.pid') { Remove-Item -Force '${env:ProgramData}\docker\docker.pid' }`" " +
+            "--log-file `"$dockerHome\dockerd.log`" " +
+            "`"$dockerHome\dockerd.exe`" -D")
+New-Service -Name $serviceName -StartupType "Automatic" -Confirm:$false `
+            -DisplayName "Docker Windows Agent" -BinaryPathName $binPath
+sc.exe failure $serviceName reset=5 actions=restart/1000
+if($LASTEXITCODE) {
+    Throw "Failed to set $serviceName service recovery options"
+}
+sc.exe failureflag $serviceName 1
+if($LASTEXITCODE) {
+    Throw "Failed to set $serviceName service recovery options"
+}
+Start-Service $serviceName
+
+#
+# Disable dcos-metrics agent
+#
 & "$DCOS_DIR\bin\systemctl.exe" stop "dcos-metrics-agent.service"
 if($LASTEXITCODE) {
     Throw "Failed to stop dcos-metrics-agent.service"
 }
-
 & "$DCOS_DIR\bin\systemctl.exe" disable "dcos-metrics-agent.service"
 if($LASTEXITCODE) {
     Throw "Failed to disable dcos-metrics-agent.service"
 }
 
+#
+# Remove dcos-metrics from the list of monitored services for dcos-diagnostics
+#
 $serviceListFile = Join-Path $DCOS_DIR "bin\servicelist.txt"
 $newContent = Get-Content $serviceListFile | Where-Object { $_ -notmatch 'dcos-metrics-agent.service' }
 Set-Content -Path $serviceListFile -Value $newContent -Encoding ascii
-
 & "$DCOS_DIR\bin\systemctl.exe" stop "dcos-diagnostics.service"
 if($LASTEXITCODE) {
     Throw "Failed to restart dcos-diagnostics.service"
 }
-
 & "$DCOS_DIR\bin\systemctl.exe" start "dcos-diagnostics.service"
 if($LASTEXITCODE) {
     Throw "Failed to restart dcos-diagnostics.service"
