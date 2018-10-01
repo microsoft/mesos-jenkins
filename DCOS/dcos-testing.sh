@@ -645,32 +645,49 @@ test_master_agent_authentication() {
 compare_azure_vms_and_dcos_agents() {
     # Get list of all agent IPs by concatenating output of win and linux functions
     local agent_ips="$(echo $(linux_agents_private_ips) $(windows_agents_private_ips) | tr ' ' '\n' | sort)"
-
     # Count number of Azure IPs
     local agent_ips_no=$(echo $agent_ips | tr ' ' '\n' | awk 'END{print NR}')
+    
+    sleep_time=10
+    retries=21
+    while [ $retries -gt 0 ]
+    do
+        # Fetch API agent IPs list
+        local dcos_api_ips=$(dcos node | grep agent | awk '{print $2}' | sort) || {
+            echo "ERROR: Failed to run 'dcos node'"
+            return 1
+        }
+        # Count API agent IPs
+        local dcos_api_ips_no=$(echo $dcos_api_ips | tr ' ' '\n' | awk 'END{print NR}')
 
-    # Fetch API agent IPs list
-    local dcos_api_ips=$(dcos node | grep agent | awk '{print $2}' | sort) || {
-        echo "ERROR: Failed to run 'dcos node'"
-        return 1
-    }
-    # Count API agent IPs
-    local dcos_api_ips_no=$(echo $dcos_api_ips | tr ' ' '\n' | awk 'END{print NR}')
+        # Compare number of IPs
+        if [ $agent_ips_no -ne $dcos_api_ips_no ]; then
+            echo "ERROR: Number of Azure VM IPs is different from number of DCOS API IPs"
+            echo "Retrying, retries left: $(($retries-1))"
+            sleep $sleep_time
+            retries=$((retries-1))
+            continue
+        fi
+        # diff the 2 lists of IPs (which are already sorted)
+        diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") 2>&1
 
-    # Compare number of IPs, return 1 if not equal
-    if [ $agent_ips_no -ne $dcos_api_ips_no ]; then
-        echo "ERROR: Number of Azure VM IPs is different from number of DCOS API IPs"
-        return 1
-    fi
-    # diff the 2 lists of IPs (which are already sorted)
-    diff -bB <(echo "$agent_ips") <(echo "$dcos_api_ips") 2>&1
-
-    # If previous command has exit_code=0 then the lists are different and we return 1
-    if [ $? -eq 1 ]; then
-        echo "ERROR: Some Azure VM IPs are different from DCOS API IPs"
-        return 1
-    elif [ $? -gt 1 ]; then
-        echo "ERROR: diff encountered an error"
+        last_exit_code=$?
+        # If previous command has exit_code=0 then the lists are different
+        if [ $last_exit_code -eq 1 ]; then
+            echo "ERROR: Some Azure VM IPs are different from DCOS API IPs"
+            echo "Retrying, retries left: $(($retries-1))"
+            sleep $sleep_time
+            retries=$((retries-1))
+            continue
+        elif [ $last_exit_code -gt 1 ]; then
+            echo "ERROR: diff encountered an error"
+            return 1
+        elif [ $last_exit_code -eq 0 ]; then
+            echo "SUCCESS: Number of Azure VM IPs is equal to DCOS API IPs"
+            break
+        fi
+    done
+    if [ $retries -eq 0 ]; then
         return 1
     fi
 }
