@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $DCOS_DIR = Join-Path $env:SystemDrive "opt\mesosphere"
+$ETC_DIR = Join-Path $env:SystemDrive "etc"
 
 
 function Start-ExecuteWithRetry {
@@ -89,14 +90,15 @@ Start-Service $serviceName
 #
 # Disable dcos-metrics agent
 #
-& "$DCOS_DIR\bin\systemctl.exe" stop "dcos-metrics-agent.service"
+Stop-Service -Force "dcos-metrics-agent.service"
+sc.exe delete "dcos-metrics-agent.service"
 if($LASTEXITCODE) {
-    Throw "Failed to stop dcos-metrics-agent.service"
+    Throw "Failed to delete dcos-metrics-agent.service"
 }
-& "$DCOS_DIR\bin\systemctl.exe" disable "dcos-metrics-agent.service"
-if($LASTEXITCODE) {
-    Throw "Failed to disable dcos-metrics-agent.service"
-}
+Remove-Item -Force "$ETC_DIR\systemd\active\dcos-metrics-agent.service"
+Remove-Item -Force "$ETC_DIR\systemd\active\dcos.target.wants\dcos-metrics-agent.service"
+Remove-Item -Force "$ETC_DIR\systemd\system\dcos-metrics-agent.service"
+Remove-Item -Force "$ETC_DIR\systemd\system\dcos.target.wants\dcos-metrics-agent.service"
 
 #
 # Remove dcos-metrics from the list of monitored services for dcos-diagnostics
@@ -104,11 +106,4 @@ if($LASTEXITCODE) {
 $serviceListFile = Join-Path $DCOS_DIR "bin\servicelist.txt"
 $newContent = Get-Content $serviceListFile | Where-Object { $_ -notmatch 'dcos-metrics-agent.service' }
 Set-Content -Path $serviceListFile -Value $newContent -Encoding ascii
-& "$DCOS_DIR\bin\systemctl.exe" stop "dcos-diagnostics.service"
-if($LASTEXITCODE) {
-    Throw "Failed to restart dcos-diagnostics.service"
-}
-& "$DCOS_DIR\bin\systemctl.exe" start "dcos-diagnostics.service"
-if($LASTEXITCODE) {
-    Throw "Failed to restart dcos-diagnostics.service"
-}
+Restart-Service -Force "dcos-diagnostics.service"
