@@ -8,7 +8,8 @@
         "bootstrapURL": "${DCOS_BOOTSTRAP_URL}"
       },
       "windowsBootstrapProfile": {
-        "bootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}"
+        "bootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}",
+        "dockerVersion": "18.03.1-ee-3"
       }
     },
     "masterProfile": {
