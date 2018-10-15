@@ -304,6 +304,7 @@ function Write-ParametersFile {
     if($global:PARAMETERS["LOGS_URLS"]) {
         $global:PARAMETERS["LOGS_URLS"] = $global:PARAMETERS["LOGS_URLS"] -join '|'
     }
+    $global:PARAMETERS["DIAGNOSTICS_BUILD_INFO"] = "$GitURL|$Branch|$(Get-LatestCommitID)"
     $json = ConvertTo-Json -InputObject $global:PARAMETERS
     Set-Content -Path $FilePath -Value $json
 }
