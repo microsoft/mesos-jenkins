@@ -90,7 +90,7 @@ Start-Service $serviceName
 #
 # Disable dcos-metrics agent
 #
-Stop-Service -Force "dcos-metrics-agent.service"
+Start-ExecuteWithRetry { Stop-Service -Force "dcos-metrics-agent.service" }
 sc.exe delete "dcos-metrics-agent.service"
 if($LASTEXITCODE) {
     Throw "Failed to delete dcos-metrics-agent.service"
