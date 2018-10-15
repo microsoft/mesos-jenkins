@@ -1146,7 +1146,37 @@ run_win_bootstrap_node_functional_tests() {
     test_iis || return 1
     #
     # TODO(ibalutoiu): Add test_dcos_windows_apps adapted for deployments with Windows bootstrap node
+    #                  and delete all the below since they are a subset of the function
+    # This is the list of stuff to port from there:
+    # - test_windows_agent_recovery
+    # - test_windows_agent_graceful_shutdown
+    # - test_windows_agent_ungraceful_shutdown
+    # - test_windows_agent_resiliency
     #
+    local WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
+    local WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
+    if [[ -z $WIN_PRIVATE_AGENTS_IPS ]] && [[ -z $WIN_PUBLIC_AGENTS_IPS ]]; then
+        echo "ERROR: No Windows slaves registered"
+        return 1
+    fi
+    for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
+        local AGENT_ROLE="*"
+        test_win_marathon_app_port_container "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
+    for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
+        local AGENT_ROLE="slave_public"
+        test_win_marathon_app_port_container "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_win_marathon_app_port_publish "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+        test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
+    done
 }
 
 collect_linux_masters_logs() {
