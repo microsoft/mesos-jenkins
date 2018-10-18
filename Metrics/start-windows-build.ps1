@@ -151,7 +151,7 @@ function Start-DCOSMetricsBuild {
         New-Item -ItemType directory -Path ".\build" -Force
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
                                 -LogFileName "metrics-build.log" `
-                                -ArgumentList @(".\scripts\build.ps1", "collector") `
+                                -ArgumentList @("-Command", "`"& .\scripts\build.ps1 collector ; exit `$LASTEXITCODE`"") `
                                 -BuildErrorMessage "Metrics failed to build."
         Start-ExternalCommand { & go.exe get .\... } -ErrorMessage "Failed to setup the dependent packages"
         Copy-Item -Path "$METRICS_GIT_REPO_DIR\build\collector\dcos-metrics-collector-*" -Destination "$METRICS_GIT_REPO_DIR/dcos-metrics.exe"
@@ -290,7 +290,7 @@ function Start-DCOSMetricsUnitTests {
     try {
         Start-MetricsCIProcess  -ProcessPath "powershell.exe" `
                                 -LogFileName "metrics-unitests.log" `
-                                -ArgumentList @(".\scripts\test.ps1", "collector unit") `
+                                -ArgumentList @("-Command", "`"& .\scripts\test.ps1 collector unit ; exit `$LASTEXITCODE`"") `
                                 -BuildErrorMessage "Metrics unittests failed."
     } finally {
         Pop-Location
