@@ -4,11 +4,8 @@
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
       "orchestratorRelease": "1.11",
-      "linuxBootstrapProfile": {
-        "bootstrapURL": "${DCOS_BOOTSTRAP_URL}"
-      },
       "windowsBootstrapProfile": {
-        "bootstrapURL": "${DCOS_WINDOWS_BOOTSTRAP_URL}",
+        "bootstrapURL": "${STABLE_DCOS_WINDOWS_BOOTSTRAP_URL}",
         "dockerVersion": "18.03.1-ee-3"
       }
     },
