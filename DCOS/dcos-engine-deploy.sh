@@ -32,6 +32,9 @@ validate_deployment_params() {
     if [[ -z $DCOS_BOOTSTRAP_URL ]]; then
         export DCOS_BOOTSTRAP_URL="https://dcosci.blob.core.windows.net/dcos/testing/master/dcos_generate_config.sh"
     fi
+    if [[ -z $STABLE_DCOS_BOOTSTRAP_URL ]]; then
+        export STABLE DCOS_BOOTSTRAP_URL="https://dcosci.blob.core.windows.net/dcos-windows/stable/dcos_generate_config.windows.tar.xz"
+    fi
 }
 
 validate_prerequisites() {

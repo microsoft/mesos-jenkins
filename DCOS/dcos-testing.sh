@@ -1107,6 +1107,60 @@ test_iis() {
     remove_dcos_marathon_app $APP_NAME || return 1
 }
 
+test_dcos_upgrade() {
+     local UPGRADE_VERSION=$(cat ${BUILD_ARTIFACTS_DIR}/dcos-deploy-dir/apimodel.json | jq -r '.properties.orchestratorProfile.orchestratorVersion')
+
+     local REMOTE_CMD="curl http://192.168.255.240:8086/bootstrap.latest"
+     local OLD_LINUX_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
+
+     local REMOTE_CMD="curl http://192.168.255.241:8086/bootstrap.latest"
+     local OLD_WIN_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
+
+     dcos-engine upgrade \
+         --subscription-id $AZURE_SUBSCRIPTION_ID \
+         --resource-group $AZURE_RESOURCE_GROUP \
+         --location $AZURE_REGION \
+         --upgrade-version $UPGRADE_VERSION \
+         --deployment-dir ${BUILD_ARTIFACTS_DIR}/dcos-deploy-dir \
+         --ssh-private-key-path $PRIVATE_SSH_KEY_PATH \
+         --linux-bootstrap-url $DCOS_BOOTSTRAP_URL \
+         --windows-bootstrap-url $DCOS_WINDOWS_BOOTSTRAP_URL
+
+     if [[ $? -ne 0 ]]; then
+         echo "ERROR: Failed to upgrade cluster"
+         return 1
+     fi
+
+     local REMOTE_CMD="curl http://192.168.255.240:8086/bootstrap.latest"
+     local NEW_LINUX_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
+
+     local REMOTE_CMD="curl http://192.168.255.241:8086/bootstrap.latest"
+     local NEW_WIN_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
+
+     if [[ $OLD_LINUX_BOOTSTRAP_ID == $NEW_LINUX_BOOTSTRAP_ID || $OLD_WIN_BOOTSTRAP_ID == $NEW_WIN_BOOTSTRAP_ID ]]; then
+         echo "ERROR: Bootstrap id is the same after dcos upgrade"
+         return 1
+     fi
+     
+     copy_ssh_key_to_proxy_master || return 1
+     WINDOWS_AGENTS_IPS=$(windows_agents_private_ips)
+
+     if [[ -z $WINDOWS_AGENTS_IPS ]]; then
+         echo "ERROR: No Windows slaves registered"
+         return 1
+     fi
+     
+     for AGENT_IP in $WINDOWS_AGENTS_IPS; do
+         REMOTE_CMD="ssh azureuser@${AGENT_IP} powershell.exe -file 'C:\AzureData\extensions\postinstall-agent-windows\postinstall-agent-windows.ps1'"
+         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" || return 1
+     done
+
+     for AGENT_IP in $(linux_agents_private_ips); do
+         REMOTE_CMD="ssh azureuser@${AGENT_IP} sudo bash /opt/azure/containers/extensions/postinstall-agent-linux/postinstall-agent-linux.sh"
+         run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" || return 1
+     done
+ }
+
 run_functional_tests() {
     #
     # Run the following DC/OS functional tests:
@@ -1142,6 +1196,7 @@ run_win_bootstrap_node_functional_tests() {
     compare_azure_vms_and_dcos_agents || return 1
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
+    test_dcos_upgrade || return 1
     test_dcos_dns || return 1
     test_iis || return 1
     #
