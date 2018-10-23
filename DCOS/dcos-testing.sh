@@ -1117,7 +1117,10 @@ test_dcos_upgrade() {
      local OLD_WIN_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
 
      dcos-engine upgrade \
+         --auth-method client_secret \
          --subscription-id $AZURE_SUBSCRIPTION_ID \
+         --client-id $AZURE_SERVICE_PRINCIPAL_ID \
+         --client-secret $AZURE_SERVICE_PRINCIPAL_PASSWORD \
          --resource-group $AZURE_RESOURCE_GROUP \
          --location $AZURE_REGION \
          --upgrade-version $UPGRADE_VERSION \
