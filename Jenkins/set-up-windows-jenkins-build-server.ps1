@@ -339,11 +339,12 @@ function Install-Msys2 {
     try {
         Install-ZipCITool -ZipPath $PACKAGES["msys2"]["local_file"] `
                           -InstallDirectory $installDir `
-                          -EnvironmentPath @("$installDir\usr\bin")
+                          -EnvironmentPath @("$installDir\usr\bin", "$installDir\mingw64\bin")
     } catch {
         Remove-Item -Recurse -Force $installDir
         Throw
     }
+    pacman.exe -S mingw-w64-x86_64-gcc --noconfirm
     pacman.exe -Syu make --noconfirm
     if($LASTEXITCODE) {
         Throw "ERROR: Failed to install make via msys2 pacman"
@@ -383,6 +384,8 @@ try {
     Start-LocalPackagesDownload
     Install-VisualStudio2017
     Install-Docker
+    Install-7Zip
+    Install-Msys2
     Install-Git
     Install-CMake
     Install-Patch
@@ -391,9 +394,7 @@ try {
     Install-Golang
     Install-Java18
     Install-OpenSSL
-    Install-7Zip
     Install-Maven
-    Install-Msys2
     Install-Dig
     Install-Erlang
     Install-PowerShellModules
