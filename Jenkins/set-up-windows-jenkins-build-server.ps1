@@ -345,6 +345,9 @@ function Install-Msys2 {
         Throw
     }
     pacman.exe -S mingw-w64-x86_64-gcc --noconfirm
+    if($LASTEXITCODE) {
+        Throw "ERROR: Failed to install gcc via msys2 pacman"
+    }
     pacman.exe -Syu make --noconfirm
     if($LASTEXITCODE) {
         Throw "ERROR: Failed to install make via msys2 pacman"
