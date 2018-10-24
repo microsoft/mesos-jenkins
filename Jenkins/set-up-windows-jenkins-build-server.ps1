@@ -35,7 +35,7 @@ $PACKAGES = @{
         "local_file" = Join-Path $PACKAGES_DIRECTORY "7z.exe"
     }
     "go" = @{
-        "url" = "https://dl.google.com/go/go1.9.4.windows-amd64.msi"
+        "url" = "https://dl.google.com/go/go1.11.windows-amd64.msi"
         "local_file" = Join-Path $PACKAGES_DIRECTORY "go.msi"
     }
     "msys2" = @{
