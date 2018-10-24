@@ -335,7 +335,7 @@ function Install-Maven {
 }
 
 function Install-Msys2 {
-    $installDir = Join-Path $env:ProgramFiles "msys2"
+    $installDir = Join-Path $env:SystemDrive "msys2"
     try {
         Install-ZipCITool -ZipPath $PACKAGES["msys2"]["local_file"] `
                           -InstallDirectory $installDir `
