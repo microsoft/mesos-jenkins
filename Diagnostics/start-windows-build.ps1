@@ -149,7 +149,7 @@ function Start-DCOSDiagnosticsBuild {
     try {
         Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
                                     -LogFileName "diagnostics-build.log" `
-                                    -ArgumentList @(".\scripts\make.ps1", "build") `
+                                    -ArgumentList @("-Command", "`"& .\scripts\make.ps1 build ; exit `$LASTEXITCODE`"") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
         Pop-Location
@@ -277,7 +277,7 @@ function Start-DCOSDiagnosticsUnitTests {
     try {
         Start-DiagnosticsCIProcess  -ProcessPath "powershell.exe" `
                                     -LogFileName "diagnostics-unitests.log" `
-                                    -ArgumentList @(".\scripts\make.ps1", "test") `
+                                    -ArgumentList @("-Command", "`"& .\scripts\make.ps1 test ; exit `$LASTEXITCODE`"") `
                                     -BuildErrorMessage "Diagnostics failed to build."
     } finally {
         Pop-Location
