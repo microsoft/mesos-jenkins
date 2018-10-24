@@ -45,6 +45,19 @@ for ITEM in "/mnt/$ADDRESS/DCOS/environment" \
         cp -rf "$ITEM" $TMP_LOGS_DIR/
     fi
 done
+for CRASH_DUMPS_DIR in "/mnt/$ADDRESS/Users/$USER/AppData/Local/CrashDumps" \
+                       "/mnt/$ADDRESS/WINDOWS/system32/config/systemprofile/AppData/Local/CrashDumps"; do
+    if [[ -d $CRASH_DUMPS_DIR ]]; then
+        if [ "$(ls -A $CRASH_DUMPS_DIR)" ]; then
+            echo " INFO: $CRASH_DUMPS_DIR dir is empty"
+        else
+            echo " WARNING: Crash Dump dir not empty"
+            cp -rf $CRASH_DUMPS_DIR $TMP_LOGS_DIR/
+    fi
+    else
+            echo " INFO: $CRASH_DUMPS_DIR does not exist"
+    fi
+done
 if [[ -e "/mnt/$ADDRESS/opt/mesosphere/etc" ]]; then
     cp -rf "/mnt/$ADDRESS/opt/mesosphere/etc" $TMP_LOGS_DIR/mesosphere-etc
 fi
