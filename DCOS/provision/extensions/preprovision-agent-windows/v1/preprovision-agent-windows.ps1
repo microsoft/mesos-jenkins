@@ -2,8 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $CONFIG_WINRM_SCRIPT = "https://raw.githubusercontent.com/ansible/ansible/v2.5.0a1/examples/scripts/ConfigureRemotingForAnsible.ps1"
 $FLUENTD_TD_AGENT_URL = "http://packages.treasuredata.com.s3.amazonaws.com/3/windows/td-agent-3.1.1-0-x64.msi"
-$MESOS_ETC_SERVICE_DIR = Join-Path $env:SystemDrive "DCOS-etc\mesos\service"
-$MESOS_SERVICE_NAME = "dcos-mesos-slave"
+$MESOS_CREDENTIALS_DIR = Join-Path $env:SystemDrive "AzureData\mesos"
 
 
 filter Timestamp { "[$(Get-Date -Format o)] $_" }
@@ -146,33 +145,12 @@ function Start-CIAgentSetup {
                                -MaxRetryCount 30 -RetryInterval 3 `
                                -RetryMessage "Failed to pre-pull $img Docker image. Retrying"
     }
-    # Enable Docker debug logging and capture stdout and stderr to a file.
-    # We're using the updated service wrapper for this.
-    $serviceName = "Docker"
-    $dockerHome = Join-Path $env:ProgramFiles "Docker"
-    $wrapperUrl = "http://dcos-win.westus2.cloudapp.azure.com/downloads/service-wrapper.exe"
-    Stop-Service $serviceName
-    sc.exe delete $serviceName
-    if($LASTEXITCODE) {
-        Throw "Failed to delete service: $serviceName"
-    }
-    Start-FileDownloadWithCurl -URL $wrapperUrl -Destination "${dockerHome}\service-wrapper.exe" -RetryCount 30
-    $binPath = ("`"${dockerHome}\service-wrapper.exe`" " +
-                "--service-name `"$serviceName`" " +
-                "--exec-start-pre `"powershell.exe if(Test-Path '${env:ProgramData}\docker\docker.pid') { Remove-Item -Force '${env:ProgramData}\docker\docker.pid' }`" " +
-                "--log-file `"$dockerHome\dockerd.log`" " +
-                "`"$dockerHome\dockerd.exe`" -D")
-    New-Service -Name $serviceName -StartupType "Automatic" -Confirm:$false `
-                -DisplayName "Docker Windows Agent" -BinaryPathName $binPath
-    sc.exe failure $serviceName reset=5 actions=restart/1000
-    if($LASTEXITCODE) {
-        Throw "Failed to set $serviceName service recovery options"
-    }
-    sc.exe failureflag $serviceName 1
-    if($LASTEXITCODE) {
-        Throw "Failed to set $serviceName service recovery options"
-    }
-    Start-Service $serviceName
+    # - Enable Windows Error Reporting (WER)
+    $parentPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+    New-Item -Name "LocalDumps" -Path $parentPath
+    New-ItemProperty -Name "DumpCount" -Path "$parentPath\LocalDumps" -PropertyType DWord -Value 1000
+    New-ItemProperty -Name "DumpType" -Path "$parentPath\LocalDumps" -PropertyType DWord -Value 2
+    Enable-WindowsErrorReporting
 }
 
 function Install-FluentdAgent () {
@@ -251,17 +229,17 @@ function Start-FluentdSetup {
 function Write-MesosSecretFiles {
     # Write the credential files
     # NOTE: These are only some dumb secrets used for testing. DO NOT use in production!
-    if(Test-Path $MESOS_ETC_SERVICE_DIR) {
-        Remove-Item -Recurse -Force $MESOS_ETC_SERVICE_DIR
+    if(Test-Path $MESOS_CREDENTIALS_DIR) {
+        Remove-Item -Recurse -Force $MESOS_CREDENTIALS_DIR
     }
-    New-Item -ItemType "Directory" -Path $MESOS_ETC_SERVICE_DIR -Force
+    New-Item -ItemType "Directory" -Path $MESOS_CREDENTIALS_DIR -Force
     $utf8NoBOM = New-Object System.Text.UTF8Encoding $false
     $credentials = @{
         "principal" = "mycred1"
         "secret" = "mysecret1"
     }
     $json = ConvertTo-Json -InputObject $credentials -Compress
-    [System.IO.File]::WriteAllLines("$MESOS_ETC_SERVICE_DIR\credential.json", $json, $utf8NoBOM)
+    [System.IO.File]::WriteAllLines("$MESOS_CREDENTIALS_DIR\credential.json", $json, $utf8NoBOM)
     $httpCredentials = @{
         "credentials" = @(
             @{
@@ -271,15 +249,15 @@ function Write-MesosSecretFiles {
         )
     }
     $json = ConvertTo-Json -InputObject $httpCredentials -Compress
-    [System.IO.File]::WriteAllLines("$MESOS_ETC_SERVICE_DIR\http_credential.json", $json, $utf8NoBOM)
+    [System.IO.File]::WriteAllLines("$MESOS_CREDENTIALS_DIR\http_credential.json", $json, $utf8NoBOM)
     # Create the Mesos service environment file with authentication enabled
     $serviceEnv = @(
-        "MESOS_AUTHENTICATE_HTTP_READONLY=true",
-        "MESOS_AUTHENTICATE_HTTP_READWRITE=true",
-        "MESOS_HTTP_CREDENTIALS=$MESOS_ETC_SERVICE_DIR\http_credential.json",
-        "MESOS_CREDENTIAL=$MESOS_ETC_SERVICE_DIR\credential.json"
+        "`$env:MESOS_AUTHENTICATE_HTTP_READONLY='true'",
+        "`$env:MESOS_AUTHENTICATE_HTTP_READWRITE='true'",
+        "`$env:MESOS_HTTP_CREDENTIALS=`"$MESOS_CREDENTIALS_DIR\http_credential.json`"",
+        "`$env:MESOS_CREDENTIAL=`"$MESOS_CREDENTIALS_DIR\credential.json`""
     )
-    Set-Content -Path "${MESOS_ETC_SERVICE_DIR}\environment-file" -Value $serviceEnv -Encoding "default"
+    Set-Content -Path "$MESOS_CREDENTIALS_DIR\auth-env.ps1" -Value $serviceEnv -Encoding "default"
 }
 
 try {
