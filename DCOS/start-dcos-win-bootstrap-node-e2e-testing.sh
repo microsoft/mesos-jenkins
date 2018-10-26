@@ -49,7 +49,7 @@ create_testing_environment
 check_exit_code true
 
 # - Run the functional tests (for deployments with Windows bootstrap node)
-run_win_bootstrap_node_functional_tests
+run_functional_tests
 check_exit_code true
 
 # - Run fluentd tests

@@ -1,4 +1,4 @@
-foreach($name in "dcos-mesos-slave", "dcos-mesos-slave-public") {
+foreach($name in "dcos-mesos-slave.service", "dcos-mesos-slave-public.service") {
     $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
     if($svc) {
         $mesosServiceName = $name
