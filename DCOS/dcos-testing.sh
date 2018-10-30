@@ -1140,8 +1140,12 @@ test_dcos_upgrade() {
      local REMOTE_CMD="curl http://192.168.255.241:8086/bootstrap.latest"
      local NEW_WIN_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
 
-     if [[ $OLD_LINUX_BOOTSTRAP_ID == $NEW_LINUX_BOOTSTRAP_ID || $OLD_WIN_BOOTSTRAP_ID == $NEW_WIN_BOOTSTRAP_ID ]]; then
-         echo "ERROR: Bootstrap id is the same after dcos upgrade"
+     if [[ $OLD_LINUX_BOOTSTRAP_ID == $NEW_LINUX_BOOTSTRAP_ID ]]; then
+         echo "ERROR: Linux Bootstrap id is the same after dcos upgrade"
+         return 1
+     fi
+     if [[ $OLD_WIN_BOOTSTRAP_ID == $NEW_WIN_BOOTSTRAP_ID ]]; then
+         echo "ERROR: Windows Bootstrap id is the same after dcos upgrade"
          return 1
      fi
      
