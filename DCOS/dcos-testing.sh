@@ -1140,8 +1140,12 @@ test_dcos_upgrade() {
      local REMOTE_CMD="curl http://192.168.255.241:8086/bootstrap.latest"
      local NEW_WIN_BOOTSTRAP_ID=$(run_ssh_command -i $PRIVATE_SSH_KEY_PATH -u $LINUX_ADMIN -h $MASTER_PUBLIC_ADDRESS -p "2200" -c "$REMOTE_CMD" 2>/dev/null || return 1)
 
-     if [[ $OLD_LINUX_BOOTSTRAP_ID == $NEW_LINUX_BOOTSTRAP_ID || $OLD_WIN_BOOTSTRAP_ID == $NEW_WIN_BOOTSTRAP_ID ]]; then
-         echo "ERROR: Bootstrap id is the same after dcos upgrade"
+     if [[ $OLD_LINUX_BOOTSTRAP_ID == $NEW_LINUX_BOOTSTRAP_ID ]]; then
+         echo "ERROR: Linux Bootstrap id is the same after dcos upgrade"
+         return 1
+     fi
+     if [[ $OLD_WIN_BOOTSTRAP_ID == $NEW_WIN_BOOTSTRAP_ID ]]; then
+         echo "ERROR: Windows Bootstrap id is the same after dcos upgrade"
          return 1
      fi
      
@@ -1182,59 +1186,10 @@ run_functional_tests() {
     compare_azure_vms_and_dcos_agents || return 1
     test_custom_attributes || return 1
     test_master_agent_authentication || return 1
-    test_dcos_dns || return 1
-    test_iis || return 1
-    test_dcos_windows_apps || return 1
-}
-
-run_win_bootstrap_node_functional_tests() {
-    #
-    # Run the following DC/OS functional tests:
-    #  - Compare Azure VM IPs with DCOS IPs
-    #  - Test if the custom attributes are set
-    #  - Test if the Mesos master - agent authentication is enabled
-    #  - Test DC/OS DNS functionality from the Windows node
-    #  - Test a DC/OS Windows task with IIS web server
-    #
-    compare_azure_vms_and_dcos_agents || return 1
-    test_custom_attributes || return 1
-    test_master_agent_authentication || return 1
     test_dcos_upgrade || return 1
     test_dcos_dns || return 1
     test_iis || return 1
-    #
-    # TODO(ibalutoiu): Add test_dcos_windows_apps adapted for deployments with Windows bootstrap node
-    #                  and delete all the below since they are a subset of the function
-    # This is the list of stuff to port from there:
-    # - test_windows_agent_recovery
-    # - test_windows_agent_graceful_shutdown
-    # - test_windows_agent_ungraceful_shutdown
-    # - test_windows_agent_resiliency
-    #
-    local WIN_PRIVATE_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'private') || return 1
-    local WIN_PUBLIC_AGENTS_IPS=$($DIR/utils/dcos-node-addresses.py --operating-system 'windows' --role 'public') || return 1
-    if [[ -z $WIN_PRIVATE_AGENTS_IPS ]] && [[ -z $WIN_PUBLIC_AGENTS_IPS ]]; then
-        echo "ERROR: No Windows slaves registered"
-        return 1
-    fi
-    for PRIVATE_AGENT_IP in $WIN_PRIVATE_AGENTS_IPS; do
-        local AGENT_ROLE="*"
-        test_win_marathon_app_port_container "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_win_marathon_app_port_publish "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_docker_private_image "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_local "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_remote_http "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_remote_https "$PRIVATE_AGENT_IP" "$AGENT_ROLE" || return 1
-    done
-    for PUBLIC_AGENT_IP in $WIN_PUBLIC_AGENTS_IPS; do
-        local AGENT_ROLE="slave_public"
-        test_win_marathon_app_port_container "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_win_marathon_app_port_publish "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_docker_private_image "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_local "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_remote_http "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-        test_mesos_fetcher_remote_https "$PUBLIC_AGENT_IP" "$AGENT_ROLE" || return 1
-    done
+    test_dcos_windows_apps || return 1
 }
 
 collect_linux_masters_logs() {
