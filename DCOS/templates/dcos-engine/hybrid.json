@@ -3,7 +3,6 @@
   "properties": {
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
-      "orchestratorRelease": "1.11",
       "windowsBootstrapProfile": {
         "bootstrapURL": "${STABLE_DCOS_WINDOWS_BOOTSTRAP_URL}"
       }
