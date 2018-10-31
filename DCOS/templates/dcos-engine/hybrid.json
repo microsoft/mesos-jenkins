@@ -4,6 +4,7 @@
     "orchestratorProfile": {
       "orchestratorType": "DCOS",
       "windowsBootstrapProfile": {
+        "dockerVersion": "18.03.1-ee-4",
         "bootstrapURL": "${STABLE_DCOS_WINDOWS_BOOTSTRAP_URL}"
       }
     },
