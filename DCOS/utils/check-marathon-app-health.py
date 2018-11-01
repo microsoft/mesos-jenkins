@@ -12,7 +12,7 @@ def parse_parameters():
     parser.add_argument("-n", "--name", type=str, required=True,
                         help="The DCOS application name")
     parser.add_argument("--ignore-last-task-failure", action='store_true',
-                        required=False, default=False, help="Flag to ignore"
+                        required=False, default=True, help="Flag to ignore"
                         "last task failure, used for recovery testing")
     return parser.parse_args()
 
