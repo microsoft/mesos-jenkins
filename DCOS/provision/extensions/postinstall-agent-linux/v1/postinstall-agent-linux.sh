@@ -20,11 +20,6 @@ with open(CONFIG_FILE, 'w') as f:
     f.write(json.dumps(config, sort_keys=True, indent=2))
 EOF
 
-systemctl stop dcos-metrics-agent.socket
-systemctl disable dcos-metrics-agent.socket
-systemctl stop dcos-metrics-agent.service
-systemctl disable dcos-metrics-agent.service
-
 if [[ -e "/opt/mesosphere/etc/dcos-check-config.json" ]]; then
     python $UPDATE_CONFIG_SCRIPT "/opt/mesosphere/etc/dcos-check-config.json"
 elif [[ -e "/opt/mesosphere/etc/dcos-diagnostics-runner-config.json" ]]; then
