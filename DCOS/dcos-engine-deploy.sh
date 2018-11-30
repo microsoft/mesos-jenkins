@@ -96,11 +96,7 @@ fi
 if [[ "$VERBOSE" = "true" ]]; then
     EXTRA_PARAMS="$EXTRA_PARAMS --verbose"
 fi
-CLEANUP_TAG=""
-if [[ "$SET_CLEANUP_TAG" = "true" ]]; then
-    CLEANUP_TAG="--tags now=$(date +%s)"
-fi
-az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table $TAGS $EXTRA_PARAMS $CLEANUP_TAG
+az group create -l "$AZURE_REGION" -n "$AZURE_RESOURCE_GROUP" -o table $EXTRA_PARAMS --tags "expiration=${EXPIRATION:-}" "owner=cloudcleaner"
 echo "Validating the DC/OS ARM deployment templates"
 az group deployment validate -g "$AZURE_RESOURCE_GROUP" --template-file $DEPLOY_TEMPLATE_FILE --parameters @$DEPLOY_PARAMS_FILE -o table $EXTRA_PARAMS
 echo "Started the DC/OS deployment"
